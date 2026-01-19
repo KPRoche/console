@@ -112,6 +112,11 @@ const CARD_TITLES: Record<string, string> = {
   // Other
   upgrade_status: 'Cluster Upgrade Status',
   user_management: 'User Management',
+
+  // Klaude AI cards
+  klaude_issues: 'Klaude Issues',
+  klaude_kubeconfig_audit: 'Kubeconfig Audit',
+  klaude_health_check: 'Health Check',
 }
 
 export function CardWrapper({

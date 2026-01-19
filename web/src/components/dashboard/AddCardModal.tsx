@@ -57,6 +57,11 @@ const CARD_CATALOG = {
     { type: 'event_stream', title: 'Event Stream', description: 'Live Kubernetes event feed', visualization: 'events' },
     { type: 'user_management', title: 'User Management', description: 'Console users and Kubernetes RBAC', visualization: 'table' },
   ],
+  'Klaude AI': [
+    { type: 'klaude_issues', title: 'Klaude Issues', description: 'AI-powered issue detection and repair', visualization: 'status' },
+    { type: 'klaude_kubeconfig_audit', title: 'Kubeconfig Audit', description: 'Audit kubeconfig for stale contexts', visualization: 'status' },
+    { type: 'klaude_health_check', title: 'Health Check', description: 'Comprehensive AI health analysis', visualization: 'gauge' },
+  ],
 } as const
 
 interface CardSuggestion {

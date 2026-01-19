@@ -72,6 +72,8 @@ import { ArgoCDSyncStatus } from '../cards/ArgoCDSyncStatus'
 import { ArgoCDHealth } from '../cards/ArgoCDHealth'
 // User management card
 import { UserManagement } from '../cards/UserManagement'
+// Klaude AI mission cards
+import { KlaudeIssuesCard, KlaudeKubeconfigAuditCard, KlaudeHealthCheckCard } from '../cards/KlaudeMissions'
 import { AddCardModal } from './AddCardModal'
 import { ReplaceCardModal } from './ReplaceCardModal'
 import { ConfigureCardModal } from './ConfigureCardModal'
@@ -142,6 +144,10 @@ const CARD_COMPONENTS: Record<string, React.ComponentType<{ config?: Record<stri
   argocd_health: ArgoCDHealth,
   // User management
   user_management: UserManagement,
+  // Klaude AI mission cards
+  klaude_issues: KlaudeIssuesCard,
+  klaude_kubeconfig_audit: KlaudeKubeconfigAuditCard,
+  klaude_health_check: KlaudeHealthCheckCard,
 }
 
 // Cards that use demo/mock data instead of real data
