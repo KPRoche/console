@@ -20,12 +20,23 @@ const CARD_CATALOG = {
     { type: 'top_pods', title: 'Top Pods', description: 'Highest resource consuming pods', visualization: 'bar' },
     { type: 'app_status', title: 'Workload Status', description: 'Workload health overview', visualization: 'donut' },
   ],
-  'Resources': [
+  'Compute': [
+    { type: 'compute_overview', title: 'Compute Overview', description: 'CPU, memory, and GPU summary with live data', visualization: 'status' },
     { type: 'resource_usage', title: 'Resource Usage', description: 'CPU and memory utilization', visualization: 'gauge' },
     { type: 'resource_capacity', title: 'Resource Capacity', description: 'Cluster capacity and allocation', visualization: 'bar' },
     { type: 'gpu_overview', title: 'GPU Overview', description: 'Total GPUs across clusters', visualization: 'gauge' },
     { type: 'gpu_status', title: 'GPU Status', description: 'GPU utilization by state', visualization: 'donut' },
     { type: 'gpu_inventory', title: 'GPU Inventory', description: 'Detailed GPU list', visualization: 'table' },
+    { type: 'gpu_utilization', title: 'GPU Utilization Trend', description: 'GPU allocation over time with donut chart', visualization: 'timeseries' },
+  ],
+  'Storage': [
+    { type: 'storage_overview', title: 'Storage Overview', description: 'Total storage capacity and PVC summary', visualization: 'status' },
+    { type: 'pvc_status', title: 'PVC Status', description: 'Persistent Volume Claims with status breakdown', visualization: 'table' },
+  ],
+  'Network': [
+    { type: 'network_overview', title: 'Network Overview', description: 'Services breakdown by type and namespace', visualization: 'status' },
+    { type: 'service_status', title: 'Service Status', description: 'Service list with type and ports', visualization: 'table' },
+    { type: 'cluster_network', title: 'Cluster Network', description: 'API server and network info', visualization: 'status' },
   ],
   'GitOps': [
     { type: 'helm_release_status', title: 'Helm Releases', description: 'Helm release status and versions', visualization: 'status' },

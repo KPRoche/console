@@ -10,9 +10,13 @@ export interface DashboardCard {
 interface UseDashboardCardsOptions {
   storageKey: string
   defaultCards?: DashboardCard[]
+  /** Default collapsed state - defaults to false (expanded) */
+  defaultCollapsed?: boolean
 }
 
-export function useDashboardCards({ storageKey, defaultCards = [] }: UseDashboardCardsOptions) {
+export function useDashboardCards({ storageKey, defaultCards = [], defaultCollapsed = false }: UseDashboardCardsOptions) {
+  const collapsedKey = `${storageKey}:collapsed`
+
   const [cards, setCards] = useState<DashboardCard[]>(() => {
     try {
       const stored = localStorage.getItem(storageKey)
@@ -21,6 +25,26 @@ export function useDashboardCards({ storageKey, defaultCards = [] }: UseDashboar
       return defaultCards
     }
   })
+
+  // Collapsed state - persisted separately
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(collapsedKey)
+      // If not stored, use default (expanded = false collapsed)
+      return stored !== null ? JSON.parse(stored) : defaultCollapsed
+    } catch {
+      return defaultCollapsed
+    }
+  })
+
+  // Save collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem(collapsedKey, JSON.stringify(isCollapsed))
+  }, [isCollapsed, collapsedKey])
+
+  const toggleCollapsed = useCallback(() => {
+    setIsCollapsed(prev => !prev)
+  }, [])
 
   // Save to localStorage when cards change
   useEffect(() => {
@@ -63,5 +87,11 @@ export function useDashboardCards({ storageKey, defaultCards = [] }: UseDashboar
     updateCardConfig,
     replaceCards,
     clearCards,
+    // Collapsed state
+    isCollapsed,
+    setIsCollapsed,
+    toggleCollapsed,
+    /** Convenience: showCards = !isCollapsed */
+    showCards: !isCollapsed,
   }
 }

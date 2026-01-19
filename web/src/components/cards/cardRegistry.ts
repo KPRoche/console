@@ -21,6 +21,12 @@ import { EventsTimeline } from './EventsTimeline'
 import { PodHealthTrend } from './PodHealthTrend'
 import { ResourceTrend } from './ResourceTrend'
 import { GPUUtilization } from './GPUUtilization'
+// Dashboard-specific cards
+import { StorageOverview } from './StorageOverview'
+import { PVCStatus } from './PVCStatus'
+import { NetworkOverview } from './NetworkOverview'
+import { ServiceStatus } from './ServiceStatus'
+import { ComputeOverview } from './ComputeOverview'
 // Cluster-scoped cards
 import { ClusterFocus } from './ClusterFocus'
 import { ClusterComparison } from './ClusterComparison'
@@ -86,6 +92,12 @@ export const CARD_COMPONENTS: Record<string, CardComponent> = {
   pod_health_trend: PodHealthTrend,
   resource_trend: ResourceTrend,
   gpu_utilization: GPUUtilization,
+  // Dashboard-specific cards
+  storage_overview: StorageOverview,
+  pvc_status: PVCStatus,
+  network_overview: NetworkOverview,
+  service_status: ServiceStatus,
+  compute_overview: ComputeOverview,
   // Cluster-scoped cards
   cluster_focus: ClusterFocus,
   cluster_comparison: ClusterComparison,
