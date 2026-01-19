@@ -1382,10 +1382,18 @@ export function Clusters() {
 
   // Read filter from URL, default to 'all'
   const urlStatus = searchParams.get('status')
-  const initialFilter = (urlStatus === 'healthy' || urlStatus === 'unhealthy' || urlStatus === 'unreachable') ? urlStatus : 'all'
-  const [filter, setFilterState] = useState<'all' | 'healthy' | 'unhealthy' | 'unreachable'>(initialFilter)
+  const validFilter = (urlStatus === 'healthy' || urlStatus === 'unhealthy' || urlStatus === 'unreachable') ? urlStatus : 'all'
+  const [filter, setFilterState] = useState<'all' | 'healthy' | 'unhealthy' | 'unreachable'>(validFilter)
 
-  // Sync filter with URL
+  // Sync filter state with URL changes (e.g., when navigating from sidebar)
+  useEffect(() => {
+    const newFilter = (urlStatus === 'healthy' || urlStatus === 'unhealthy' || urlStatus === 'unreachable') ? urlStatus : 'all'
+    if (newFilter !== filter) {
+      setFilterState(newFilter)
+    }
+  }, [urlStatus, filter])
+
+  // Update URL when filter changes programmatically
   const setFilter = useCallback((newFilter: 'all' | 'healthy' | 'unhealthy' | 'unreachable') => {
     setFilterState(newFilter)
     if (newFilter === 'all') {
