@@ -1,3 +1,6 @@
+/* Load Google Fonts for themes */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Roboto+Condensed:wght@400;700&family=Source+Code+Pro:wght@400;500;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700&family=Share+Tech+Mono&family=Nunito:wght@400;500;600;700&family=Lato:wght@400;700&family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,14 +27,48 @@
     --ring: 252 73% 56%;
     --radius: 0.5rem;
 
-    /* KubeStellar brand colors */
+    /* KubeStellar brand colors - can be overridden by theme */
     --ks-purple: #9333ea;
     --ks-blue: #3b82f6;
     --ks-pink: #ec4899;
     --ks-green: #10b981;
     --ks-cyan: #06b6d4;
+
+    /* Status colors */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #06b6d4;
+
+    /* Glass effect - can be overridden by theme */
+    --glass-background: rgba(17, 24, 39, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: rgba(147, 51, 234, 0.2);
+
+    /* Scrollbar - can be overridden by theme */
+    --scrollbar-thumb: rgba(147, 51, 234, 0.3);
+    --scrollbar-thumb-hover: rgba(147, 51, 234, 0.5);
+
+    /* Chart colors */
+    --chart-color-1: #9333ea;
+    --chart-color-2: #3b82f6;
+    --chart-color-3: #10b981;
+    --chart-color-4: #f59e0b;
+    --chart-color-5: #ef4444;
+    --chart-color-6: #06b6d4;
+    --chart-color-7: #8b5cf6;
+    --chart-color-8: #14b8a6;
+
+    /* Font - can be overridden by theme */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
   }
 
+  /* Light theme fallback (overridden by JS when theme provider loads) */
   .light {
     --background: 0 0% 100%;
     --foreground: 0 0% 4%;
@@ -50,6 +87,12 @@
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 252 73% 56%;
+
+    --glass-background: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --glass-shadow: rgba(147, 51, 234, 0.1);
+    --scrollbar-thumb: rgba(147, 51, 234, 0.2);
+    --scrollbar-thumb-hover: rgba(147, 51, 234, 0.4);
   }
 }
 
@@ -60,11 +103,29 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-family);
+    font-weight: var(--font-weight-normal);
+  }
+
+  /* Apply font weights from theme */
+  .font-medium {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .font-semibold {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .font-bold {
+    font-weight: var(--font-weight-bold);
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
   }
 }
 
-/* KubeStellar gradients */
+/* KubeStellar gradients - use theme brand colors */
 .bg-gradient-ks {
   background: linear-gradient(135deg, var(--ks-purple), var(--ks-blue));
 }
@@ -80,40 +141,52 @@
   background-clip: text;
 }
 
-/* Glass effect */
+/* Only show gradient accents when theme supports it */
+.theme-gradient-accents .bg-gradient-ks,
+.theme-gradient-accents .bg-gradient-ks-pink {
+  /* Gradients enabled */
+}
+
+:not(.theme-gradient-accents) .bg-gradient-ks {
+  background: var(--ks-purple);
+}
+
+:not(.theme-gradient-accents) .bg-gradient-ks-pink {
+  background: var(--ks-purple);
+}
+
+:not(.theme-gradient-accents) .text-gradient-ks {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: var(--ks-purple);
+  background-clip: unset;
+  color: var(--ks-purple);
+}
+
+/* Glass effect - uses theme variables */
 .glass {
-  background: rgba(17, 24, 39, 0.8);
+  background: var(--glass-background);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
 }
 
-.light .glass {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-/* Light mode text color overrides */
-.light .text-white {
-  color: hsl(var(--foreground));
-}
-
-.light .text-muted-foreground {
-  color: hsl(var(--muted-foreground));
-}
-
-/* Card hover effects */
+/* Card hover effects - uses theme shadow */
 .card-hover {
   @apply transition-all duration-300;
 }
 
 .card-hover:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(147, 51, 234, 0.2);
+  box-shadow: 0 20px 40px var(--glass-shadow);
 }
 
-.light .card-hover:hover {
-  box-shadow: 0 20px 40px rgba(147, 51, 234, 0.15);
+/* Glow effects - only when theme supports it */
+.theme-glow-effects .card-hover:hover {
+  box-shadow: 0 20px 40px var(--glass-shadow);
+}
+
+:not(.theme-glow-effects) .card-hover:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Animations */
@@ -123,8 +196,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(147, 51, 234, 0.6); }
+  0%, 100% { box-shadow: 0 0 20px var(--glass-shadow); }
+  50% { box-shadow: 0 0 40px var(--glass-shadow); }
 }
 
 @keyframes fade-in-up {
@@ -140,27 +213,39 @@
   animation: pulse-glow 3s ease-in-out infinite;
 }
 
+/* Only animate glow when theme supports it */
+:not(.theme-glow-effects) .animate-pulse-glow {
+  animation: none;
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 0.5s ease-out forwards;
 }
 
-/* Status indicators */
+/* Status indicators - use theme status colors */
 .status-healthy {
-  @apply bg-green-500;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  background-color: var(--color-success);
+  box-shadow: 0 0 10px var(--color-success);
 }
 
 .status-warning {
-  @apply bg-yellow-500;
-  box-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+  background-color: var(--color-warning);
+  box-shadow: 0 0 10px var(--color-warning);
 }
 
 .status-error {
-  @apply bg-red-500;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  background-color: var(--color-error);
+  box-shadow: 0 0 10px var(--color-error);
 }
 
-/* Scrollbar */
+/* Status glow only when theme supports it */
+:not(.theme-glow-effects) .status-healthy,
+:not(.theme-glow-effects) .status-warning,
+:not(.theme-glow-effects) .status-error {
+  box-shadow: none;
+}
+
+/* Scrollbar - uses theme variables */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -171,33 +256,26 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(147, 51, 234, 0.3);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(147, 51, 234, 0.5);
+  background: var(--scrollbar-thumb-hover);
 }
 
-.light ::-webkit-scrollbar-thumb {
-  background: rgba(147, 51, 234, 0.2);
-}
-
-.light ::-webkit-scrollbar-thumb:hover {
-  background: rgba(147, 51, 234, 0.4);
-}
-
-/* Star field background */
+/* Star field background - only when theme supports it */
 .star-field {
   position: fixed;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
   z-index: -1;
+  display: none;
 }
 
-.light .star-field {
-  display: none;
+.theme-star-field .star-field {
+  display: block;
 }
 
 .star {
@@ -212,12 +290,20 @@
   50% { opacity: 1; transform: scale(1); }
 }
 
-/* Button styles */
+/* Button styles - use theme colors */
 .btn-primary {
-  @apply bg-gradient-ks text-white font-medium px-4 py-2 rounded-lg;
+  @apply text-white font-medium px-4 py-2 rounded-lg;
   @apply transition-all duration-300;
-  @apply hover:shadow-lg hover:shadow-purple-500/25;
   @apply active:scale-95;
+  background: linear-gradient(135deg, var(--ks-purple), var(--ks-blue));
+}
+
+.theme-glow-effects .btn-primary:hover {
+  box-shadow: 0 4px 20px var(--glass-shadow);
+}
+
+:not(.theme-gradient-accents) .btn-primary {
+  background: var(--ks-purple);
 }
 
 .btn-secondary {
@@ -236,9 +322,10 @@
   @apply transition-all duration-200;
 }
 
-/* Loading spinner */
+/* Loading spinner - uses theme primary */
 .spinner {
-  @apply animate-spin rounded-full border-2 border-muted border-t-primary;
+  @apply animate-spin rounded-full border-2 border-muted;
+  border-top-color: var(--ks-purple);
 }
 
 /* Shimmer animation for skeleton loading */
@@ -247,7 +334,7 @@
   100% { background-position: 200% 0; }
 }
 
-.animate-shimmer {
+.dark .animate-shimmer {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.05) 25%,
@@ -266,6 +353,7 @@
     rgba(0, 0, 0, 0.05) 75%
   );
   background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
 /* Smooth value transitions */
@@ -360,3 +448,55 @@
 .content-loaded {
   animation: content-fade-in 0.2s ease-out;
 }
+
+/* Theme-specific overrides */
+
+/* Batman theme - extra dark with yellow glow */
+[data-theme="batman"] .glass {
+  box-shadow: inset 0 1px 0 0 rgba(251, 191, 36, 0.1);
+}
+
+[data-theme="batman"] .btn-primary {
+  background: #fbbf24;
+  color: #000;
+}
+
+[data-theme="batman"] .btn-primary:hover {
+  background: #fcd34d;
+}
+
+/* Matrix theme - scanline effect */
+[data-theme="matrix"]::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1) 0px,
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* Cyberpunk theme - neon glow */
+[data-theme="cyberpunk"] .glass {
+  box-shadow:
+    0 0 20px rgba(255, 42, 109, 0.1),
+    inset 0 1px 0 0 rgba(0, 255, 255, 0.1);
+}
+
+[data-theme="cyberpunk"] .btn-primary {
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* Tokyo Night theme - subtle neon */
+[data-theme="tokyo-night"] .glass {
+  box-shadow: inset 0 1px 0 0 rgba(122, 162, 247, 0.1);
+}
+

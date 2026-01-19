@@ -20,6 +20,7 @@ import { NamespaceManager } from './components/namespaces/NamespaceManager'
 import { Layout } from './components/layout/Layout'
 import { DrillDownModal } from './components/drilldown/DrillDownModal'
 import { AuthProvider, useAuth } from './lib/auth'
+import { ThemeProvider } from './hooks/useTheme'
 import { DrillDownProvider } from './hooks/useDrillDown'
 import { DashboardProvider, useDashboardContext } from './hooks/useDashboardContext'
 import { GlobalFiltersProvider } from './hooks/useGlobalFilters'
@@ -76,6 +77,7 @@ function OnboardedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <ToastProvider>
       <GlobalFiltersProvider>
@@ -270,6 +272,7 @@ function App() {
       </GlobalFiltersProvider>
       </ToastProvider>
     </AuthProvider>
+    </ThemeProvider>
   )
 }
 
