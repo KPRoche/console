@@ -7,6 +7,7 @@ import { Gauge } from '../charts/Gauge'
 import { NodeListItem } from './NodeListItem'
 import { NodeDetailPanel } from './NodeDetailPanel'
 import { NamespaceResources } from './components'
+import { CPUDetailModal, MemoryDetailModal, StorageDetailModal, GPUDetailModal } from './ResourceDetailModals'
 
 interface ClusterDetailModalProps {
   clusterName: string
@@ -28,6 +29,11 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
   const [showNodeDetails, setShowNodeDetails] = useState(false)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [expandedNamespace, setExpandedNamespace] = useState<string | null>(null)
+  // Resource detail modals
+  const [showCPUDetail, setShowCPUDetail] = useState(false)
+  const [showMemoryDetail, setShowMemoryDetail] = useState(false)
+  const [showStorageDetail, setShowStorageDetail] = useState(false)
+  const [showGPUDetail, setShowGPUDetail] = useState(false)
 
   // ESC to close
   useEffect(() => {
@@ -175,7 +181,14 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
               </>
             )}
           </button>
-          <div className={`p-4 rounded-lg bg-card/50 border ${clusterGPUs.length > 0 ? 'border-border' : 'border-border'}`}>
+          <button
+            onClick={() => !isUnreachable && !isLoading && clusterGPUs.length > 0 && setShowGPUDetail(true)}
+            disabled={isUnreachable || isLoading || clusterGPUs.length === 0}
+            className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
+              !isUnreachable && !isLoading && clusterGPUs.length > 0 ? 'border-border hover:border-yellow-500/50 hover:bg-yellow-500/5 hover:shadow-lg hover:shadow-yellow-500/10 cursor-pointer' : 'border-border cursor-default'
+            }`}
+            title={!isUnreachable && !isLoading && clusterGPUs.length > 0 ? 'Click to view GPU details' : undefined}
+          >
             {isLoading ? (
               <>
                 <div className="h-8 w-12 bg-muted/30 rounded animate-pulse mb-1" />
@@ -187,14 +200,24 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
                 <div className="text-2xl font-bold text-foreground">{!isUnreachable ? clusterGPUs.reduce((sum, n) => sum + n.gpuCount, 0) : '-'}</div>
                 <div className="text-sm text-muted-foreground">GPUs</div>
                 <div className="text-xs text-yellow-400">{!isUnreachable ? `${clusterGPUs.reduce((sum, n) => sum + n.gpuAllocated, 0)} allocated` : ''}</div>
+                {!isUnreachable && clusterGPUs.length > 0 && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-yellow-400/70 transition-colors">click for details</div>
+                )}
               </>
             )}
-          </div>
+          </button>
         </div>
 
-        {/* Resource Metrics */}
+        {/* Resource Metrics - Clickable cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="p-4 rounded-lg bg-card/50 border border-border">
+          <button
+            onClick={() => !isUnreachable && !isLoading && setShowCPUDetail(true)}
+            disabled={isUnreachable || isLoading}
+            className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
+              !isUnreachable && !isLoading ? 'border-border hover:border-blue-500/50 hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer' : 'border-border cursor-default'
+            }`}
+            title={!isUnreachable && !isLoading ? 'Click to view CPU details' : undefined}
+          >
             <div className="flex items-center gap-2 mb-2">
               <Cpu className="w-4 h-4 text-blue-400" />
               <span className="text-sm text-muted-foreground">CPU</span>
@@ -208,10 +231,20 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
               <>
                 <div className="text-2xl font-bold text-foreground">{!isUnreachable ? (health?.cpuCores || 0) : '-'}</div>
                 <div className="text-xs text-muted-foreground">cores allocatable</div>
+                {!isUnreachable && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-blue-400/70 transition-colors">click for details</div>
+                )}
               </>
             )}
-          </div>
-          <div className="p-4 rounded-lg bg-card/50 border border-border">
+          </button>
+          <button
+            onClick={() => !isUnreachable && !isLoading && setShowMemoryDetail(true)}
+            disabled={isUnreachable || isLoading}
+            className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
+              !isUnreachable && !isLoading ? 'border-border hover:border-green-500/50 hover:bg-green-500/5 hover:shadow-lg hover:shadow-green-500/10 cursor-pointer' : 'border-border cursor-default'
+            }`}
+            title={!isUnreachable && !isLoading ? 'Click to view memory details' : undefined}
+          >
             <div className="flex items-center gap-2 mb-2">
               <MemoryStick className="w-4 h-4 text-green-400" />
               <span className="text-sm text-muted-foreground">Memory</span>
@@ -227,10 +260,20 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
                   {!isUnreachable ? (health?.memoryGB ? (health.memoryGB >= 1024 ? `${(health.memoryGB / 1024).toFixed(1)} TB` : `${Math.round(health.memoryGB)} GB`) : '0 GB') : '-'}
                 </div>
                 <div className="text-xs text-muted-foreground">allocatable</div>
+                {!isUnreachable && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-green-400/70 transition-colors">click for details</div>
+                )}
               </>
             )}
-          </div>
-          <div className="p-4 rounded-lg bg-card/50 border border-border">
+          </button>
+          <button
+            onClick={() => !isUnreachable && !isLoading && setShowStorageDetail(true)}
+            disabled={isUnreachable || isLoading}
+            className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
+              !isUnreachable && !isLoading ? 'border-border hover:border-purple-500/50 hover:bg-purple-500/5 hover:shadow-lg hover:shadow-purple-500/10 cursor-pointer' : 'border-border cursor-default'
+            }`}
+            title={!isUnreachable && !isLoading ? 'Click to view storage details' : undefined}
+          >
             <div className="flex items-center gap-2 mb-2">
               <Database className="w-4 h-4 text-purple-400" />
               <span className="text-sm text-muted-foreground">Storage</span>
@@ -246,9 +289,12 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
                   {!isUnreachable ? (health?.storageGB ? (health.storageGB >= 1024 ? `${(health.storageGB / 1024).toFixed(1)} TB` : `${Math.round(health.storageGB)} GB`) : '0 GB') : '-'}
                 </div>
                 <div className="text-xs text-muted-foreground">ephemeral</div>
+                {!isUnreachable && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-purple-400/70 transition-colors">click for details</div>
+                )}
               </>
             )}
-          </div>
+          </button>
         </div>
 
         {/* Pods by Namespace - Expandable with drill-down */}
@@ -482,6 +528,89 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
           </div>
         )}
       </div>
+
+      {/* Resource Detail Modals */}
+      {showCPUDetail && (
+        <CPUDetailModal
+          clusterName={clusterName}
+          totalCores={health?.cpuCores || 0}
+          allocatableCores={health?.cpuCores || 0}
+          nodes={clusterNodes.map(n => ({
+            name: n.name,
+            cpuCapacity: parseInt(n.cpuCapacity) || 0,
+            cpuAllocatable: parseInt(n.cpuCapacity) || 0, // Use capacity as allocatable estimate
+          }))}
+          isLoading={nodesLoading}
+          onClose={() => setShowCPUDetail(false)}
+        />
+      )}
+
+      {showMemoryDetail && (
+        <MemoryDetailModal
+          clusterName={clusterName}
+          totalMemoryGB={health?.memoryGB || 0}
+          allocatableMemoryGB={health?.memoryGB || 0}
+          nodes={clusterNodes.map(n => {
+            // Parse memory string like "16Gi" or "16384Mi"
+            const memStr = n.memoryCapacity || '0'
+            let memGB = 0
+            if (memStr.endsWith('Gi')) {
+              memGB = parseFloat(memStr.replace('Gi', ''))
+            } else if (memStr.endsWith('Mi')) {
+              memGB = parseFloat(memStr.replace('Mi', '')) / 1024
+            } else if (memStr.endsWith('Ki')) {
+              memGB = parseFloat(memStr.replace('Ki', '')) / (1024 * 1024)
+            }
+            return {
+              name: n.name,
+              memoryCapacityGB: memGB,
+              memoryAllocatableGB: memGB, // Use capacity as allocatable estimate
+            }
+          })}
+          isLoading={nodesLoading}
+          onClose={() => setShowMemoryDetail(false)}
+        />
+      )}
+
+      {showStorageDetail && (
+        <StorageDetailModal
+          clusterName={clusterName}
+          totalStorageGB={health?.storageGB || 0}
+          allocatableStorageGB={health?.storageGB || 0}
+          nodes={clusterNodes.map(n => {
+            // Parse storage string like "100Gi" or "102400Mi"
+            const storageStr = n.storageCapacity || '0'
+            let storageGB = 0
+            if (storageStr.endsWith('Gi')) {
+              storageGB = parseFloat(storageStr.replace('Gi', ''))
+            } else if (storageStr.endsWith('Mi')) {
+              storageGB = parseFloat(storageStr.replace('Mi', '')) / 1024
+            } else if (storageStr.endsWith('Ti')) {
+              storageGB = parseFloat(storageStr.replace('Ti', '')) * 1024
+            }
+            return {
+              name: n.name,
+              ephemeralStorageGB: storageGB,
+            }
+          })}
+          isLoading={nodesLoading}
+          onClose={() => setShowStorageDetail(false)}
+        />
+      )}
+
+      {showGPUDetail && (
+        <GPUDetailModal
+          clusterName={clusterName}
+          gpuNodes={clusterGPUs.map(n => ({
+            name: n.name,
+            gpuType: n.gpuType || 'Unknown',
+            gpuCount: n.gpuCount,
+            gpuAllocated: n.gpuAllocated,
+          }))}
+          isLoading={isLoading}
+          onClose={() => setShowGPUDetail(false)}
+        />
+      )}
     </div>,
     document.body
   )
