@@ -45,7 +45,7 @@ export function Layout({ children }: LayoutProps) {
       </div>
 
       <Navbar />
-      <div className="flex">
+      <div className="flex pt-16">
         <Sidebar />
         <main className={cn(
           'flex-1 p-6 transition-all duration-300',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Folder,
   Plus,
@@ -48,16 +48,34 @@ export function NamespaceManager() {
   const [showGrantAccessModal, setShowGrantAccessModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const targetClusters = isAllClustersSelected
-    ? clusters.map(c => c.name)
-    : selectedClusters
+  // Track if we've fetched to prevent infinite loops
+  const hasFetchedRef = useRef(false)
+  const lastFetchKeyRef = useRef<string>('')
 
-  // Filter to only clusters where user is admin
-  const adminClusters = targetClusters.filter(c => isClusterAdmin(c))
+  // Memoize to prevent unnecessary recalculations
+  const adminClusters = useMemo(() => {
+    const targetClusters = isAllClustersSelected
+      ? clusters.map(c => c.name)
+      : selectedClusters
+    return targetClusters.filter(c => isClusterAdmin(c))
+  }, [clusters, selectedClusters, isAllClustersSelected, isClusterAdmin])
 
-  const fetchNamespaces = useCallback(async () => {
-    if (adminClusters.length === 0) return
+  // Create a stable key for dependency tracking
+  const adminClustersKey = useMemo(() => [...adminClusters].sort().join(','), [adminClusters])
 
+  const fetchNamespaces = useCallback(async (force = false) => {
+    // Prevent infinite loops - only fetch if key changed or forced
+    if (!force && lastFetchKeyRef.current === adminClustersKey && hasFetchedRef.current) {
+      return
+    }
+
+    if (adminClusters.length === 0) {
+      setNamespaces([])
+      return
+    }
+
+    hasFetchedRef.current = true
+    lastFetchKeyRef.current = adminClustersKey
     setLoading(true)
     setError(null)
 
@@ -68,7 +86,7 @@ export function NamespaceManager() {
     await Promise.all(
       adminClusters.map(async (cluster) => {
         try {
-          const response = await api.get(`/namespaces?cluster=${cluster}`)
+          const response = await api.get(`/namespaces?cluster=${encodeURIComponent(cluster)}`)
           if (response.data && Array.isArray(response.data)) {
             allNamespaces.push(...response.data)
           }
@@ -89,7 +107,7 @@ export function NamespaceManager() {
     }
 
     setLoading(false)
-  }, [adminClusters])
+  }, [adminClusters, adminClustersKey])
 
   const fetchAccess = useCallback(async (namespace: NamespaceDetails) => {
     setAccessLoading(true)
@@ -104,9 +122,15 @@ export function NamespaceManager() {
     }
   }, [])
 
+  // Fetch namespaces when admin clusters change
   useEffect(() => {
-    fetchNamespaces()
-  }, [fetchNamespaces])
+    // Only fetch if we have clusters and haven't fetched this key yet
+    // Also skip if clusters are still loading (empty)
+    if (adminClustersKey && clusters.length > 0 && adminClustersKey !== lastFetchKeyRef.current) {
+      fetchNamespaces()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminClustersKey, clusters.length])
 
   useEffect(() => {
     if (selectedNamespace) {
@@ -192,7 +216,7 @@ export function NamespaceManager() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => fetchNamespaces()}
+            onClick={() => fetchNamespaces(true)}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-muted-foreground hover:text-white transition-colors disabled:opacity-50"
           >

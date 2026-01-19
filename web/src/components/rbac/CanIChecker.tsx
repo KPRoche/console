@@ -3,6 +3,42 @@ import { Shield, Check, X, Loader2, AlertCircle } from 'lucide-react'
 import { useCanI, usePermissions } from '../../hooks/usePermissions'
 
 const COMMON_VERBS = ['get', 'list', 'create', 'update', 'delete', 'watch', 'patch']
+
+// Resource to API group mapping - required for correct permission checks
+const RESOURCE_API_GROUPS: Record<string, string> = {
+  // Core API (empty string)
+  pods: '',
+  services: '',
+  secrets: '',
+  configmaps: '',
+  namespaces: '',
+  nodes: '',
+  persistentvolumeclaims: '',
+  serviceaccounts: '',
+  events: '',
+  endpoints: '',
+  // apps API group
+  deployments: 'apps',
+  replicasets: 'apps',
+  statefulsets: 'apps',
+  daemonsets: 'apps',
+  // rbac.authorization.k8s.io
+  roles: 'rbac.authorization.k8s.io',
+  rolebindings: 'rbac.authorization.k8s.io',
+  clusterroles: 'rbac.authorization.k8s.io',
+  clusterrolebindings: 'rbac.authorization.k8s.io',
+  // batch
+  jobs: 'batch',
+  cronjobs: 'batch',
+  // networking.k8s.io
+  ingresses: 'networking.k8s.io',
+  networkpolicies: 'networking.k8s.io',
+  // autoscaling
+  horizontalpodautoscalers: 'autoscaling',
+  // storage.k8s.io
+  storageclasses: 'storage.k8s.io',
+}
+
 const COMMON_RESOURCES = [
   'pods',
   'deployments',
@@ -17,6 +53,11 @@ const COMMON_RESOURCES = [
   'rolebindings',
   'clusterroles',
   'clusterrolebindings',
+  'jobs',
+  'cronjobs',
+  'ingresses',
+  'statefulsets',
+  'daemonsets',
 ]
 
 export function CanIChecker() {
@@ -41,12 +82,16 @@ export function CanIChecker() {
 
     if (!selectedVerb || !selectedResource) return
 
+    // Auto-detect API group from resource, or use manual override if provided
+    const autoGroup = RESOURCE_API_GROUPS[selectedResource]
+    const effectiveGroup = group || autoGroup
+
     await checkPermission({
       cluster: selectedCluster,
       verb: selectedVerb,
       resource: selectedResource,
       namespace: namespace || undefined,
-      group: group || undefined,
+      group: effectiveGroup !== undefined ? effectiveGroup : undefined,
     })
   }, [cluster, clusters, verb, customVerb, resource, customResource, namespace, group, checkPermission])
 
@@ -177,17 +222,26 @@ export function CanIChecker() {
         {showAdvanced && (
           <div>
             <label htmlFor="group-input" className="block text-sm font-medium text-foreground mb-1">
-              API Group <span className="text-muted-foreground">(e.g., apps, rbac.authorization.k8s.io)</span>
+              API Group <span className="text-muted-foreground">(override auto-detected group)</span>
             </label>
             <input
               id="group-input"
               type="text"
               value={group}
               onChange={(e) => setGroup(e.target.value)}
-              placeholder="e.g., apps"
+              placeholder={
+                resource !== 'custom' && RESOURCE_API_GROUPS[resource] !== undefined
+                  ? `Auto: ${RESOURCE_API_GROUPS[resource] || '(core)'}`
+                  : 'e.g., apps'
+              }
               className="w-full p-2 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               data-testid="can-i-group"
             />
+            {resource !== 'custom' && RESOURCE_API_GROUPS[resource] !== undefined && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Auto-detected: <code className="px-1 py-0.5 rounded bg-secondary">{RESOURCE_API_GROUPS[resource] || '(core API)'}</code>
+              </p>
+            )}
           </div>
         )}
 
