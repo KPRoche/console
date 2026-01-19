@@ -1,7 +1,13 @@
 import { useState, useMemo } from 'react'
+import { Shield, ShieldAlert, ShieldCheck, ShieldX, Users, Key, Lock, Eye, Clock, AlertTriangle, CheckCircle2, XCircle, ChevronRight } from 'lucide-react'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { StatusIndicator } from '../charts/StatusIndicator'
+import { DonutChart } from '../charts/PieChart'
+import { ProgressBar } from '../charts/ProgressBar'
 import { ClusterBadge } from '../ui/ClusterBadge'
+import { cn } from '../../lib/cn'
+
+type ViewTab = 'overview' | 'issues' | 'rbac' | 'compliance'
 
 // Mock security data - in production would come from klaude-ops check_security_issues
 interface SecurityIssue {
@@ -11,6 +17,27 @@ interface SecurityIssue {
   namespace: string
   cluster: string
   message: string
+}
+
+// Mock RBAC data
+interface RBACBinding {
+  name: string
+  kind: 'Role' | 'ClusterRole'
+  subjects: { kind: string; name: string }[]
+  cluster: string
+  namespace?: string
+  permissions: string[]
+  riskLevel: 'high' | 'medium' | 'low'
+}
+
+// Mock compliance checks
+interface ComplianceCheck {
+  id: string
+  name: string
+  category: string
+  status: 'pass' | 'fail' | 'warn'
+  description: string
+  cluster: string
 }
 
 function getMockSecurityData(): SecurityIssue[] {
@@ -39,6 +66,84 @@ function getMockSecurityData(): SecurityIssue[] {
       cluster: 'vllm-d',
       message: 'No security context defined',
     },
+    {
+      type: 'hostNetwork',
+      severity: 'high',
+      resource: 'network-agent',
+      namespace: 'kube-system',
+      cluster: 'ops',
+      message: 'Container uses host network',
+    },
+    {
+      type: 'hostPID',
+      severity: 'high',
+      resource: 'process-monitor',
+      namespace: 'monitoring',
+      cluster: 'vllm-d',
+      message: 'Container uses host PID namespace',
+    },
+    {
+      type: 'root',
+      severity: 'medium',
+      resource: 'backup-agent',
+      namespace: 'default',
+      cluster: 'kind',
+      message: 'Container runs as root user',
+    },
+  ]
+}
+
+function getMockRBACData(): RBACBinding[] {
+  return [
+    {
+      name: 'cluster-admin-binding',
+      kind: 'ClusterRole',
+      subjects: [{ kind: 'User', name: 'admin@company.com' }],
+      cluster: 'ops',
+      permissions: ['*'],
+      riskLevel: 'high',
+    },
+    {
+      name: 'developer-role',
+      kind: 'Role',
+      subjects: [{ kind: 'Group', name: 'developers' }],
+      cluster: 'vllm-d',
+      namespace: 'default',
+      permissions: ['get', 'list', 'watch', 'create', 'update', 'delete pods'],
+      riskLevel: 'medium',
+    },
+    {
+      name: 'viewer-role',
+      kind: 'ClusterRole',
+      subjects: [{ kind: 'ServiceAccount', name: 'monitoring-sa' }],
+      cluster: 'ops',
+      permissions: ['get', 'list', 'watch'],
+      riskLevel: 'low',
+    },
+    {
+      name: 'secret-admin',
+      kind: 'Role',
+      subjects: [{ kind: 'User', name: 'vault-admin@company.com' }],
+      cluster: 'ops',
+      namespace: 'vault',
+      permissions: ['*secrets*'],
+      riskLevel: 'high',
+    },
+  ]
+}
+
+function getMockComplianceData(): ComplianceCheck[] {
+  return [
+    { id: 'pss-001', name: 'Pod Security Standards', category: 'Pod Security', status: 'pass', description: 'Restricted PSS enforced in production namespaces', cluster: 'ops' },
+    { id: 'pss-002', name: 'Pod Security Standards', category: 'Pod Security', status: 'warn', description: 'Baseline PSS only in development namespaces', cluster: 'vllm-d' },
+    { id: 'net-001', name: 'Network Policies', category: 'Network', status: 'pass', description: 'Default deny network policy applied', cluster: 'ops' },
+    { id: 'net-002', name: 'Network Policies', category: 'Network', status: 'fail', description: 'No network policies in default namespace', cluster: 'vllm-d' },
+    { id: 'rbac-001', name: 'RBAC Least Privilege', category: 'RBAC', status: 'warn', description: '3 cluster-admin bindings detected', cluster: 'ops' },
+    { id: 'rbac-002', name: 'RBAC Least Privilege', category: 'RBAC', status: 'pass', description: 'Service accounts use minimal permissions', cluster: 'kind' },
+    { id: 'sec-001', name: 'Secrets Encryption', category: 'Secrets', status: 'pass', description: 'etcd encryption at rest enabled', cluster: 'ops' },
+    { id: 'sec-002', name: 'Secrets Encryption', category: 'Secrets', status: 'fail', description: 'Secrets not encrypted at rest', cluster: 'kind' },
+    { id: 'img-001', name: 'Image Scanning', category: 'Images', status: 'pass', description: 'All images scanned with no critical CVEs', cluster: 'ops' },
+    { id: 'img-002', name: 'Image Signing', category: 'Images', status: 'warn', description: 'Image signature verification not enforced', cluster: 'vllm-d' },
   ]
 }
 
@@ -50,9 +155,13 @@ export function Security() {
     customFilter,
   } = useGlobalFilters()
   const [severityFilter, setSeverityFilter] = useState<string>('all')
+  const [activeTab, setActiveTab] = useState<ViewTab>('overview')
+  const [selectedIssueType, setSelectedIssueType] = useState<string | null>(null)
 
   // In production, fetch from API
   const securityIssues = useMemo(() => getMockSecurityData(), [])
+  const rbacBindings = useMemo(() => getMockRBACData(), [])
+  const complianceChecks = useMemo(() => getMockComplianceData(), [])
 
   // Issues after global filter (before local severity filter)
   const globalFilteredIssues = useMemo(() => {
@@ -89,12 +198,86 @@ export function Security() {
     return result
   }, [globalFilteredIssues, severityFilter])
 
-  const stats = useMemo(() => ({
-    total: globalFilteredIssues.length,
-    high: globalFilteredIssues.filter(i => i.severity === 'high').length,
-    medium: globalFilteredIssues.filter(i => i.severity === 'medium').length,
-    low: globalFilteredIssues.filter(i => i.severity === 'low').length,
-  }), [globalFilteredIssues])
+  // Filter RBAC and compliance based on clusters
+  const filteredRBAC = useMemo(() => {
+    if (isAllClustersSelected) return rbacBindings
+    return rbacBindings.filter(b => globalSelectedClusters.includes(b.cluster))
+  }, [rbacBindings, globalSelectedClusters, isAllClustersSelected])
+
+  const filteredCompliance = useMemo(() => {
+    if (isAllClustersSelected) return complianceChecks
+    return complianceChecks.filter(c => globalSelectedClusters.includes(c.cluster))
+  }, [complianceChecks, globalSelectedClusters, isAllClustersSelected])
+
+  const stats = useMemo(() => {
+    const high = globalFilteredIssues.filter(i => i.severity === 'high').length
+    const medium = globalFilteredIssues.filter(i => i.severity === 'medium').length
+    const low = globalFilteredIssues.filter(i => i.severity === 'low').length
+
+    // Issue type counts
+    const typeCounts = globalFilteredIssues.reduce((acc, issue) => {
+      acc[issue.type] = (acc[issue.type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    // Cluster distribution
+    const clusterCounts = globalFilteredIssues.reduce((acc, issue) => {
+      acc[issue.cluster] = (acc[issue.cluster] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    // RBAC stats
+    const rbacHighRisk = filteredRBAC.filter(r => r.riskLevel === 'high').length
+    const rbacMedRisk = filteredRBAC.filter(r => r.riskLevel === 'medium').length
+    const rbacLowRisk = filteredRBAC.filter(r => r.riskLevel === 'low').length
+
+    // Compliance stats
+    const compliancePass = filteredCompliance.filter(c => c.status === 'pass').length
+    const complianceFail = filteredCompliance.filter(c => c.status === 'fail').length
+    const complianceWarn = filteredCompliance.filter(c => c.status === 'warn').length
+    const complianceScore = filteredCompliance.length > 0
+      ? Math.round((compliancePass / filteredCompliance.length) * 100)
+      : 100
+
+    return {
+      total: globalFilteredIssues.length,
+      high,
+      medium,
+      low,
+      typeCounts,
+      clusterCounts,
+      rbacTotal: filteredRBAC.length,
+      rbacHighRisk,
+      rbacMedRisk,
+      rbacLowRisk,
+      complianceTotal: filteredCompliance.length,
+      compliancePass,
+      complianceFail,
+      complianceWarn,
+      complianceScore,
+      // Chart data
+      severityChartData: [
+        { name: 'High', value: high, color: '#ef4444' },
+        { name: 'Medium', value: medium, color: '#f59e0b' },
+        { name: 'Low', value: low, color: '#3b82f6' },
+      ].filter(d => d.value > 0),
+      typeChartData: Object.entries(typeCounts).map(([name, value], i) => ({
+        name: name.replace(/([A-Z])/g, ' $1').trim(),
+        value,
+        color: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'][i % 5],
+      })),
+      rbacChartData: [
+        { name: 'High Risk', value: rbacHighRisk, color: '#ef4444' },
+        { name: 'Medium Risk', value: rbacMedRisk, color: '#f59e0b' },
+        { name: 'Low Risk', value: rbacLowRisk, color: '#10b981' },
+      ].filter(d => d.value > 0),
+      complianceChartData: [
+        { name: 'Pass', value: compliancePass, color: '#10b981' },
+        { name: 'Warn', value: complianceWarn, color: '#f59e0b' },
+        { name: 'Fail', value: complianceFail, color: '#ef4444' },
+      ].filter(d => d.value > 0),
+    }
+  }, [globalFilteredIssues, filteredRBAC, filteredCompliance])
 
   const severityColor = (severity: string) => {
     switch (severity) {
@@ -128,119 +311,615 @@ export function Security() {
     }
   }
 
+  // Get type label for display
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      privileged: 'Privileged Container',
+      root: 'Running as Root',
+      hostNetwork: 'Host Network',
+      hostPID: 'Host PID',
+      noSecurityContext: 'No Security Context',
+    }
+    return labels[type] || type
+  }
+
+  // Group compliance by category
+  const complianceByCategory = useMemo(() => {
+    return filteredCompliance.reduce((acc, check) => {
+      if (!acc[check.category]) acc[check.category] = []
+      acc[check.category].push(check)
+      return acc
+    }, {} as Record<string, ComplianceCheck[]>)
+  }, [filteredCompliance])
+
   return (
     <div className="pt-16">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Security</h1>
-        <p className="text-muted-foreground">RBAC and security policies across your clusters</p>
+        <p className="text-muted-foreground">RBAC, compliance, and security policies across your clusters</p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="glass p-4 rounded-lg">
-          <div className="text-3xl font-bold text-foreground">{stats.total}</div>
-          <div className="text-sm text-muted-foreground">Total Issues</div>
-        </div>
-        <div className="glass p-4 rounded-lg">
-          <div className="text-3xl font-bold text-red-400">{stats.high}</div>
-          <div className="text-sm text-muted-foreground">High Severity</div>
-        </div>
-        <div className="glass p-4 rounded-lg">
-          <div className="text-3xl font-bold text-yellow-400">{stats.medium}</div>
-          <div className="text-sm text-muted-foreground">Medium Severity</div>
-        </div>
-        <div className="glass p-4 rounded-lg">
-          <div className="text-3xl font-bold text-blue-400">{stats.low}</div>
-          <div className="text-sm text-muted-foreground">Low Severity</div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="flex gap-2">
-          {['all', 'high', 'medium', 'low'].map(sev => (
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-border">
+        {[
+          { id: 'overview', label: 'Overview', icon: Shield },
+          { id: 'issues', label: 'Issues', icon: ShieldAlert, count: stats.total },
+          { id: 'rbac', label: 'RBAC', icon: Users, count: stats.rbacTotal },
+          { id: 'compliance', label: 'Compliance', icon: ShieldCheck },
+        ].map(tab => {
+          const Icon = tab.icon
+          return (
             <button
-              key={sev}
-              onClick={() => setSeverityFilter(sev)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                severityFilter === sev
-                  ? sev === 'high' ? 'bg-red-500 text-foreground' :
-                    sev === 'medium' ? 'bg-yellow-500 text-foreground' :
-                    sev === 'low' ? 'bg-blue-500 text-foreground' :
-                    'bg-primary text-primary-foreground'
-                  : 'bg-card/50 text-muted-foreground hover:text-foreground'
-              }`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as ViewTab)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-[2px] transition-colors',
+                activeTab === tab.id
+                  ? 'border-purple-500 text-purple-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
             >
-              {sev.charAt(0).toUpperCase() + sev.slice(1)}
+              <Icon className="w-4 h-4" />
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className={cn(
+                  'px-1.5 py-0.5 text-xs rounded-full',
+                  tab.id === 'issues' && stats.high > 0 ? 'bg-red-500/20 text-red-400' : 'bg-card text-muted-foreground'
+                )}>
+                  {tab.count}
+                </span>
+              )}
             </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
-      {/* Issues List */}
-      {filteredIssues.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🔒</div>
-          <p className="text-lg text-foreground">No security issues found!</p>
-          <p className="text-sm text-muted-foreground">Your clusters are following security best practices</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredIssues.map((issue, i) => (
-            <div
-              key={i}
-              className={`glass p-4 rounded-lg border-l-4 ${
-                issue.severity === 'high' ? 'border-l-red-500' :
-                issue.severity === 'medium' ? 'border-l-yellow-500' :
-                'border-l-blue-500'
-              }`}
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            <button
+              onClick={() => { setActiveTab('issues'); setSeverityFilter('all'); }}
+              className="glass p-4 rounded-lg text-left hover:bg-secondary/30 transition-colors"
             >
-              <div className="flex items-start gap-4">
-                <div className="mt-1">{typeIcon(issue.type)}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <ClusterBadge cluster={issue.cluster} size="sm" />
-                    <span className="font-semibold text-foreground">{issue.resource}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${severityColor(issue.severity)}`}>
-                      {issue.severity}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-card text-muted-foreground">
-                      {issue.type}
-                    </span>
-                  </div>
-                  <p className="text-sm text-foreground">{issue.message}</p>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {issue.namespace}
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-500/20">
+                  <ShieldAlert className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-foreground">{stats.total}</div>
+                  <div className="text-xs text-muted-foreground">Security Issues</div>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('rbac')}
+              className="glass p-4 rounded-lg text-left hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <Users className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-foreground">{stats.rbacTotal}</div>
+                  <div className="text-xs text-muted-foreground">RBAC Bindings</div>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('compliance')}
+              className="glass p-4 rounded-lg text-left hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  'p-2 rounded-lg',
+                  stats.complianceScore >= 80 ? 'bg-green-500/20' :
+                  stats.complianceScore >= 60 ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                )}>
+                  <ShieldCheck className={cn(
+                    'w-5 h-5',
+                    stats.complianceScore >= 80 ? 'text-green-400' :
+                    stats.complianceScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+                  )} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-foreground">{stats.complianceScore}%</div>
+                  <div className="text-xs text-muted-foreground">Compliance Score</div>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => { setActiveTab('issues'); setSeverityFilter('high'); }}
+              className="glass p-4 rounded-lg text-left hover:bg-secondary/30 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-500/20">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-400">{stats.high}</div>
+                  <div className="text-xs text-muted-foreground">Critical Issues</div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Severity Distribution */}
+            <div className="glass p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Issues by Severity</h3>
+              {stats.severityChartData.length > 0 ? (
+                <DonutChart
+                  data={stats.severityChartData}
+                  size={150}
+                  thickness={20}
+                  showLegend={true}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[180px] text-muted-foreground">
+                  <ShieldCheck className="w-12 h-12 text-green-400 opacity-50" />
+                </div>
+              )}
+            </div>
+
+            {/* Issue Types */}
+            <div className="glass p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Issues by Type</h3>
+              {stats.typeChartData.length > 0 ? (
+                <DonutChart
+                  data={stats.typeChartData}
+                  size={150}
+                  thickness={20}
+                  showLegend={true}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[180px] text-muted-foreground">
+                  <ShieldCheck className="w-12 h-12 text-green-400 opacity-50" />
+                </div>
+              )}
+            </div>
+
+            {/* Compliance Status */}
+            <div className="glass p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Compliance Status</h3>
+              {stats.complianceChartData.length > 0 ? (
+                <DonutChart
+                  data={stats.complianceChartData}
+                  size={150}
+                  thickness={20}
+                  showLegend={true}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[180px] text-muted-foreground">
+                  No compliance data
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Issues & RBAC Alerts */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Recent Critical Issues */}
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-muted-foreground">Critical Issues</h3>
+                <button
+                  onClick={() => { setActiveTab('issues'); setSeverityFilter('high'); }}
+                  className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                >
+                  View all <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+              {globalFilteredIssues.filter(i => i.severity === 'high').slice(0, 3).length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  No critical issues
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {globalFilteredIssues.filter(i => i.severity === 'high').slice(0, 3).map((issue, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{issue.resource}</div>
+                        <div className="text-xs text-muted-foreground">{getTypeLabel(issue.type)}</div>
+                      </div>
+                      <ClusterBadge cluster={issue.cluster} size="sm" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* High Risk RBAC */}
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-muted-foreground">High Risk RBAC Bindings</h3>
+                <button
+                  onClick={() => setActiveTab('rbac')}
+                  className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                >
+                  View all <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+              {filteredRBAC.filter(r => r.riskLevel === 'high').slice(0, 3).length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  No high risk bindings
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredRBAC.filter(r => r.riskLevel === 'high').slice(0, 3).map((binding, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded bg-red-500/10 border border-red-500/20">
+                      <Key className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{binding.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {binding.subjects.map(s => s.name).join(', ')}
+                        </div>
+                      </div>
+                      <ClusterBadge cluster={binding.cluster} size="sm" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Security Recommendations */}
+          <div className="glass p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">Security Recommendations</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <StatusIndicator status="healthy" size="sm" />
+                  <span className="text-foreground">Use Pod Security Standards to enforce security contexts</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <StatusIndicator status="healthy" size="sm" />
+                  <span className="text-foreground">Avoid privileged containers unless absolutely necessary</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <StatusIndicator status="healthy" size="sm" />
+                  <span className="text-foreground">Run containers as non-root users</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <StatusIndicator status="healthy" size="sm" />
+                  <span className="text-foreground">Enable network policies to restrict pod communication</span>
                 </div>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
-      {/* Security Recommendations */}
-      <div className="mt-8 p-4 rounded-lg bg-card/30 border border-border">
-        <h3 className="text-lg font-semibold text-foreground mb-3">Security Recommendations</h3>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-center gap-2">
-            <StatusIndicator status="healthy" size="sm" />
-            Use Pod Security Standards to enforce security contexts
-          </li>
-          <li className="flex items-center gap-2">
-            <StatusIndicator status="healthy" size="sm" />
-            Avoid privileged containers unless absolutely necessary
-          </li>
-          <li className="flex items-center gap-2">
-            <StatusIndicator status="healthy" size="sm" />
-            Run containers as non-root users
-          </li>
-          <li className="flex items-center gap-2">
-            <StatusIndicator status="healthy" size="sm" />
-            Enable network policies to restrict pod communication
-          </li>
-        </ul>
-      </div>
+      {/* Issues Tab */}
+      {activeTab === 'issues' && (
+        <div className="space-y-6">
+          {/* Severity Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { sev: 'all', label: 'All Issues', count: stats.total, color: 'text-foreground', bg: 'bg-card' },
+              { sev: 'high', label: 'High', count: stats.high, color: 'text-red-400', bg: 'bg-red-500/20' },
+              { sev: 'medium', label: 'Medium', count: stats.medium, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+              { sev: 'low', label: 'Low', count: stats.low, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+            ].map(item => (
+              <button
+                key={item.sev}
+                onClick={() => setSeverityFilter(item.sev)}
+                className={cn(
+                  'glass p-4 rounded-lg text-left transition-all',
+                  severityFilter === item.sev ? 'ring-2 ring-purple-500' : 'hover:bg-secondary/30'
+                )}
+              >
+                <div className="text-2xl font-bold" style={{ color: item.color === 'text-foreground' ? undefined : item.color.replace('text-', '') }}>
+                  <span className={item.color}>{item.count}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{item.label}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Issue Type Quick Filters */}
+          <div className="flex flex-wrap gap-2">
+            <span className="text-sm text-muted-foreground mr-2">Filter by type:</span>
+            <button
+              onClick={() => setSelectedIssueType(null)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                selectedIssueType === null ? 'bg-purple-500 text-white' : 'bg-card text-muted-foreground hover:text-foreground'
+              )}
+            >
+              All
+            </button>
+            {Object.entries(stats.typeCounts).map(([type, count]) => (
+              <button
+                key={type}
+                onClick={() => setSelectedIssueType(selectedIssueType === type ? null : type)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1',
+                  selectedIssueType === type ? 'bg-purple-500 text-white' : 'bg-card text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {getTypeLabel(type)} <span className="opacity-60">({count})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Issues List */}
+          {filteredIssues.filter(i => selectedIssueType === null || i.type === selectedIssueType).length === 0 ? (
+            <div className="text-center py-12">
+              <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-green-400 opacity-50" />
+              <p className="text-lg text-foreground">No security issues found!</p>
+              <p className="text-sm text-muted-foreground">Your clusters are following security best practices</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredIssues
+                .filter(i => selectedIssueType === null || i.type === selectedIssueType)
+                .map((issue, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'glass p-4 rounded-lg border-l-4',
+                    issue.severity === 'high' ? 'border-l-red-500' :
+                    issue.severity === 'medium' ? 'border-l-yellow-500' :
+                    'border-l-blue-500'
+                  )}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">{typeIcon(issue.type)}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <ClusterBadge cluster={issue.cluster} size="sm" />
+                        <span className="font-semibold text-foreground">{issue.resource}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${severityColor(issue.severity)}`}>
+                          {issue.severity}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-card text-muted-foreground">
+                          {getTypeLabel(issue.type)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground">{issue.message}</p>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Namespace: {issue.namespace}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* RBAC Tab */}
+      {activeTab === 'rbac' && (
+        <div className="space-y-6">
+          {/* RBAC Stats */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <Users className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-foreground">{stats.rbacTotal}</div>
+                  <div className="text-xs text-muted-foreground">Total Bindings</div>
+                </div>
+              </div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-500/20">
+                  <ShieldX className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-400">{stats.rbacHighRisk}</div>
+                  <div className="text-xs text-muted-foreground">High Risk</div>
+                </div>
+              </div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-yellow-500/20">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-yellow-400">{stats.rbacMedRisk}</div>
+                  <div className="text-xs text-muted-foreground">Medium Risk</div>
+                </div>
+              </div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/20">
+                  <ShieldCheck className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-400">{stats.rbacLowRisk}</div>
+                  <div className="text-xs text-muted-foreground">Low Risk</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RBAC Bindings List */}
+          <div className="space-y-3">
+            {filteredRBAC.map((binding, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'glass p-4 rounded-lg border-l-4',
+                  binding.riskLevel === 'high' ? 'border-l-red-500' :
+                  binding.riskLevel === 'medium' ? 'border-l-yellow-500' :
+                  'border-l-green-500'
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="mt-1">
+                    {binding.kind === 'ClusterRole' ? (
+                      <Key className={cn(
+                        'w-5 h-5',
+                        binding.riskLevel === 'high' ? 'text-red-400' :
+                        binding.riskLevel === 'medium' ? 'text-yellow-400' : 'text-green-400'
+                      )} />
+                    ) : (
+                      <Lock className={cn(
+                        'w-5 h-5',
+                        binding.riskLevel === 'high' ? 'text-red-400' :
+                        binding.riskLevel === 'medium' ? 'text-yellow-400' : 'text-green-400'
+                      )} />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <ClusterBadge cluster={binding.cluster} size="sm" />
+                      <span className="font-semibold text-foreground">{binding.name}</span>
+                      <span className={cn(
+                        'text-xs px-2 py-0.5 rounded',
+                        binding.riskLevel === 'high' ? 'bg-red-500/20 text-red-400' :
+                        binding.riskLevel === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-green-500/20 text-green-400'
+                      )}>
+                        {binding.riskLevel} risk
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-card text-muted-foreground">
+                        {binding.kind}
+                      </span>
+                    </div>
+                    <div className="text-sm text-foreground mb-2">
+                      <span className="text-muted-foreground">Subjects: </span>
+                      {binding.subjects.map((s, j) => (
+                        <span key={j} className="inline-flex items-center gap-1 mr-2">
+                          {s.kind === 'User' && <Users className="w-3 h-3" />}
+                          {s.kind === 'Group' && <Users className="w-3 h-3" />}
+                          {s.kind === 'ServiceAccount' && <Key className="w-3 h-3" />}
+                          {s.name}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {binding.permissions.slice(0, 5).map((perm, j) => (
+                        <span key={j} className="text-xs px-2 py-0.5 rounded bg-card/50 text-muted-foreground">
+                          {perm}
+                        </span>
+                      ))}
+                      {binding.permissions.length > 5 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{binding.permissions.length - 5} more
+                        </span>
+                      )}
+                    </div>
+                    {binding.namespace && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Namespace: {binding.namespace}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Compliance Tab */}
+      {activeTab === 'compliance' && (
+        <div className="space-y-6">
+          {/* Compliance Score */}
+          <div className="glass p-6 rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Overall Compliance Score</h3>
+                <p className="text-sm text-muted-foreground">Based on {stats.complianceTotal} checks across all clusters</p>
+              </div>
+              <div className={cn(
+                'text-4xl font-bold',
+                stats.complianceScore >= 80 ? 'text-green-400' :
+                stats.complianceScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+              )}>
+                {stats.complianceScore}%
+              </div>
+            </div>
+            <ProgressBar
+              value={stats.complianceScore}
+              max={100}
+              color={stats.complianceScore >= 80 ? '#10b981' : stats.complianceScore >= 60 ? '#f59e0b' : '#ef4444'}
+              size="lg"
+              showValue={false}
+            />
+            <div className="flex items-center gap-6 mt-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <span className="text-sm text-foreground">{stats.compliancePass} Passed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                <span className="text-sm text-foreground">{stats.complianceWarn} Warnings</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-400" />
+                <span className="text-sm text-foreground">{stats.complianceFail} Failed</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Compliance by Category */}
+          {Object.entries(complianceByCategory).map(([category, checks]) => {
+            const passed = checks.filter(c => c.status === 'pass').length
+            const total = checks.length
+            const percentage = Math.round((passed / total) * 100)
+
+            return (
+              <div key={category} className="glass p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {category === 'Pod Security' && <Shield className="w-5 h-5 text-purple-400" />}
+                    {category === 'Network' && <Eye className="w-5 h-5 text-blue-400" />}
+                    {category === 'RBAC' && <Users className="w-5 h-5 text-orange-400" />}
+                    {category === 'Secrets' && <Lock className="w-5 h-5 text-green-400" />}
+                    {category === 'Images' && <Clock className="w-5 h-5 text-cyan-400" />}
+                    <h4 className="font-medium text-foreground">{category}</h4>
+                  </div>
+                  <span className={cn(
+                    'text-sm font-medium',
+                    percentage >= 80 ? 'text-green-400' :
+                    percentage >= 60 ? 'text-yellow-400' : 'text-red-400'
+                  )}>
+                    {passed}/{total} passed
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {checks.map(check => (
+                    <div
+                      key={check.id}
+                      className={cn(
+                        'flex items-center justify-between p-3 rounded-lg',
+                        check.status === 'pass' ? 'bg-green-500/10' :
+                        check.status === 'warn' ? 'bg-yellow-500/10' : 'bg-red-500/10'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        {check.status === 'pass' && <CheckCircle2 className="w-4 h-4 text-green-400" />}
+                        {check.status === 'warn' && <AlertTriangle className="w-4 h-4 text-yellow-400" />}
+                        {check.status === 'fail' && <XCircle className="w-4 h-4 text-red-400" />}
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{check.name}</div>
+                          <div className="text-xs text-muted-foreground">{check.description}</div>
+                        </div>
+                      </div>
+                      <ClusterBadge cluster={check.cluster} size="sm" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
