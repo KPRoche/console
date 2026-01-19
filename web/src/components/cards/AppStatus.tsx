@@ -113,14 +113,15 @@ export function AppStatus(_props: AppStatusProps) {
             key={app.name}
             onClick={() => handleAppClick(app.name, app.clusters[0])}
             className="p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
+            title={`Click to view details for ${app.name}`}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Box className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-foreground">{app.name}</span>
+                <span title="Workload"><Box className="w-4 h-4 text-purple-400" /></span>
+                <span className="text-sm font-medium text-foreground" title={app.name}>{app.name}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground" title={`Deployed to ${total} cluster${total !== 1 ? 's' : ''}`}>
                   {total} cluster{total !== 1 ? 's' : ''}
                 </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -130,19 +131,19 @@ export function AppStatus(_props: AppStatusProps) {
             {/* Status indicators */}
             <div className="flex items-center gap-4">
               {app.status.healthy > 0 && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" title={`${app.status.healthy} healthy instance${app.status.healthy !== 1 ? 's' : ''}`}>
                   <CheckCircle className="w-3.5 h-3.5 text-green-400" />
                   <span className="text-xs text-green-400">{app.status.healthy}</span>
                 </div>
               )}
               {app.status.warning > 0 && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" title={`${app.status.warning} instance${app.status.warning !== 1 ? 's' : ''} with warnings`}>
                   <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
                   <span className="text-xs text-yellow-400">{app.status.warning}</span>
                 </div>
               )}
               {app.status.pending > 0 && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" title={`${app.status.pending} pending instance${app.status.pending !== 1 ? 's' : ''}`}>
                   <Clock className="w-3.5 h-3.5 text-blue-400" />
                   <span className="text-xs text-blue-400">{app.status.pending}</span>
                 </div>

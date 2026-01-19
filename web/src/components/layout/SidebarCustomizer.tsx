@@ -107,7 +107,7 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
   const [newItemHref, setNewItemHref] = useState('')
   const [newItemTarget, setNewItemTarget] = useState<'primary' | 'secondary'>('primary')
   const [showAddForm, setShowAddForm] = useState(false)
-  const [selectedKnownRoute, setSelectedKnownRoute] = useState<string>('custom')
+  const [selectedKnownRoute, setSelectedKnownRoute] = useState<string>('')
   const [showRouteDropdown, setShowRouteDropdown] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>('primary')
   const [dashboardsWithCards, setDashboardsWithCards] = useState<Dashboard[]>([])
@@ -156,25 +156,18 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
     setNewItemName('')
     setNewItemHref('')
     setNewItemIcon('Zap')
-    setSelectedKnownRoute('custom')
+    setSelectedKnownRoute('')
     setShowAddForm(false)
   }
 
   // Handle selecting a known route
   const handleSelectKnownRoute = (routeHref: string) => {
-    if (routeHref === 'custom') {
-      setSelectedKnownRoute('custom')
-      setNewItemName('')
-      setNewItemHref('')
-      setNewItemIcon('Zap')
-    } else {
-      const route = KNOWN_ROUTES.find(r => r.href === routeHref)
-      if (route) {
-        setSelectedKnownRoute(routeHref)
-        setNewItemName(route.name)
-        setNewItemHref(route.href)
-        setNewItemIcon(route.icon)
-      }
+    const route = KNOWN_ROUTES.find(r => r.href === routeHref)
+    if (route) {
+      setSelectedKnownRoute(routeHref)
+      setNewItemName(route.name)
+      setNewItemHref(route.href)
+      setNewItemIcon(route.icon)
     }
     setShowRouteDropdown(false)
   }
@@ -317,36 +310,19 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                     onClick={() => setShowRouteDropdown(!showRouteDropdown)}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-secondary border border-border text-sm text-left"
                   >
-                    {selectedKnownRoute === 'custom' ? (
-                      <span className="text-muted-foreground">Custom URL (enter manually below)</span>
-                    ) : (
+                    {selectedKnownRoute ? (
                       <span className="text-foreground">
                         {KNOWN_ROUTES.find(r => r.href === selectedKnownRoute)?.name}
                         <span className="text-muted-foreground ml-2">({selectedKnownRoute})</span>
                       </span>
+                    ) : (
+                      <span className="text-muted-foreground">Select a dashboard to add...</span>
                     )}
                     <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', showRouteDropdown && 'rotate-180')} />
                   </button>
 
                   {showRouteDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 py-2 rounded-lg bg-card border border-border shadow-xl z-50 max-h-[300px] overflow-y-auto">
-                      {/* Custom option */}
-                      <button
-                        onClick={() => handleSelectKnownRoute('custom')}
-                        className={cn(
-                          'w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors',
-                          selectedKnownRoute === 'custom' && 'bg-purple-500/10'
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          {renderIcon('Edit3', 'w-4 h-4 text-muted-foreground')}
-                          <span className={cn('text-sm font-medium', selectedKnownRoute === 'custom' ? 'text-purple-400' : 'text-foreground')}>
-                            Custom URL
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground pl-6 mt-0.5">Enter a custom route path manually</p>
-                      </button>
-
                       {/* Known routes grouped by category */}
                       {ROUTE_CATEGORIES.map(category => (
                         <div key={category}>
@@ -393,67 +369,56 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                 </div>
               </div>
 
-              {/* Name, Icon, and Section fields - URL only shown for custom */}
-              <div className={cn('grid gap-3', selectedKnownRoute === 'custom' ? 'grid-cols-2' : 'grid-cols-3')}>
-                <div>
-                  <label className="text-xs text-muted-foreground">Name</label>
-                  <input
-                    type="text"
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                    placeholder="Menu item name"
-                    className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
-                  />
-                </div>
-                {selectedKnownRoute === 'custom' && (
+              {/* Name, Route (read-only), Icon, and Section fields */}
+              {selectedKnownRoute && (
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">URL Path</label>
+                    <label className="text-xs text-muted-foreground">Name</label>
                     <input
                       type="text"
-                      value={newItemHref}
-                      onChange={(e) => setNewItemHref(e.target.value)}
-                      placeholder="/my-page"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      placeholder="Menu item name"
                       className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
                     />
                   </div>
-                )}
-                <div>
-                  <label className="text-xs text-muted-foreground">Icon</label>
-                  <select
-                    value={newItemIcon}
-                    onChange={(e) => setNewItemIcon(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
-                  >
-                    {AVAILABLE_ICONS.map((icon) => (
-                      <option key={icon} value={icon}>{icon}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Route</label>
+                    <div className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary/50 border border-border text-muted-foreground text-sm">
+                      {newItemHref}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Icon</label>
+                    <select
+                      value={newItemIcon}
+                      onChange={(e) => setNewItemIcon(e.target.value)}
+                      className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
+                    >
+                      {AVAILABLE_ICONS.map((icon) => (
+                        <option key={icon} value={icon}>{icon}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Section</label>
+                    <select
+                      value={newItemTarget}
+                      onChange={(e) => setNewItemTarget(e.target.value as 'primary' | 'secondary')}
+                      className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
+                    >
+                      <option value="primary">Primary Navigation</option>
+                      <option value="secondary">Secondary Navigation</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Section</label>
-                  <select
-                    value={newItemTarget}
-                    onChange={(e) => setNewItemTarget(e.target.value as 'primary' | 'secondary')}
-                    className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
-                  >
-                    <option value="primary">Primary Navigation</option>
-                    <option value="secondary">Secondary Navigation</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Note about custom routes */}
-              {selectedKnownRoute === 'custom' && (
-                <p className="text-xs text-muted-foreground mt-3 p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
-                  <strong>Note:</strong> Custom routes must exist in the application. Routes are compiled into the application at build time and cannot be dynamically loaded from external sources.
-                </p>
               )}
 
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   onClick={() => {
                     setShowAddForm(false)
-                    setSelectedKnownRoute('custom')
+                    setSelectedKnownRoute('')
                     setNewItemName('')
                     setNewItemHref('')
                     setNewItemIcon('Zap')
@@ -470,6 +435,11 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                   Add Item
                 </button>
               </div>
+
+              {/* Note about adding custom dashboards */}
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">
+                Need a custom dashboard? See the <a href="https://github.com/kubestellar/console/blob/main/CONTRIBUTING.md#adding-a-new-dashboard" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">developer guide</a> for instructions on adding new dashboards to the source.
+              </p>
             </div>
           )}
 

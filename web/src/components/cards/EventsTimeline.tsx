@@ -149,6 +149,7 @@ export function EventsTimeline() {
             No events in the last hour
           </div>
         ) : (
+          <div style={{ width: '100%', minHeight: 160, height: 160 }}>
           <ResponsiveContainer width="100%" height={160}>
             <AreaChart data={timeSeriesData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
               <defs>
@@ -184,7 +185,7 @@ export function EventsTimeline() {
                 labelStyle={{ color: '#888' }}
               />
               <Area
-                type="monotone"
+                type="stepAfter"
                 dataKey="warnings"
                 stackId="1"
                 stroke="#f97316"
@@ -193,7 +194,7 @@ export function EventsTimeline() {
                 name="Warnings"
               />
               <Area
-                type="monotone"
+                type="stepAfter"
                 dataKey="normal"
                 stackId="1"
                 stroke="#22c55e"
@@ -203,6 +204,7 @@ export function EventsTimeline() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
 

@@ -141,12 +141,18 @@ export function DeploymentStatus() {
             Deployment Status
           </span>
           {activeDeployments > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400">
+            <span
+              className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400"
+              title={`${activeDeployments} deployment${activeDeployments !== 1 ? 's' : ''} currently rolling out`}
+            >
               {activeDeployments} deploying
             </span>
           )}
           {failedDeployments > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">
+            <span
+              className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400"
+              title={`${failedDeployments} deployment${failedDeployments !== 1 ? 's' : ''} in failed state`}
+            >
               {failedDeployments} failed
             </span>
           )}
@@ -173,14 +179,15 @@ export function DeploymentStatus() {
               key={deployment.name}
               onClick={() => handleDeploymentClick(deployment)}
               className="p-3 rounded-lg bg-secondary/30 border border-border/50 cursor-pointer hover:bg-secondary/50 hover:border-border transition-colors group"
+              title={`Click to view details for ${deployment.name}`}
             >
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <ClusterBadge cluster={deployment.cluster} />
-                    <StatusIcon className={`w-4 h-4 ${config.color}`} />
+                    <span title={`Status: ${deployment.status}`}><StatusIcon className={`w-4 h-4 ${config.color}`} /></span>
                   </div>
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm font-medium text-foreground" title={deployment.name}>
                     {deployment.name}
                   </span>
                 </div>
@@ -189,15 +196,15 @@ export function DeploymentStatus() {
                     <div className="flex items-center gap-1 text-xs">
                       {deployment.previousVersion && (
                         <>
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground" title={`Previous version: ${deployment.previousVersion}`}>
                             {deployment.previousVersion}
                           </span>
-                          <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                          <span title="Upgrading to"><ArrowRight className="w-3 h-3 text-muted-foreground" /></span>
                         </>
                       )}
-                      <span className="text-foreground">{deployment.version}</span>
+                      <span className="text-foreground" title={`Current version: ${deployment.version}`}>{deployment.version}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground" title={`${deployment.replicas.ready} of ${deployment.replicas.desired} replicas ready`}>
                       {deployment.replicas.ready}/{deployment.replicas.desired} ready
                     </span>
                   </div>
@@ -206,7 +213,7 @@ export function DeploymentStatus() {
               </div>
 
               {/* Progress bar */}
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className="h-1.5 bg-secondary rounded-full overflow-hidden" title={`Deployment progress: ${deployment.progress}%`}>
                 <div
                   className={`h-full ${config.barColor} transition-all duration-500`}
                   style={{ width: `${deployment.progress}%` }}
@@ -214,7 +221,7 @@ export function DeploymentStatus() {
               </div>
 
               {deployment.error && (
-                <p className="text-xs text-red-400 mt-2">{deployment.error}</p>
+                <p className="text-xs text-red-400 mt-2" title={`Error: ${deployment.error}`}>{deployment.error}</p>
               )}
             </div>
           )

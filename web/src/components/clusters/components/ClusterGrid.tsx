@@ -45,22 +45,35 @@ export function ClusterGrid({
         const gpuInfo = gpuByCluster[clusterKey] || gpuByCluster[cluster.name]
         const loading = isClusterLoading(cluster)
         const unreachable = isClusterUnreachable(cluster)
+        // Check if we have cached data (to show during refresh instead of spinners)
+        const hasCachedData = cluster.nodeCount !== undefined && cluster.nodeCount > 0
+        // Only show initial loading state when we don't have cached data
+        const initialLoading = loading && !hasCachedData
+        // Show refreshing state when we have data but refresh is in progress
+        const refreshing = cluster.refreshing === true && hasCachedData
 
-        // Determine status: loading > unreachable > healthy
-        const status = loading ? 'loading' : unreachable ? 'warning' : 'healthy'
+        // Determine status: initialLoading > unreachable > refreshing > healthy
+        const status = initialLoading ? 'loading' : unreachable ? 'warning' : 'healthy'
 
         // Detect cloud provider (pass user for OKE pattern detection)
         const provider = detectCloudProvider(cluster.name, cluster.server, undefined, cluster.user)
         const providerLabel = getProviderLabel(provider)
         const providerColor = getProviderColor(provider)
 
+        // Theme accent color (purple by default)
+        const themeColor = '#9333ea' // purple-500
+
         return (
           <div
             key={cluster.name}
             onClick={() => onSelectCluster(cluster.name)}
-            className="relative glass p-5 rounded-lg cursor-pointer transition-all hover:scale-[1.02] border overflow-hidden"
-            style={{ borderColor: `${providerColor}60` }}
+            className="relative p-[1px] rounded-lg cursor-pointer transition-all hover:scale-[1.02] overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, ${providerColor}80 0%, ${themeColor}60 100%)`,
+            }}
           >
+            {/* Inner card content */}
+            <div className="relative glass p-5 rounded-lg h-full overflow-hidden">
             {/* Background provider icon - bottom left, 0% transparent at corner fading to 70% transparent */}
             <div className="absolute -bottom-4 -left-4 pointer-events-none" style={{ opacity: 0.15, maskImage: 'linear-gradient(45deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.3) 70%)', WebkitMaskImage: 'linear-gradient(45deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.3) 70%)' }}>
               <CloudProviderIcon provider={provider} size={120} />
@@ -121,6 +134,14 @@ export function ClusterGrid({
                     <Star className="w-3.5 h-3.5 fill-current" />
                   </span>
                 )}
+                {refreshing && (
+                  <span
+                    className="flex items-center px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400"
+                    title="Refreshing cluster data..."
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  </span>
+                )}
                 {unreachable && (
                   <div className="flex items-center gap-1">
                     <span
@@ -156,27 +177,27 @@ export function ClusterGrid({
             </div>
 
             <div className="grid grid-cols-4 gap-4 text-center relative z-10">
-              <div title={loading ? 'Checking...' : unreachable ? 'Unreachable - check network connection' : `${cluster.nodeCount || 0} worker nodes`}>
-                <div className="text-lg font-bold text-foreground">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : unreachable ? '-' : (cluster.nodeCount || 0)}
+              <div title={initialLoading ? 'Checking...' : refreshing ? `${cluster.nodeCount || 0} nodes (updating...)` : unreachable ? 'Unreachable - showing cached data' : `${cluster.nodeCount || 0} worker nodes`}>
+                <div className={`text-lg font-bold ${refreshing ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {initialLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (cluster.nodeCount || (unreachable && hasCachedData ? cluster.nodeCount : '-'))}
                 </div>
                 <div className="text-xs text-muted-foreground">Nodes</div>
               </div>
-              <div title={loading ? 'Checking...' : unreachable ? 'Unreachable - check network connection' : `${cluster.cpuCores || 0} CPU cores`}>
-                <div className="text-lg font-bold text-foreground">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : unreachable ? '-' : (cluster.cpuCores || 0)}
+              <div title={initialLoading ? 'Checking...' : refreshing ? `${cluster.cpuCores || 0} CPUs (updating...)` : unreachable ? 'Unreachable - showing cached data' : `${cluster.cpuCores || 0} CPU cores`}>
+                <div className={`text-lg font-bold ${refreshing ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {initialLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (cluster.cpuCores || (unreachable && hasCachedData ? cluster.cpuCores : '-'))}
                 </div>
                 <div className="text-xs text-muted-foreground">CPUs</div>
               </div>
-              <div title={loading ? 'Checking...' : unreachable ? 'Unreachable - check network connection' : `${cluster.podCount || 0} running pods`}>
-                <div className="text-lg font-bold text-foreground">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : unreachable ? '-' : (cluster.podCount || 0)}
+              <div title={initialLoading ? 'Checking...' : refreshing ? `${cluster.podCount || 0} pods (updating...)` : unreachable ? 'Unreachable - showing cached data' : `${cluster.podCount || 0} running pods`}>
+                <div className={`text-lg font-bold ${refreshing ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {initialLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (cluster.podCount || (unreachable && hasCachedData ? cluster.podCount : '-'))}
                 </div>
                 <div className="text-xs text-muted-foreground">Pods</div>
               </div>
-              <div title={loading ? 'Checking...' : unreachable ? 'Unreachable - check network connection' : gpuInfo ? `${gpuInfo.allocated} allocated / ${gpuInfo.total} total GPUs` : 'No GPUs'}>
-                <div className="text-lg font-bold text-foreground">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : unreachable ? '-' : (gpuInfo ? `${gpuInfo.allocated}/${gpuInfo.total}` : '0')}
+              <div title={initialLoading ? 'Checking...' : refreshing ? 'GPUs (updating...)' : unreachable ? 'Unreachable - showing cached data' : gpuInfo ? `${gpuInfo.allocated} allocated / ${gpuInfo.total} total GPUs` : 'No GPUs'}>
+                <div className={`text-lg font-bold ${refreshing ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {initialLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : (gpuInfo ? `${gpuInfo.allocated}/${gpuInfo.total}` : (unreachable && hasCachedData ? '?' : '0'))}
                 </div>
                 <div className="text-xs text-muted-foreground">GPUs</div>
               </div>
@@ -188,6 +209,7 @@ export function ClusterGrid({
                 <span title="View details"><ChevronRight className="w-4 h-4 text-primary" /></span>
               </div>
             </div>
+          </div>
           </div>
         )
       })}

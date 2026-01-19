@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
+import { reportAgentDataError, reportAgentDataSuccess } from './useLocalAgent'
 
 // Types matching the backend MCP bridge
 export interface ClusterInfo {
@@ -27,6 +28,8 @@ export interface ClusterInfo {
   lastSeen?: string
   errorType?: 'timeout' | 'auth' | 'network' | 'certificate' | 'unknown'
   errorMessage?: string
+  // Refresh state - true when a refresh is in progress for this cluster
+  refreshing?: boolean
 }
 
 export interface ClusterHealth {
@@ -366,6 +369,8 @@ async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
     clearTimeout(timeoutId)
     if (response.ok) {
       const data = await response.json()
+      // Report successful data fetch - can recover from degraded state
+      reportAgentDataSuccess()
       // Transform agent response to ClusterInfo format - mark as "checking" initially
       return (data.clusters || []).map((c: any) => ({
         name: c.name,
@@ -379,9 +384,14 @@ async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
         podCount: undefined,
         isCurrent: c.isCurrent,
       }))
+    } else {
+      // Non-OK response (e.g., 503 Service Unavailable)
+      reportAgentDataError('/clusters', `HTTP ${response.status}`)
     }
-  } catch {
-    // Local agent not available
+  } catch (err) {
+    // Local agent not available or timeout
+    // Note: We don't report this as a data error because if the agent
+    // is completely unavailable, the health check will catch it
   }
   return null
 }
@@ -393,7 +403,7 @@ async function fetchSingleClusterHealth(clusterName: string): Promise<ClusterHea
     const response = await fetch(
       `/api/mcp/clusters/${encodeURIComponent(clusterName)}/health`,
       {
-        signal: AbortSignal.timeout(5000), // 5 second timeout per cluster
+        signal: AbortSignal.timeout(10000), // 10 second timeout per cluster (increased for slow networks)
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       }
     )
@@ -414,8 +424,9 @@ async function checkHealthProgressively(clusterList: ClusterInfo[]) {
     const health = await fetchSingleClusterHealth(cluster.name)
 
     if (health) {
-      // Health data available - use it to determine reachability
-      const isReachable = health.reachable !== false && health.nodeCount > 0
+      // Health data available - cluster is reachable if we got a response
+      // Only mark unreachable if explicitly set to false by backend
+      const isReachable = health.reachable !== false
       updateSingleClusterInCache(cluster.name, {
         healthy: health.healthy,
         reachable: isReachable,
@@ -473,8 +484,18 @@ async function silentFetchClusters() {
   }
 }
 
+// Track if a fetch is in progress to prevent duplicate requests
+let fetchInProgress = false
+
 // Full refetch - updates shared cache with loading state
+// Deduplicates concurrent calls - only one fetch runs at a time
 async function fullFetchClusters() {
+  // If a fetch is already in progress, skip this call (deduplication)
+  if (fetchInProgress) {
+    return
+  }
+  fetchInProgress = true
+
   // If we have cached data, show refreshing; otherwise show loading
   const hasCachedData = clusterCache.clusters.length > 0
   const startTime = Date.now()
@@ -499,15 +520,35 @@ async function fullFetchClusters() {
     // Try local agent first - get cluster list quickly
     const agentClusters = await fetchClusterListFromAgent()
     if (agentClusters) {
-      // Show clusters immediately with "checking" state
+      // Merge new cluster list with existing cached health data (preserve stats during refresh)
+      const existingClusters = clusterCache.clusters
+      const mergedClusters = agentClusters.map(newCluster => {
+        const existing = existingClusters.find(c => c.name === newCluster.name)
+        if (existing && existing.nodeCount !== undefined) {
+          // Preserve existing health data, but mark as refreshing
+          return {
+            ...newCluster,
+            nodeCount: existing.nodeCount,
+            podCount: existing.podCount,
+            cpuCores: existing.cpuCores,
+            memoryGB: existing.memoryGB,
+            storageGB: existing.storageGB,
+            healthy: existing.healthy,
+            reachable: existing.reachable,
+            refreshing: true, // Mark as refreshing to show subtle indicator
+          }
+        }
+        return newCluster
+      })
+      // Show clusters immediately with preserved health data
       await finishWithMinDuration({
-        clusters: agentClusters,
+        clusters: mergedClusters,
         error: null,
         lastUpdated: new Date(),
         isLoading: false,
         isRefreshing: false,
       })
-      // Check health progressively (non-blocking)
+      // Check health progressively (non-blocking) - will update each cluster's data
       checkHealthProgressively(agentClusters)
       return
     }
@@ -520,6 +561,7 @@ async function fullFetchClusters() {
       isLoading: false,
       isRefreshing: false,
     })
+    fetchInProgress = false
   } catch (err) {
     await finishWithMinDuration({
       error: 'Failed to fetch clusters',
@@ -527,22 +569,24 @@ async function fullFetchClusters() {
       isLoading: false,
       isRefreshing: false,
     })
+    fetchInProgress = false
   }
 }
 
 // Refresh health for a single cluster (exported for use in components)
+// Keeps cached values visible while refreshing - only updates surgically when new data is available
 export async function refreshSingleCluster(clusterName: string): Promise<void> {
-  // Mark the cluster as loading (set nodeCount to undefined)
+  // Mark the cluster as refreshing (keep existing data visible)
   updateSingleClusterInCache(clusterName, {
-    nodeCount: undefined,
-    reachable: undefined,
+    refreshing: true,
   })
 
   const health = await fetchSingleClusterHealth(clusterName)
 
   if (health) {
-    // Health data available - use it to determine reachability
-    const isReachable = health.reachable !== false && health.nodeCount > 0
+    // Health data available - cluster is reachable if we got a response
+    // Only mark unreachable if explicitly set to false by backend
+    const isReachable = health.reachable !== false
     updateSingleClusterInCache(clusterName, {
       healthy: health.healthy,
       reachable: isReachable,
@@ -558,15 +602,16 @@ export async function refreshSingleCluster(clusterName: string): Promise<void> {
       pvcBoundCount: health.pvcBoundCount,
       errorType: health.errorType,
       errorMessage: health.errorMessage,
+      refreshing: false,
     })
   } else {
     // No health data or timeout - cluster is unreachable
+    // Keep existing cached values for nodes/pods/cpus, just update reachability status
     updateSingleClusterInCache(clusterName, {
       healthy: false,
       reachable: false,
-      nodeCount: 0,
-      podCount: 0,
       errorType: 'timeout',
+      refreshing: false,
     })
   }
 }

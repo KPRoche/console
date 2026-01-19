@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Layers, Plus, Layout, LayoutGrid, ChevronDown, ChevronRight, RefreshCw, Activity, FolderOpen, AlertTriangle, AlertCircle, ListChecks } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Layers, Plus, Layout, LayoutGrid, ChevronDown, ChevronRight, RefreshCw, Activity, FolderOpen, AlertTriangle, AlertCircle, ListChecks, Hourglass } from 'lucide-react'
 import { useDeploymentIssues, usePodIssues, useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
@@ -19,6 +20,7 @@ interface WorkloadCard {
   card_type: string
   config: Record<string, unknown>
   title?: string
+  position?: { w: number; h: number }
 }
 
 const WORKLOADS_CARDS_KEY = 'kubestellar-workloads-cards'
@@ -46,10 +48,11 @@ interface AppSummary {
 }
 
 export function Workloads() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { issues: podIssues, isLoading: podIssuesLoading, isRefreshing: podIssuesRefreshing, lastUpdated, refetch: refetchPodIssues } = usePodIssues()
   const { issues: deploymentIssues, isLoading: deploymentIssuesLoading, isRefreshing: deploymentIssuesRefreshing, refetch: refetchDeploymentIssues } = useDeploymentIssues()
   const { clusters, isLoading: clustersLoading, refetch: refetchClusters } = useClusters()
-  const { drillToNamespace } = useDrillDownActions()
+  const { drillToNamespace, drillToPod, drillToDeployment } = useDrillDownActions()
 
   // Card state
   const [cards, setCards] = useState<WorkloadCard[]>(() => loadWorkloadCards())
@@ -71,6 +74,14 @@ export function Workloads() {
   useEffect(() => {
     saveWorkloadCards(cards)
   }, [cards])
+
+  // Handle addCard URL param - open modal and clear param
+  useEffect(() => {
+    if (searchParams.get('addCard') === 'true') {
+      setShowAddCard(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -115,6 +126,12 @@ export function Workloads() {
       c.id === cardId ? { ...c, config } : c
     ))
     setConfiguringCard(null)
+  }, [])
+
+  const handleWidthChange = useCallback((cardId: string, newWidth: number) => {
+    setCards(prev => prev.map(c =>
+      c.id === cardId ? { ...c, position: { ...(c.position || { w: 4, h: 2 }), w: newWidth } } : c
+    ))
   }, [])
 
   const applyTemplate = useCallback((template: DashboardTemplate) => {
@@ -239,12 +256,20 @@ export function Workloads() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Layers className="w-6 h-6 text-purple-400" />
-              Workloads
-            </h1>
-            <p className="text-muted-foreground">View and manage deployed applications across clusters</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Layers className="w-6 h-6 text-purple-400" />
+                Workloads
+              </h1>
+              <p className="text-muted-foreground">View and manage deployed applications across clusters</p>
+            </div>
+            {isRefreshing && (
+              <span className="flex items-center gap-1 text-xs text-amber-400 animate-pulse" title="Updating...">
+                <Hourglass className="w-3 h-3" />
+                <span>Updating</span>
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <label htmlFor="workloads-auto-refresh" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
@@ -307,7 +332,15 @@ export function Workloads() {
             ) : (
               // Real data
               <>
-                <div className="glass p-4 rounded-lg">
+                <div
+                  className={`glass p-4 rounded-lg ${apps.length > 0 ? 'cursor-pointer hover:bg-secondary/50' : 'cursor-default'} transition-colors`}
+                  onClick={() => {
+                    if (apps.length > 0 && apps[0]) {
+                      drillToNamespace(apps[0].cluster, apps[0].namespace)
+                    }
+                  }}
+                  title={apps.length > 0 ? `${stats.total} namespace${stats.total !== 1 ? 's' : ''} with workloads - Click to view details` : 'No namespaces with issues'}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <FolderOpen className="w-5 h-5 text-purple-400" />
                     <span className="text-sm text-muted-foreground">Namespaces</span>
@@ -315,7 +348,14 @@ export function Workloads() {
                   <div className="text-3xl font-bold text-foreground">{stats.total}</div>
                   <div className="text-xs text-muted-foreground">active namespaces</div>
                 </div>
-                <div className="glass p-4 rounded-lg">
+                <div
+                  className={`glass p-4 rounded-lg ${stats.critical > 0 ? 'cursor-pointer hover:bg-secondary/50' : 'cursor-default'} transition-colors`}
+                  onClick={() => {
+                    const criticalApp = apps.find(a => a.status === 'error')
+                    if (criticalApp) drillToNamespace(criticalApp.cluster, criticalApp.namespace)
+                  }}
+                  title={stats.critical > 0 ? `${stats.critical} namespace${stats.critical !== 1 ? 's' : ''} with critical issues - Click to view` : 'No critical issues'}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="w-5 h-5 text-red-400" />
                     <span className="text-sm text-muted-foreground">Critical</span>
@@ -323,7 +363,14 @@ export function Workloads() {
                   <div className="text-3xl font-bold text-red-400">{stats.critical}</div>
                   <div className="text-xs text-muted-foreground">critical issues</div>
                 </div>
-                <div className="glass p-4 rounded-lg">
+                <div
+                  className={`glass p-4 rounded-lg ${stats.warning > 0 ? 'cursor-pointer hover:bg-secondary/50' : 'cursor-default'} transition-colors`}
+                  onClick={() => {
+                    const warningApp = apps.find(a => a.status === 'warning')
+                    if (warningApp) drillToNamespace(warningApp.cluster, warningApp.namespace)
+                  }}
+                  title={stats.warning > 0 ? `${stats.warning} namespace${stats.warning !== 1 ? 's' : ''} with warnings - Click to view` : 'No warning issues'}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-400" />
                     <span className="text-sm text-muted-foreground">Warning</span>
@@ -331,7 +378,18 @@ export function Workloads() {
                   <div className="text-3xl font-bold text-yellow-400">{stats.warning}</div>
                   <div className="text-xs text-muted-foreground">warning issues</div>
                 </div>
-                <div className="glass p-4 rounded-lg">
+                <div
+                  className={`glass p-4 rounded-lg ${(stats.totalPodIssues + stats.totalDeploymentIssues) > 0 ? 'cursor-pointer hover:bg-secondary/50' : 'cursor-default'} transition-colors`}
+                  onClick={() => {
+                    // Drill to first pod issue if available, otherwise first deployment issue
+                    if (podIssues.length > 0 && podIssues[0]) {
+                      drillToPod(podIssues[0].cluster || 'default', podIssues[0].namespace, podIssues[0].name)
+                    } else if (deploymentIssues.length > 0 && deploymentIssues[0]) {
+                      drillToDeployment(deploymentIssues[0].cluster || 'default', deploymentIssues[0].namespace, deploymentIssues[0].name)
+                    }
+                  }}
+                  title={(stats.totalPodIssues + stats.totalDeploymentIssues) > 0 ? `${stats.totalPodIssues} pod + ${stats.totalDeploymentIssues} deployment issues - Click to view` : 'No issues detected'}
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <ListChecks className="w-5 h-5 text-blue-400" />
                     <span className="text-sm text-muted-foreground">Total</span>
@@ -397,24 +455,31 @@ export function Workloads() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-12 gap-4">
                 {cards.map(card => {
                   const CardComponent = CARD_COMPONENTS[card.card_type]
                   if (!CardComponent) {
                     console.warn(`Unknown card type: ${card.card_type}`)
                     return null
                   }
+                  const cardWidth = card.position?.w || 4
                   return (
-                    <CardWrapper
+                    <div
                       key={card.id}
-                      cardId={card.id}
-                      cardType={card.card_type}
-                      title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      onConfigure={() => handleConfigureCard(card.id)}
-                      onRemove={() => handleRemoveCard(card.id)}
+                      style={{ gridColumn: `span ${cardWidth}` }}
                     >
-                      <CardComponent config={card.config} />
-                    </CardWrapper>
+                      <CardWrapper
+                        cardId={card.id}
+                        cardType={card.card_type}
+                        title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        cardWidth={cardWidth}
+                        onConfigure={() => handleConfigureCard(card.id)}
+                        onRemove={() => handleRemoveCard(card.id)}
+                        onWidthChange={(newWidth) => handleWidthChange(card.id, newWidth)}
+                      >
+                        <CardComponent config={card.config} />
+                      </CardWrapper>
+                    </div>
                   )
                 })}
               </div>
@@ -505,9 +570,7 @@ export function Workloads() {
                       <div className="text-xs text-muted-foreground">Pod Issues</div>
                     </div>
                   )}
-                  <div className="text-primary text-sm">
-                    Drill down →
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
             </div>
@@ -524,13 +587,16 @@ export function Workloads() {
             .map((cluster) => (
             <div key={cluster.name} className="glass p-3 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <StatusIndicator status={cluster.healthy ? 'healthy' : 'error'} size="sm" />
+                <StatusIndicator
+                  status={cluster.reachable === false ? 'unreachable' : cluster.healthy ? 'healthy' : 'error'}
+                  size="sm"
+                />
                 <span className="font-medium text-foreground text-sm truncate">
                   {cluster.context || cluster.name.split('/').pop()}
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {cluster.healthy ? (cluster.podCount || 0) : '-'} pods • {cluster.healthy ? (cluster.nodeCount || 0) : '-'} nodes
+                {cluster.reachable !== false ? (cluster.podCount ?? '-') : '-'} pods • {cluster.reachable !== false ? (cluster.nodeCount ?? '-') : '-'} nodes
               </div>
             </div>
           ))}

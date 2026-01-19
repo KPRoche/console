@@ -22,14 +22,24 @@ export function Sidebar() {
   const unhealthyClusters = clusters.filter((c) => c.healthy === false && c.reachable !== false).length
   const unreachableClusters = clusters.filter((c) => c.reachable === false).length
 
-  // Handle Add Card click - navigate to dashboard first if not there
+  // Handle Add Card click - work with current dashboard
   const handleAddCardClick = () => {
-    if (location.pathname !== '/') {
-      // Set pending flag so Dashboard opens modal after mount
+    // List of dashboards that have card systems
+    const cardDashboards = ['/', '/workloads', '/security', '/gitops', '/storage', '/compute', '/network', '/events', '/clusters']
+    const currentPath = location.pathname
+
+    if (cardDashboards.includes(currentPath)) {
+      // Current page has cards - use query param to trigger modal
+      if (currentPath === '/') {
+        dashboardContext?.openAddCardModal()
+      } else {
+        // Navigate to same page with addCard param to trigger modal
+        navigate(`${currentPath}?addCard=true`)
+      }
+    } else {
+      // On a non-card page, navigate to main dashboard
       dashboardContext?.setPendingOpenAddCardModal(true)
       navigate('/')
-    } else {
-      dashboardContext?.openAddCardModal()
     }
   }
 
