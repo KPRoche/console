@@ -18,7 +18,7 @@ const CARD_CATALOG = {
     { type: 'deployment_progress', title: 'Deployment Progress', description: 'Rolling update progress', visualization: 'gauge' },
     { type: 'pod_issues', title: 'Pod Issues', description: 'Pods with errors or restarts', visualization: 'table' },
     { type: 'top_pods', title: 'Top Pods', description: 'Highest resource consuming pods', visualization: 'bar' },
-    { type: 'app_status', title: 'App Status', description: 'Application health overview', visualization: 'donut' },
+    { type: 'app_status', title: 'Workload Status', description: 'Workload health overview', visualization: 'donut' },
   ],
   'Resources': [
     { type: 'resource_usage', title: 'Resource Usage', description: 'CPU and memory utilization', visualization: 'gauge' },
@@ -57,10 +57,16 @@ const CARD_CATALOG = {
     { type: 'event_stream', title: 'Event Stream', description: 'Live Kubernetes event feed', visualization: 'events' },
     { type: 'user_management', title: 'User Management', description: 'Console users and Kubernetes RBAC', visualization: 'table' },
   ],
+  'Live Trends': [
+    { type: 'events_timeline', title: 'Events Timeline', description: 'Warning vs normal events over time with live data', visualization: 'timeseries' },
+    { type: 'pod_health_trend', title: 'Pod Health Trend', description: 'Healthy/unhealthy/pending pods over time', visualization: 'timeseries' },
+    { type: 'resource_trend', title: 'Resource Trend', description: 'CPU, memory, pods, nodes over time', visualization: 'timeseries' },
+    { type: 'gpu_utilization', title: 'GPU Utilization', description: 'GPU allocation trend with donut chart', visualization: 'timeseries' },
+  ],
   'Klaude AI': [
     { type: 'klaude_issues', title: 'Klaude Issues', description: 'AI-powered issue detection and repair', visualization: 'status' },
-    { type: 'klaude_kubeconfig_audit', title: 'Kubeconfig Audit', description: 'Audit kubeconfig for stale contexts', visualization: 'status' },
-    { type: 'klaude_health_check', title: 'Health Check', description: 'Comprehensive AI health analysis', visualization: 'gauge' },
+    { type: 'klaude_kubeconfig_audit', title: 'Klaude Kubeconfig Audit', description: 'Audit kubeconfig for stale contexts', visualization: 'status' },
+    { type: 'klaude_health_check', title: 'Klaude Health Check', description: 'Comprehensive AI health analysis', visualization: 'gauge' },
   ],
 } as const
 
@@ -391,11 +397,52 @@ function generateCardSuggestions(query: string): CardSuggestion[] {
         config: { filter: 'all' },
       },
       {
+        type: 'events_timeline',
+        title: 'Events Timeline',
+        description: 'Warning vs normal events over time',
+        visualization: 'timeseries',
+        config: {},
+      },
+      {
         type: 'error_count',
         title: 'Errors Over Time',
         description: 'Error count trend',
         visualization: 'sparkline',
         config: { metric: 'errors' },
+      },
+    ]
+  }
+
+  // Trend/analytics queries
+  if (lowerQuery.includes('trend') || lowerQuery.includes('analytics') || lowerQuery.includes('over time') || lowerQuery.includes('history')) {
+    return [
+      {
+        type: 'events_timeline',
+        title: 'Events Timeline',
+        description: 'Warning vs normal events over time',
+        visualization: 'timeseries',
+        config: {},
+      },
+      {
+        type: 'pod_health_trend',
+        title: 'Pod Health Trend',
+        description: 'Healthy/unhealthy/pending pods over time',
+        visualization: 'timeseries',
+        config: {},
+      },
+      {
+        type: 'resource_trend',
+        title: 'Resource Trend',
+        description: 'CPU, memory, pods, nodes over time',
+        visualization: 'timeseries',
+        config: {},
+      },
+      {
+        type: 'gpu_utilization',
+        title: 'GPU Utilization',
+        description: 'GPU allocation trend with utilization chart',
+        visualization: 'timeseries',
+        config: {},
       },
     ]
   }

@@ -10,6 +10,18 @@ import { LimitedAccessWarning } from '../ui/LimitedAccessWarning'
 
 type SortByOption = 'time' | 'count' | 'type'
 
+// Format relative time (e.g., "2m ago", "1h ago")
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60) return 'now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 const SORT_OPTIONS = [
   { value: 'time' as const, label: 'Time' },
   { value: 'count' as const, label: 'Count' },
@@ -21,7 +33,7 @@ export function EventStream() {
   const [sortBy, setSortBy] = useState<SortByOption>('time')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   // Fetch more events from API to enable pagination
-  const { events: rawEvents, isLoading, error, refetch } = useEvents(undefined, undefined, 100)
+  const { events: rawEvents, isLoading, isRefreshing, lastUpdated, error, refetch } = useEvents(undefined, undefined, 100)
   const { filterByCluster } = useGlobalFilters()
 
   // Filter and sort events
@@ -98,12 +110,18 @@ export function EventStream() {
             sortDirection={sortDirection}
             onSortDirectionChange={setSortDirection}
           />
+          {lastUpdated && (
+            <span className="text-[10px] text-muted-foreground" title={`Last updated: ${lastUpdated.toLocaleString()}`}>
+              {formatTimeAgo(lastUpdated)}
+            </span>
+          )}
           <button
             onClick={() => refetch()}
-            className="p-1 hover:bg-secondary rounded transition-colors"
-            title="Refresh events"
+            disabled={isRefreshing}
+            className="p-1 hover:bg-secondary rounded transition-colors disabled:opacity-50"
+            title={isRefreshing ? 'Refreshing...' : 'Refresh events'}
           >
-            <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>

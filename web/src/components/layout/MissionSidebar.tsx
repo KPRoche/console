@@ -4,6 +4,7 @@ import {
   Send,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -18,6 +19,8 @@ import {
   Rocket,
   Sparkles,
   Hammer,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useMissions, Mission, MissionStatus } from '../../hooks/useMissions'
@@ -40,41 +43,72 @@ const TYPE_ICONS: Record<Mission['type'], typeof ArrowUpCircle> = {
   custom: Sparkles,
 }
 
-function MissionListItem({ mission, isActive, onClick }: {
+function MissionListItem({ mission, isActive, onClick, onDismiss, isCollapsed, onToggleCollapse }: {
   mission: Mission
   isActive: boolean
   onClick: () => void
+  onDismiss: () => void
+  isCollapsed: boolean
+  onToggleCollapse: () => void
 }) {
   const config = STATUS_CONFIG[mission.status]
   const StatusIcon = config.icon
   const TypeIcon = TYPE_ICONS[mission.type]
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        'w-full text-left p-3 rounded-lg transition-colors',
+        'w-full text-left rounded-lg transition-colors',
         isActive
           ? 'bg-primary/20 border border-primary/50'
           : 'hover:bg-secondary/50 border border-transparent'
       )}
     >
-      <div className="flex items-start gap-2">
-        <div className={cn('mt-0.5', config.color)}>
+      {/* Header row with controls */}
+      <div className="flex items-center gap-2 p-3 pb-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse() }}
+          className="p-0.5 hover:bg-secondary/50 rounded transition-colors"
+          title={isCollapsed ? "Expand" : "Collapse"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          )}
+        </button>
+        <div className={cn('flex-shrink-0', config.color)}>
           <StatusIcon className={cn('w-4 h-4', mission.status === 'running' && 'animate-spin')} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <TypeIcon className="w-3 h-3 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground truncate">{mission.title}</span>
-          </div>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{mission.description}</p>
+        <button
+          onClick={onClick}
+          className="flex-1 min-w-0 flex items-center gap-2 text-left"
+        >
+          <TypeIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm font-medium text-foreground truncate">{mission.title}</span>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDismiss() }}
+          className="p-0.5 hover:bg-red-500/20 rounded transition-colors flex-shrink-0"
+          title="Dismiss mission"
+        >
+          <X className="w-3.5 h-3.5 text-muted-foreground hover:text-red-400" />
+        </button>
+      </div>
+
+      {/* Collapsible content */}
+      {!isCollapsed && (
+        <button
+          onClick={onClick}
+          className="w-full text-left px-3 pb-3 pt-1 pl-10"
+        >
+          <p className="text-xs text-muted-foreground truncate">{mission.description}</p>
           {mission.cluster && (
             <span className="text-xs text-purple-400 mt-1 inline-block">@{mission.cluster}</span>
           )}
-        </div>
-      </div>
-    </button>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -227,15 +261,61 @@ function MissionChat({ mission }: { mission: Mission }) {
 }
 
 export function MissionSidebar() {
-  const { missions, activeMission, isSidebarOpen, setActiveMission, closeSidebar } = useMissions()
+  const { missions, activeMission, isSidebarOpen, setActiveMission, closeSidebar, dismissMission } = useMissions()
+  const [isMinimized, setIsMinimized] = useState(false)
+  const [collapsedMissions, setCollapsedMissions] = useState<Set<string>>(new Set())
 
   // Count missions needing attention
   const needsAttention = missions.filter(m =>
     m.status === 'waiting_input' || m.status === 'failed'
   ).length
 
+  const runningCount = missions.filter(m => m.status === 'running').length
+
+  const toggleMissionCollapse = (missionId: string) => {
+    setCollapsedMissions(prev => {
+      const next = new Set(prev)
+      if (next.has(missionId)) {
+        next.delete(missionId)
+      } else {
+        next.add(missionId)
+      }
+      return next
+    })
+  }
+
   if (!isSidebarOpen) {
     return null
+  }
+
+  // Minimized sidebar view (thin strip)
+  if (isMinimized) {
+    return (
+      <div className="fixed top-16 right-0 bottom-0 w-12 bg-card/95 backdrop-blur-sm border-l border-border z-40 flex flex-col items-center py-4">
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="p-2 hover:bg-secondary rounded transition-colors mb-4"
+          title="Expand sidebar"
+        >
+          <PanelRightOpen className="w-5 h-5 text-muted-foreground" />
+        </button>
+
+        <div className="flex flex-col items-center gap-2">
+          <Bot className="w-5 h-5 text-primary" />
+          {missions.length > 0 && (
+            <span className="text-xs font-medium text-foreground">{missions.length}</span>
+          )}
+          {runningCount > 0 && (
+            <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+          )}
+          {needsAttention > 0 && (
+            <span className="w-5 h-5 flex items-center justify-center text-xs bg-purple-500/20 text-purple-400 rounded-full">
+              {needsAttention}
+            </span>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -251,12 +331,22 @@ export function MissionSidebar() {
             </span>
           )}
         </div>
-        <button
-          onClick={closeSidebar}
-          className="p-1 hover:bg-secondary rounded transition-colors"
-        >
-          <X className="w-5 h-5 text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="p-1 hover:bg-secondary rounded transition-colors"
+            title="Minimize sidebar"
+          >
+            <PanelRightClose className="w-5 h-5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={closeSidebar}
+            className="p-1 hover:bg-secondary rounded transition-colors"
+            title="Close sidebar"
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       {missions.length === 0 ? (
@@ -289,6 +379,9 @@ export function MissionSidebar() {
               mission={mission}
               isActive={false}
               onClick={() => setActiveMission(mission.id)}
+              onDismiss={() => dismissMission(mission.id)}
+              isCollapsed={collapsedMissions.has(mission.id)}
+              onToggleCollapse={() => toggleMissionCollapse(mission.id)}
             />
           ))}
         </div>

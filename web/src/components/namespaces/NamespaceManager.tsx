@@ -376,6 +376,20 @@ export function NamespaceManager() {
             </div>
           )}
 
+          {/* Skeleton loading */}
+          {loading && filteredNamespaces.length === 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                Loading Namespaces...
+              </h3>
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <NamespaceCardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {filteredNamespaces.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
               <Folder className="w-12 h-12 mb-3 opacity-50" />
@@ -536,6 +550,31 @@ function NamespaceCard({ namespace, isSelected, onSelect, onDelete, isSystem }: 
         </button>
       )}
       <ChevronRight className="w-4 h-4 text-muted-foreground" />
+    </div>
+  )
+}
+
+// Skeleton loading component for namespace cards
+function NamespaceCardSkeleton() {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary/30 border border-transparent animate-pulse">
+      {/* Icon placeholder */}
+      <div className="w-10 h-10 rounded-lg bg-secondary/50" />
+
+      {/* Content placeholder */}
+      <div className="flex-1 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-32 bg-secondary/50 rounded" />
+          <div className="h-4 w-14 bg-secondary/50 rounded" />
+        </div>
+        <div className="h-3 w-24 bg-secondary/50 rounded" />
+      </div>
+
+      {/* Cluster badge placeholder */}
+      <div className="h-6 w-20 bg-secondary/50 rounded-full" />
+
+      {/* Chevron placeholder */}
+      <div className="w-4 h-4 bg-secondary/50 rounded" />
     </div>
   )
 }

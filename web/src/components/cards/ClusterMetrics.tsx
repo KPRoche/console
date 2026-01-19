@@ -21,13 +21,13 @@ function generateTimeSeriesData(points: number, baseValue: number, variance: num
   })
 }
 
-type MetricType = 'cpu' | 'memory' | 'network' | 'requests'
+type MetricType = 'cpu' | 'memory' | 'pods' | 'nodes'
 
 const metricConfig = {
-  cpu: { label: 'CPU Usage', color: '#9333ea', unit: '%', baseValue: 65, variance: 30 },
-  memory: { label: 'Memory Usage', color: '#3b82f6', unit: '%', baseValue: 72, variance: 20 },
-  network: { label: 'Network I/O', color: '#10b981', unit: ' MB/s', baseValue: 150, variance: 100 },
-  requests: { label: 'Requests/min', color: '#f59e0b', unit: '', baseValue: 1200, variance: 500 },
+  cpu: { label: 'CPU Cores', color: '#9333ea', unit: '', baseValue: 65, variance: 30 },
+  memory: { label: 'Memory', color: '#3b82f6', unit: ' GB', baseValue: 72, variance: 20 },
+  pods: { label: 'Pods', color: '#10b981', unit: '', baseValue: 150, variance: 100 },
+  nodes: { label: 'Nodes', color: '#f59e0b', unit: '', baseValue: 10, variance: 5 },
 }
 
 // Generate a numeric hash from a string for seeding
@@ -51,33 +51,49 @@ export function ClusterMetrics() {
     return rawClusters.filter(c => selectedClusters.includes(c.name))
   }, [rawClusters, selectedClusters, isAllClustersSelected])
 
-  // Generate aggregated metrics data based on filtered clusters
+  // Calculate real current values from cluster data
+  const realValues = useMemo(() => {
+    const totalCPUs = clusters.reduce((sum, c) => sum + (c.cpuCores || 0), 0)
+    const totalMemoryGB = clusters.reduce((sum, c) => sum + (c.memoryGB || 0), 0)
+    const totalPods = clusters.reduce((sum, c) => sum + (c.podCount || 0), 0)
+    const totalNodes = clusters.reduce((sum, c) => sum + (c.nodeCount || 0), 0)
+    return { cpu: totalCPUs, memory: totalMemoryGB, pods: totalPods, nodes: totalNodes }
+  }, [clusters])
+
+  // Check if we have real data
+  const hasRealData = clusters.some(c => c.cpuCores !== undefined || c.memoryGB !== undefined)
+
+  // Generate time-series data - use real values as base when available
   const data = useMemo(() => {
     const config = metricConfig[selectedMetric]
     const points = 20
 
     if (clusters.length === 0) {
-      // No clusters selected - return empty data
       return generateTimeSeriesData(points, 0, 0, 0)
     }
 
-    // Generate data for each cluster and aggregate (average)
+    // Use real current value as base if available
+    const baseValue = hasRealData ? realValues[selectedMetric] : config.baseValue
+    const variance = hasRealData ? baseValue * 0.1 : config.variance // 10% variance around real value
+
+    // Generate simulated historical data centered around current real value
     const clusterData = clusters.map(cluster =>
-      generateTimeSeriesData(points, config.baseValue, config.variance, stringToSeed(cluster.name + selectedMetric))
+      generateTimeSeriesData(points, baseValue / clusters.length, variance / clusters.length, stringToSeed(cluster.name + selectedMetric))
     )
 
-    // Aggregate by averaging all cluster values at each time point
+    // Aggregate by summing all cluster values at each time point
     return Array.from({ length: points }, (_, i) => {
-      const avgValue = clusterData.reduce((sum, cd) => sum + cd[i].value, 0) / clusterData.length
+      const totalValue = clusterData.reduce((sum, cd) => sum + cd[i].value, 0)
       return {
         time: clusterData[0][i].time,
-        value: avgValue,
+        value: totalValue,
       }
     })
-  }, [clusters, selectedMetric])
+  }, [clusters, selectedMetric, hasRealData, realValues])
 
   const config = metricConfig[selectedMetric]
-  const currentValue = data[data.length - 1]?.value || 0
+  // Use real current value if available, otherwise use last chart value
+  const currentValue = hasRealData ? realValues[selectedMetric] : (data[data.length - 1]?.value || 0)
 
   return (
     <div className="h-full flex flex-col">
@@ -92,9 +108,14 @@ export function ClusterMetrics() {
                 {clusters.length}
               </span>
             )}
+            {hasRealData && (
+              <span className="text-xs text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
+                Live
+              </span>
+            )}
           </div>
           <p className="text-2xl font-bold text-foreground">
-            {Math.round(currentValue)}<span className="text-sm text-muted-foreground">{config.unit}</span>
+            {selectedMetric === 'memory' ? realValues.memory.toFixed(1) : Math.round(currentValue)}<span className="text-sm text-muted-foreground">{config.unit}</span>
           </p>
         </div>
         <div className="flex gap-1">
@@ -115,7 +136,7 @@ export function ClusterMetrics() {
       </div>
 
       {/* Chart */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-[160px]">
         {clusters.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             No clusters selected

@@ -1,11 +1,39 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Activity, AlertTriangle, Clock, Bell, RotateCw, ChevronRight, CheckCircle2, Calendar, Zap } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Activity, AlertTriangle, Clock, Bell, ChevronRight, CheckCircle2, Calendar, Zap, Plus, Layout, LayoutGrid, ChevronDown, RefreshCw } from 'lucide-react'
 import { useEvents, useWarningEvents } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { DonutChart } from '../charts/PieChart'
 import { BarChart } from '../charts/BarChart'
 import { cn } from '../../lib/cn'
+import { CardWrapper } from '../cards/CardWrapper'
+import { CARD_COMPONENTS } from '../cards/cardRegistry'
+import { AddCardModal } from '../dashboard/AddCardModal'
+import { TemplatesModal } from '../dashboard/TemplatesModal'
+import { ConfigureCardModal } from '../dashboard/ConfigureCardModal'
+import { DashboardTemplate } from '../dashboard/templates'
+
+interface EventCard {
+  id: string
+  card_type: string
+  config: Record<string, unknown>
+  title?: string
+}
+
+const EVENTS_CARDS_KEY = 'kubestellar-events-cards'
+
+function loadEventCards(): EventCard[] {
+  try {
+    const stored = localStorage.getItem(EVENTS_CARDS_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function saveEventCards(cards: EventCard[]) {
+  localStorage.setItem(EVENTS_CARDS_KEY, JSON.stringify(cards))
+}
 
 type EventFilter = 'all' | 'warning' | 'normal'
 type ViewTab = 'overview' | 'timeline' | 'list'
@@ -74,6 +102,15 @@ export function Events() {
     filterBySeverity,
     customFilter: globalCustomFilter,
   } = useGlobalFilters()
+
+  // Card state
+  const [cards, setCards] = useState<EventCard[]>(() => loadEventCards())
+  const [showStats, setShowStats] = useState(true)
+  const [showCards, setShowCards] = useState(true)
+  const [showAddCard, setShowAddCard] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [configuringCard, setConfiguringCard] = useState<EventCard | null>(null)
+
   const [selectedNamespace, setSelectedNamespace] = useState<string>('')
   const [selectedReason, setSelectedReason] = useState<string>('')
   const [filter, setFilter] = useState<EventFilter>('all')
@@ -82,10 +119,18 @@ export function Events() {
   const [activeTab, setActiveTab] = useState<ViewTab>('overview')
 
   // Get events - fetch all, filter client-side with global filter
-  const { events: allEvents, isLoading: loadingAll, refetch: refetchAll } = useEvents(undefined)
-  const { events: warningEvents, isLoading: loadingWarnings, refetch: refetchWarnings } = useWarningEvents(undefined)
+  const { events: allEvents, isLoading: loadingAll, isRefreshing: refreshingAll, lastUpdated: allUpdated, refetch: refetchAll } = useEvents(undefined)
+  const { events: warningEvents, isLoading: loadingWarnings, isRefreshing: refreshingWarnings, lastUpdated: warningsUpdated, refetch: refetchWarnings } = useWarningEvents(undefined)
 
   const isLoading = filter === 'warning' ? loadingWarnings : loadingAll
+  const isRefreshing = filter === 'warning' ? refreshingWarnings : refreshingAll
+  const isFetching = isLoading || isRefreshing
+  const lastUpdated = filter === 'warning' ? warningsUpdated : allUpdated
+
+  // Save cards to localStorage when they change
+  useEffect(() => {
+    saveEventCards(cards)
+  }, [cards])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -101,6 +146,54 @@ export function Events() {
 
     return () => clearInterval(interval)
   }, [autoRefresh, filter, refetchAll, refetchWarnings])
+
+  const handleRefresh = useCallback(() => {
+    if (filter === 'warning') {
+      refetchWarnings()
+    } else {
+      refetchAll()
+    }
+  }, [filter, refetchAll, refetchWarnings])
+
+  const handleAddCards = useCallback((newCards: Array<{ type: string; title: string; config: Record<string, unknown> }>) => {
+    const cardsToAdd: EventCard[] = newCards.map(card => ({
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      card_type: card.type,
+      config: card.config,
+      title: card.title,
+    }))
+    setCards(prev => [...prev, ...cardsToAdd])
+    setShowCards(true)
+    setShowAddCard(false)
+  }, [])
+
+  const handleRemoveCard = useCallback((cardId: string) => {
+    setCards(prev => prev.filter(c => c.id !== cardId))
+  }, [])
+
+  const handleConfigureCard = useCallback((cardId: string) => {
+    const card = cards.find(c => c.id === cardId)
+    if (card) setConfiguringCard(card)
+  }, [cards])
+
+  const handleSaveCardConfig = useCallback((cardId: string, config: Record<string, unknown>) => {
+    setCards(prev => prev.map(c =>
+      c.id === cardId ? { ...c, config } : c
+    ))
+    setConfiguringCard(null)
+  }, [])
+
+  const applyTemplate = useCallback((template: DashboardTemplate) => {
+    const newCards: EventCard[] = template.cards.map(card => ({
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      card_type: card.card_type,
+      config: card.config || {},
+      title: card.title,
+    }))
+    setCards(newCards)
+    setShowCards(true)
+    setShowTemplates(false)
+  }, [])
 
   // Events after global filter (before local filters)
   const globalFilteredAllEvents = useMemo(() => {
@@ -342,11 +435,104 @@ export function Events() {
 
   const hasActiveFilters = selectedNamespace || selectedReason || filter !== 'all' || searchQuery
 
+  // Transform card for ConfigureCardModal
+  const configureCard = configuringCard ? {
+    id: configuringCard.id,
+    card_type: configuringCard.card_type,
+    config: configuringCard.config,
+    title: configuringCard.title,
+  } : null
+
   return (
     <div className="pt-16">
+      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Events</h1>
-        <p className="text-muted-foreground">Cluster events and activity across your infrastructure</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Activity className="w-6 h-6 text-purple-400" />
+              Events
+            </h1>
+            <p className="text-muted-foreground">Cluster events and activity across your infrastructure</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label htmlFor="events-auto-refresh" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                id="events-auto-refresh"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded border-border"
+              />
+              Auto-refresh
+            </label>
+            <button
+              onClick={handleRefresh}
+              disabled={isFetching}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 text-foreground hover:bg-secondary transition-colors text-sm disabled:opacity-50"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Overview - collapsible */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Activity className="w-4 h-4" />
+            <span>Stats Overview</span>
+            {showStats ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground/60">
+              Updated {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
+        {showStats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="w-5 h-5 text-purple-400" />
+                <span className="text-sm text-muted-foreground">Total</span>
+              </div>
+              <div className="text-3xl font-bold text-foreground">{stats.total}</div>
+              <div className="text-xs text-muted-foreground">events</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                <span className="text-sm text-muted-foreground">Warnings</span>
+              </div>
+              <div className="text-3xl font-bold text-yellow-400">{stats.warnings}</div>
+              <div className="text-xs text-muted-foreground">warning events</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-5 h-5 text-green-400" />
+                <span className="text-sm text-muted-foreground">Normal</span>
+              </div>
+              <div className="text-3xl font-bold text-green-400">{stats.normal}</div>
+              <div className="text-xs text-muted-foreground">normal events</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-5 h-5 text-blue-400" />
+                <span className="text-sm text-muted-foreground">Recent</span>
+              </div>
+              <div className="text-3xl font-bold text-blue-400">{stats.recentCount}</div>
+              <div className="text-xs text-muted-foreground">in last hour</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -378,28 +564,108 @@ export function Events() {
             </button>
           )
         })}
-
-        {/* Auto-refresh and manual refresh on the right */}
-        <div className="ml-auto flex items-center gap-3 pb-2">
-          <label htmlFor="events-auto-refresh-tab" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              id="events-auto-refresh-tab"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded border-border"
-            />
-            Auto-refresh
-          </label>
-          <button
-            onClick={() => filter === 'warning' ? refetchWarnings() : refetchAll()}
-            className="p-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            title="Refresh now"
-          >
-            <RotateCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
-          </button>
-        </div>
       </div>
+
+      {/* Dashboard Cards Section */}
+      <div className="mb-6">
+        {/* Card section header with toggle and buttons */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setShowCards(!showCards)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Event Cards ({cards.length})</span>
+            {showCards ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+            >
+              <Layout className="w-3.5 h-3.5" />
+              Templates
+            </button>
+            <button
+              onClick={() => setShowAddCard(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Card
+            </button>
+          </div>
+        </div>
+
+        {/* Cards grid */}
+        {showCards && (
+          <>
+            {cards.length === 0 ? (
+              <div className="glass p-8 rounded-lg border-2 border-dashed border-border/50 text-center">
+                <div className="flex justify-center mb-4">
+                  <Activity className="w-12 h-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Events Dashboard</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                  Add cards to monitor Kubernetes events, warnings, and activity across your clusters.
+                </p>
+                <button
+                  onClick={() => setShowAddCard(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Cards
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.map(card => {
+                  const CardComponent = CARD_COMPONENTS[card.card_type]
+                  if (!CardComponent) {
+                    console.warn(`Unknown card type: ${card.card_type}`)
+                    return null
+                  }
+                  return (
+                    <CardWrapper
+                      key={card.id}
+                      cardId={card.id}
+                      cardType={card.card_type}
+                      title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      onConfigure={() => handleConfigureCard(card.id)}
+                      onRemove={() => handleRemoveCard(card.id)}
+                    >
+                      <CardComponent config={card.config} />
+                    </CardWrapper>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Add Card Modal */}
+      <AddCardModal
+        isOpen={showAddCard}
+        onClose={() => setShowAddCard(false)}
+        onAddCards={handleAddCards}
+        existingCardTypes={cards.map(c => c.card_type)}
+      />
+
+      {/* Templates Modal */}
+      <TemplatesModal
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onApplyTemplate={applyTemplate}
+      />
+
+      {/* Configure Card Modal */}
+      <ConfigureCardModal
+        isOpen={!!configuringCard}
+        card={configureCard}
+        onClose={() => setConfiguringCard(null)}
+        onSave={handleSaveCardConfig}
+      />
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (

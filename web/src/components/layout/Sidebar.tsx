@@ -25,11 +25,9 @@ export function Sidebar() {
   // Handle Add Card click - navigate to dashboard first if not there
   const handleAddCardClick = () => {
     if (location.pathname !== '/') {
+      // Set pending flag so Dashboard opens modal after mount
+      dashboardContext?.setPendingOpenAddCardModal(true)
       navigate('/')
-      // Use setTimeout to allow navigation to complete before opening modal
-      setTimeout(() => {
-        dashboardContext?.openAddCardModal()
-      }, 100)
     } else {
       dashboardContext?.openAddCardModal()
     }

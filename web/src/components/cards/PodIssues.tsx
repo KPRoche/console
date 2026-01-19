@@ -17,6 +17,18 @@ const SORT_OPTIONS = [
   { value: 'cluster' as const, label: 'Cluster' },
 ]
 
+// Format relative time (e.g., "2m ago", "1h ago")
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (seconds < 60) return 'now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 const getIssueIcon = (status: string): { icon: typeof MemoryStick; tooltip: string } => {
   if (status.includes('OOM')) return { icon: MemoryStick, tooltip: 'Out of Memory - Pod exceeded memory limits' }
   if (status.includes('Image')) return { icon: ImageOff, tooltip: 'Image Pull Error - Failed to pull container image' }
@@ -40,7 +52,7 @@ const getStatusColors = (status: string) => {
 }
 
 export function PodIssues() {
-  const { issues: rawIssues, isLoading, error, refetch } = usePodIssues()
+  const { issues: rawIssues, isLoading, isRefreshing, lastUpdated, error, refetch } = usePodIssues()
   const { drillToPod } = useDrillDownActions()
   const { filterByCluster, filterByStatus, customFilter } = useGlobalFilters()
   const [sortBy, setSortBy] = useState<SortByOption>('status')
@@ -100,13 +112,21 @@ export function PodIssues() {
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-muted-foreground">Pod Issues</span>
-          <button
-            onClick={() => refetch()}
-            className="p-1 hover:bg-secondary rounded transition-colors"
-            title="Refresh pod issues"
-          >
-            <RefreshCw className="w-4 h-4 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            {lastUpdated && (
+              <span className="text-[10px] text-muted-foreground" title={`Last updated: ${lastUpdated.toLocaleString()}`}>
+                {formatTimeAgo(lastUpdated)}
+              </span>
+            )}
+            <button
+              onClick={() => refetch()}
+              disabled={isRefreshing}
+              className="p-1 hover:bg-secondary rounded transition-colors disabled:opacity-50"
+              title={isRefreshing ? 'Refreshing...' : 'Refresh pod issues'}
+            >
+              <RefreshCw className={`w-4 h-4 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-3" title="All pods are healthy">
@@ -151,12 +171,18 @@ export function PodIssues() {
             sortDirection={sortDirection}
             onSortDirectionChange={setSortDirection}
           />
+          {lastUpdated && (
+            <span className="text-[10px] text-muted-foreground" title={`Last updated: ${lastUpdated.toLocaleString()}`}>
+              {formatTimeAgo(lastUpdated)}
+            </span>
+          )}
           <button
             onClick={() => refetch()}
-            className="p-1 hover:bg-secondary rounded transition-colors"
-            title="Refresh pod issues"
+            disabled={isRefreshing}
+            className="p-1 hover:bg-secondary rounded transition-colors disabled:opacity-50"
+            title={isRefreshing ? 'Refreshing...' : 'Refresh pod issues'}
           >
-            <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>

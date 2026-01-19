@@ -25,7 +25,7 @@ const CARD_TYPE_LABELS: Record<string, string> = {
   event_stream: 'Event Stream',
   pod_issues: 'Pod Issues',
   top_pods: 'Top Pods',
-  app_status: 'App Status',
+  app_status: 'Workload Status',
   resource_usage: 'Resource Usage',
   cluster_metrics: 'Cluster Metrics',
   deployment_status: 'Deployment Status',
@@ -59,8 +59,8 @@ const KNOWN_ROUTES: KnownRoute[] = [
   { href: '/security', name: 'Security', description: 'Security policies, RBAC, vulnerabilities, and compliance', icon: 'Shield', category: 'Core Dashboards' },
   { href: '/gitops', name: 'GitOps', description: 'ArgoCD, Flux, Helm releases, and deployment drift detection', icon: 'GitBranch', category: 'Core Dashboards' },
   { href: '/gpu-reservations', name: 'GPU Reservations', description: 'Schedule and manage GPU reservations with calendar and quota management', icon: 'Zap', category: 'Core Dashboards' },
-  // Applications
-  { href: '/apps', name: 'Applications', description: 'Application deployments and status across clusters', icon: 'Boxes', category: 'Applications' },
+  { href: '/storage', name: 'Storage', description: 'Persistent volumes, storage classes, and capacity management', icon: 'HardDrive', category: 'Core Dashboards' },
+  { href: '/network', name: 'Network', description: 'Network policies, ingress, and service mesh configuration', icon: 'Network', category: 'Core Dashboards' },
   // Resource Pages
   { href: '/namespaces', name: 'Namespaces', description: 'Namespace management and resource allocation', icon: 'FolderTree', category: 'Resources' },
   { href: '/nodes', name: 'Nodes', description: 'Cluster node health and resource usage', icon: 'HardDrive', category: 'Resources' },
@@ -393,8 +393,8 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                 </div>
               </div>
 
-              {/* Name and URL fields */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Name, Icon, and Section fields - URL only shown for custom */}
+              <div className={cn('grid gap-3', selectedKnownRoute === 'custom' ? 'grid-cols-2' : 'grid-cols-3')}>
                 <div>
                   <label className="text-xs text-muted-foreground">Name</label>
                   <input
@@ -405,19 +405,18 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                     className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">URL Path</label>
-                  <input
-                    type="text"
-                    value={newItemHref}
-                    onChange={(e) => {
-                      setNewItemHref(e.target.value)
-                      setSelectedKnownRoute('custom') // Switch to custom when manually editing
-                    }}
-                    placeholder="/my-page"
-                    className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
-                  />
-                </div>
+                {selectedKnownRoute === 'custom' && (
+                  <div>
+                    <label className="text-xs text-muted-foreground">URL Path</label>
+                    <input
+                      type="text"
+                      value={newItemHref}
+                      onChange={(e) => setNewItemHref(e.target.value)}
+                      placeholder="/my-page"
+                      className="w-full mt-1 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="text-xs text-muted-foreground">Icon</label>
                   <select

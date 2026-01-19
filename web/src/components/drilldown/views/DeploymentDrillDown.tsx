@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocalAgent } from '../../../hooks/useLocalAgent'
 import { useDrillDownActions } from '../../../hooks/useDrillDown'
+import { useCanI } from '../../../hooks/usePermissions'
 import { ClusterBadge } from '../../ui/ClusterBadge'
-import { FileText, Code, Info, Tag, Zap, Loader2, Copy, Check, Layers, Server, Box } from 'lucide-react'
+import { FileText, Code, Info, Tag, Zap, Loader2, Copy, Check, Layers, Server, Box, Minus, Plus } from 'lucide-react'
 import { cn } from '../../../lib/cn'
 import { StatusIndicator } from '../../charts/StatusIndicator'
 import { Gauge } from '../../charts/Gauge'
@@ -33,6 +34,11 @@ export function DeploymentDrillDown({ data }: Props) {
   const [yamlOutput, setYamlOutput] = useState<string | null>(null)
   const [yamlLoading, setYamlLoading] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [canScale, setCanScale] = useState<boolean | null>(null)
+  const [desiredReplicas, setDesiredReplicas] = useState<number>((data.replicas as number) || 0)
+  const [isScaling, setIsScaling] = useState(false)
+  const [scaleError, setScaleError] = useState<string | null>(null)
+  const { checkPermission } = useCanI()
 
   const reason = data.reason as string
   const message = data.message as string
@@ -141,6 +147,75 @@ export function DeploymentDrillDown({ data }: Props) {
     const output = await runKubectl(['get', 'deployment', deploymentName, '-n', namespace, '-o', 'yaml'])
     setYamlOutput(output)
     setYamlLoading(false)
+  }
+
+  // Check if user can scale deployments in this namespace
+  const checkScalePermission = useCallback(async () => {
+    try {
+      const result = await checkPermission({
+        cluster,
+        verb: 'patch',
+        resource: 'deployments',
+        namespace,
+        subresource: 'scale',
+      })
+      setCanScale(result.allowed)
+    } catch {
+      // If scale subresource check fails, try checking patch on deployments
+      try {
+        const result = await checkPermission({
+          cluster,
+          verb: 'patch',
+          resource: 'deployments',
+          namespace,
+        })
+        setCanScale(result.allowed)
+      } catch {
+        setCanScale(false)
+      }
+    }
+  }, [cluster, namespace, checkPermission])
+
+  // Check scale permission on mount
+  useEffect(() => {
+    checkScalePermission()
+  }, [checkScalePermission])
+
+  // Keep desiredReplicas in sync with replicas when it changes
+  useEffect(() => {
+    setDesiredReplicas(replicas)
+  }, [replicas])
+
+  // Handle scale deployment
+  const handleScale = async () => {
+    if (!agentConnected || !canScale || desiredReplicas === replicas) return
+
+    setIsScaling(true)
+    setScaleError(null)
+
+    try {
+      const output = await runKubectl([
+        'scale',
+        'deployment',
+        deploymentName,
+        '-n',
+        namespace,
+        `--replicas=${desiredReplicas}`,
+      ])
+
+      if (output.toLowerCase().includes('scaled') || output.toLowerCase().includes('deployment')) {
+        // Success - update local state immediately
+        setReplicas(desiredReplicas)
+        // Refetch data to get updated status
+        setTimeout(fetchData, 1000)
+      } else if (output.toLowerCase().includes('error') || output.toLowerCase().includes('forbidden')) {
+        setScaleError(output || 'Failed to scale deployment')
+      }
+    } catch (err) {
+      setScaleError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setIsScaling(false)
+    }
   }
 
   // Track if we've already loaded data to prevent refetching
@@ -266,6 +341,95 @@ export function DeploymentDrillDown({ data }: Props) {
               {message && (
                 <div className="mt-3 p-2 rounded bg-card/50 text-sm text-muted-foreground">{message}</div>
               )}
+            </div>
+
+            {/* Scale Control */}
+            <div className="p-4 rounded-lg bg-card/50 border border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-400" />
+                Scale Deployment
+              </h3>
+              {scaleError && (
+                <div className="mb-3 p-2 rounded bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+                  {scaleError}
+                </div>
+              )}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDesiredReplicas(Math.max(0, desiredReplicas - 1))}
+                    disabled={!canScale || desiredReplicas <= 0 || isScaling}
+                    className={cn(
+                      'p-2 rounded-lg transition-colors',
+                      canScale && desiredReplicas > 0
+                        ? 'bg-secondary hover:bg-secondary/80 text-foreground'
+                        : 'bg-secondary/30 text-muted-foreground cursor-not-allowed'
+                    )}
+                    title={canScale === false ? 'No permission to scale' : 'Decrease replicas'}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={desiredReplicas}
+                    onChange={(e) => setDesiredReplicas(Math.max(0, Math.min(10, parseInt(e.target.value) || 0)))}
+                    disabled={!canScale || isScaling}
+                    className={cn(
+                      'w-16 text-center py-2 rounded-lg bg-secondary border border-border text-foreground font-mono text-lg',
+                      (!canScale || isScaling) && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title={canScale === false ? 'No permission to scale' : 'Desired replicas (0-10)'}
+                  />
+                  <button
+                    onClick={() => setDesiredReplicas(Math.min(10, desiredReplicas + 1))}
+                    disabled={!canScale || desiredReplicas >= 10 || isScaling}
+                    className={cn(
+                      'p-2 rounded-lg transition-colors',
+                      canScale && desiredReplicas < 10
+                        ? 'bg-secondary hover:bg-secondary/80 text-foreground'
+                        : 'bg-secondary/30 text-muted-foreground cursor-not-allowed'
+                    )}
+                    title={canScale === false ? 'No permission to scale' : 'Increase replicas'}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 text-sm text-muted-foreground">
+                  {canScale === null ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Checking permissions...
+                    </span>
+                  ) : canScale === false ? (
+                    <span className="text-yellow-400">No permission to scale deployments</span>
+                  ) : desiredReplicas !== replicas ? (
+                    <span>Change from {replicas} to {desiredReplicas} replicas</span>
+                  ) : (
+                    <span>Current: {replicas} replica{replicas !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+                <button
+                  onClick={handleScale}
+                  disabled={!canScale || desiredReplicas === replicas || isScaling}
+                  className={cn(
+                    'px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2',
+                    canScale && desiredReplicas !== replicas && !isScaling
+                      ? 'bg-purple-500 text-white hover:bg-purple-600'
+                      : 'bg-secondary/30 text-muted-foreground cursor-not-allowed'
+                  )}
+                >
+                  {isScaling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Scaling...
+                    </>
+                  ) : (
+                    'Scale'
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* ReplicaSets */}

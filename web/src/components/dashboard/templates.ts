@@ -5,7 +5,7 @@ export interface DashboardTemplate {
   name: string
   description: string
   icon: string
-  category: 'cluster' | 'namespace' | 'gitops' | 'security' | 'gpu' | 'custom'
+  category: 'cluster' | 'namespace' | 'gitops' | 'security' | 'gpu' | 'storage' | 'compute' | 'network' | 'klaude' | 'custom'
   cards: Array<{
     card_type: string
     title?: string
@@ -203,13 +203,78 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
       { card_type: 'namespace_events', position: { w: 4, h: 2 } },
     ],
   },
+
+  // Storage templates
+  {
+    id: 'storage-overview',
+    name: 'Storage Overview',
+    description: 'PVs, PVCs, and storage classes',
+    icon: '💾',
+    category: 'storage',
+    cards: [
+      { card_type: 'resource_capacity', title: 'Storage Capacity', position: { w: 4, h: 2 } },
+      { card_type: 'resource_usage', title: 'Storage Usage', position: { w: 4, h: 2 } },
+      { card_type: 'cluster_health', title: 'Cluster Storage Health', position: { w: 4, h: 2 } },
+      { card_type: 'event_stream', title: 'Storage Events', config: { filter: 'storage' }, position: { w: 12, h: 2 } },
+    ],
+  },
+
+  // Compute templates
+  {
+    id: 'compute-overview',
+    name: 'Compute Overview',
+    description: 'CPU, memory, and node resources',
+    icon: '⚙️',
+    category: 'compute',
+    cards: [
+      { card_type: 'resource_usage', position: { w: 4, h: 2 } },
+      { card_type: 'resource_capacity', position: { w: 4, h: 2 } },
+      { card_type: 'cluster_metrics', position: { w: 4, h: 2 } },
+      { card_type: 'top_pods', title: 'Top CPU Consumers', position: { w: 6, h: 3 } },
+      { card_type: 'top_pods', title: 'Top Memory Consumers', position: { w: 6, h: 3 } },
+    ],
+  },
+
+  // Network templates
+  {
+    id: 'network-overview',
+    name: 'Network Overview',
+    description: 'Network policies, services, and connectivity',
+    icon: '🌐',
+    category: 'network',
+    cards: [
+      { card_type: 'cluster_network', position: { w: 6, h: 3 } },
+      { card_type: 'cluster_health', title: 'Network Health', position: { w: 6, h: 3 } },
+      { card_type: 'event_stream', title: 'Network Events', config: { filter: 'network' }, position: { w: 12, h: 2 } },
+    ],
+  },
+
+  // Klaude AI templates
+  {
+    id: 'klaude-dashboard',
+    name: 'Klaude AI Dashboard',
+    description: 'AI-powered cluster analysis and troubleshooting',
+    icon: '🤖',
+    category: 'klaude',
+    cards: [
+      { card_type: 'klaude_issues', title: 'Klaude Issues', position: { w: 4, h: 3 } },
+      { card_type: 'klaude_kubeconfig_audit', title: 'Klaude Kubeconfig Audit', position: { w: 4, h: 3 } },
+      { card_type: 'klaude_health_check', title: 'Klaude Health Check', position: { w: 4, h: 3 } },
+      { card_type: 'pod_issues', position: { w: 6, h: 2 } },
+      { card_type: 'deployment_issues', position: { w: 6, h: 2 } },
+    ],
+  },
 ]
 
 export const TEMPLATE_CATEGORIES = [
   { id: 'cluster', name: 'Cluster', icon: '🌐' },
   { id: 'namespace', name: 'Namespace', icon: '📁' },
+  { id: 'storage', name: 'Storage', icon: '💾' },
+  { id: 'compute', name: 'Compute', icon: '⚙️' },
+  { id: 'network', name: 'Network', icon: '🌐' },
   { id: 'gitops', name: 'GitOps', icon: '🔄' },
   { id: 'security', name: 'Security', icon: '🔒' },
   { id: 'gpu', name: 'GPU', icon: '🎮' },
+  { id: 'klaude', name: 'Klaude AI', icon: '🤖' },
   { id: 'custom', name: 'Other', icon: '📌' },
 ] as const

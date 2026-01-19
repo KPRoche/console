@@ -221,22 +221,24 @@ After I approve, help me execute the repairs step by step.`,
               const consoleUrl = getProviderConsoleUrl(provider, clusterName)
               return (
                 <>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${providerInfo.bgColor} ${providerInfo.color}`}
-                    title={providerInfo.label}
-                  >
-                    {providerInfo.icon} {providerInfo.label}
-                  </span>
-                  {consoleUrl && (
+                  {consoleUrl ? (
                     <a
                       href={consoleUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium ${providerInfo.bgColor} ${providerInfo.color} hover:opacity-80 transition-opacity`}
                       title={`Open ${providerInfo.label} console`}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      {providerInfo.icon} {providerInfo.label}
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </a>
+                  ) : (
+                    <span
+                      className={`px-3 py-1 rounded-lg text-sm font-medium ${providerInfo.bgColor} ${providerInfo.color}`}
+                      title={providerInfo.label}
+                    >
+                      {providerInfo.icon} {providerInfo.label}
+                    </span>
                   )}
                 </>
               )

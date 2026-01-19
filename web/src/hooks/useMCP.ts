@@ -298,6 +298,7 @@ interface ClusterCache {
   clusters: ClusterInfo[]
   lastUpdated: Date | null
   isLoading: boolean
+  isRefreshing: boolean
   error: string | null
 }
 
@@ -306,6 +307,7 @@ let clusterCache: ClusterCache = {
   clusters: [],
   lastUpdated: null,
   isLoading: true,
+  isRefreshing: false,
   error: null,
 }
 
@@ -346,6 +348,7 @@ if (import.meta.hot) {
       clusters: [],
       lastUpdated: null,
       isLoading: true,
+      isRefreshing: false,
       error: null,
     }
     clusterSubscribers.clear()
@@ -472,17 +475,37 @@ async function silentFetchClusters() {
 
 // Full refetch - updates shared cache with loading state
 async function fullFetchClusters() {
-  updateClusterCache({ isLoading: true })
+  // If we have cached data, show refreshing; otherwise show loading
+  const hasCachedData = clusterCache.clusters.length > 0
+  const startTime = Date.now()
+
+  if (hasCachedData) {
+    updateClusterCache({ isRefreshing: true })
+  } else {
+    updateClusterCache({ isLoading: true })
+  }
+
+  // Helper to ensure minimum visible duration for refresh animation
+  const finishWithMinDuration = async (updates: Partial<typeof clusterCache>) => {
+    const elapsed = Date.now() - startTime
+    const minDuration = hasCachedData ? 400 : 0 // Only delay when refreshing, not initial load
+    if (elapsed < minDuration) {
+      await new Promise(resolve => setTimeout(resolve, minDuration - elapsed))
+    }
+    updateClusterCache(updates)
+  }
+
   try {
     // Try local agent first - get cluster list quickly
     const agentClusters = await fetchClusterListFromAgent()
     if (agentClusters) {
       // Show clusters immediately with "checking" state
-      updateClusterCache({
+      await finishWithMinDuration({
         clusters: agentClusters,
         error: null,
         lastUpdated: new Date(),
         isLoading: false,
+        isRefreshing: false,
       })
       // Check health progressively (non-blocking)
       checkHealthProgressively(agentClusters)
@@ -490,17 +513,19 @@ async function fullFetchClusters() {
     }
     // Fall back to backend API
     const { data } = await api.get<{ clusters: ClusterInfo[] }>('/api/mcp/clusters')
-    updateClusterCache({
+    await finishWithMinDuration({
       clusters: data.clusters || [],
       error: null,
       lastUpdated: new Date(),
       isLoading: false,
+      isRefreshing: false,
     })
   } catch (err) {
-    updateClusterCache({
+    await finishWithMinDuration({
       error: 'Failed to fetch clusters',
       clusters: getDemoClusters(),
       isLoading: false,
+      isRefreshing: false,
     })
   }
 }
@@ -631,8 +656,7 @@ export function useClusters() {
   return {
     clusters: localState.clusters,
     isLoading: localState.isLoading,
-    isUpdating: false, // Not tracked in shared cache for simplicity
-    isRefreshing: false, // Not tracked in shared cache for simplicity
+    isRefreshing: localState.isRefreshing,
     lastUpdated: localState.lastUpdated,
     error: localState.error,
     refetch,
@@ -724,49 +748,118 @@ export function usePods(cluster?: string, namespace?: string, sortBy: 'restarts'
   return { pods, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }
 
+// Module-level cache for pod issues data (persists across navigation)
+interface PodIssuesCache {
+  data: PodIssue[]
+  timestamp: Date
+  key: string
+}
+let podIssuesCache: PodIssuesCache | null = null
+
 // Hook to get pod issues
 export function usePodIssues(cluster?: string, namespace?: string) {
-  const [issues, setIssues] = useState<PodIssue[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const cacheKey = `podIssues:${cluster || 'all'}:${namespace || 'all'}`
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const params = new URLSearchParams()
-      if (cluster) params.append('cluster', cluster)
-      if (namespace) params.append('namespace', namespace)
-      const { data } = await api.get<{ issues: PodIssue[] }>(`/api/mcp/pod-issues?${params}`)
-      setIssues(data.issues || [])
-      setError(null)
-    } catch (err) {
-      setError('Failed to fetch pod issues')
-      setIssues(getDemoPodIssues())
-    } finally {
-      setIsLoading(false)
+  // Initialize from cache if available
+  const getCachedData = () => {
+    if (podIssuesCache && podIssuesCache.key === cacheKey) {
+      return { data: podIssuesCache.data, timestamp: podIssuesCache.timestamp }
     }
-  }, [cluster, namespace])
+    return null
+  }
 
-  useEffect(() => {
-    refetch()
-  }, [refetch])
-
-  return { issues, isLoading, error, refetch }
-}
-
-// Hook to get events
-export function useEvents(cluster?: string, namespace?: string, limit = 20) {
-  const [events, setEvents] = useState<ClusterEvent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cached = getCachedData()
+  const [issues, setIssues] = useState<PodIssue[]>(cached?.data || [])
+  const [isLoading, setIsLoading] = useState(!cached)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cached?.timestamp || null)
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async (silent = false) => {
     if (silent) {
       setIsRefreshing(true)
     } else {
-      setIsLoading(true)
+      const hasCachedData = podIssuesCache && podIssuesCache.key === cacheKey
+      if (!hasCachedData) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
+    }
+    try {
+      const params = new URLSearchParams()
+      if (cluster) params.append('cluster', cluster)
+      if (namespace) params.append('namespace', namespace)
+      const { data } = await api.get<{ issues: PodIssue[] }>(`/api/mcp/pod-issues?${params}`)
+      const newData = data.issues || []
+      const now = new Date()
+
+      // Update module-level cache
+      podIssuesCache = { data: newData, timestamp: now, key: cacheKey }
+
+      setIssues(newData)
+      setError(null)
+      setLastUpdated(now)
+    } catch (err) {
+      setError('Failed to fetch pod issues')
+      // Keep stale data, only use demo if no cached data
+      if (!podIssuesCache) {
+        setIssues(getDemoPodIssues())
+      }
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [cluster, namespace, cacheKey])
+
+  useEffect(() => {
+    const hasCachedData = podIssuesCache && podIssuesCache.key === cacheKey
+    refetch(!hasCachedData)
+    // Poll every 30 seconds for pod issue updates
+    const interval = setInterval(() => refetch(true), REFRESH_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [refetch, cacheKey])
+
+  return { issues, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
+}
+
+// Hook to get events
+// Module-level cache for events data (persists across navigation)
+interface EventsCache {
+  data: ClusterEvent[]
+  timestamp: Date
+  key: string
+}
+let eventsCache: EventsCache | null = null
+
+export function useEvents(cluster?: string, namespace?: string, limit = 20) {
+  const cacheKey = `events:${cluster || 'all'}:${namespace || 'all'}:${limit}`
+
+  // Initialize from cache if available
+  const getCachedData = () => {
+    if (eventsCache && eventsCache.key === cacheKey) {
+      return { data: eventsCache.data, timestamp: eventsCache.timestamp }
+    }
+    return null
+  }
+
+  const cached = getCachedData()
+  const [events, setEvents] = useState<ClusterEvent[]>(cached?.data || [])
+  const [isLoading, setIsLoading] = useState(!cached)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cached?.timestamp || null)
+  const [error, setError] = useState<string | null>(null)
+
+  const refetch = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true)
+    } else {
+      const hasCachedData = eventsCache && eventsCache.key === cacheKey
+      if (!hasCachedData) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
     }
     try {
       const params = new URLSearchParams()
@@ -774,58 +867,111 @@ export function useEvents(cluster?: string, namespace?: string, limit = 20) {
       if (namespace) params.append('namespace', namespace)
       params.append('limit', limit.toString())
       const { data } = await api.get<{ events: ClusterEvent[] }>(`/api/mcp/events?${params}`)
-      setEvents(data.events || [])
+      const newData = data.events || []
+      const now = new Date()
+
+      // Update module-level cache
+      eventsCache = { data: newData, timestamp: now, key: cacheKey }
+
+      setEvents(newData)
       setError(null)
-      setLastUpdated(new Date())
+      setLastUpdated(now)
     } catch (err) {
       setError('Failed to fetch events')
-      if (!silent) {
+      // Keep stale data, only use demo if no cached data
+      if (!eventsCache) {
         setEvents(getDemoEvents())
       }
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [cluster, namespace, limit])
+  }, [cluster, namespace, limit, cacheKey])
 
   useEffect(() => {
-    refetch(false)
+    const hasCachedData = eventsCache && eventsCache.key === cacheKey
+    refetch(!hasCachedData)
     // Poll every 30 seconds for events
     const interval = setInterval(() => refetch(true), REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [refetch])
+  }, [refetch, cacheKey])
 
   return { events, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }
 
+// Module-level cache for deployment issues data (persists across navigation)
+interface DeploymentIssuesCache {
+  data: DeploymentIssue[]
+  timestamp: Date
+  key: string
+}
+let deploymentIssuesCache: DeploymentIssuesCache | null = null
+
 // Hook to get deployment issues
 export function useDeploymentIssues(cluster?: string, namespace?: string) {
-  const [issues, setIssues] = useState<DeploymentIssue[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cacheKey = `deploymentIssues:${cluster || 'all'}:${namespace || 'all'}`
+
+  // Initialize from cache if available
+  const getCachedData = () => {
+    if (deploymentIssuesCache && deploymentIssuesCache.key === cacheKey) {
+      return { data: deploymentIssuesCache.data, timestamp: deploymentIssuesCache.timestamp }
+    }
+    return null
+  }
+
+  const cached = getCachedData()
+  const [issues, setIssues] = useState<DeploymentIssue[]>(cached?.data || [])
+  const [isLoading, setIsLoading] = useState(!cached)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cached?.timestamp || null)
   const [error, setError] = useState<string | null>(null)
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true)
+  const refetch = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true)
+    } else {
+      const hasCachedData = deploymentIssuesCache && deploymentIssuesCache.key === cacheKey
+      if (!hasCachedData) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
+    }
     try {
       const params = new URLSearchParams()
       if (cluster) params.append('cluster', cluster)
       if (namespace) params.append('namespace', namespace)
       const { data } = await api.get<{ issues: DeploymentIssue[] }>(`/api/mcp/deployment-issues?${params}`)
-      setIssues(data.issues || [])
+      const newData = data.issues || []
+      const now = new Date()
+
+      // Update module-level cache
+      deploymentIssuesCache = { data: newData, timestamp: now, key: cacheKey }
+
+      setIssues(newData)
       setError(null)
+      setLastUpdated(now)
     } catch (err) {
       setError('Failed to fetch deployment issues')
-      setIssues(getDemoDeploymentIssues())
+      // Keep stale data, only use demo if no cached data
+      if (!deploymentIssuesCache) {
+        setIssues(getDemoDeploymentIssues())
+      }
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
-  }, [cluster, namespace])
+  }, [cluster, namespace, cacheKey])
 
   useEffect(() => {
-    refetch()
-  }, [refetch])
+    const hasCachedData = deploymentIssuesCache && deploymentIssuesCache.key === cacheKey
+    refetch(!hasCachedData)
+    // Poll every 30 seconds for deployment issues
+    const interval = setInterval(() => refetch(true), REFRESH_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [refetch, cacheKey])
 
-  return { issues, isLoading, error, refetch }
+  return { issues, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }
 
 // Hook to get deployments with rollout status
@@ -871,34 +1017,79 @@ export function useDeployments(cluster?: string, namespace?: string) {
   return { deployments, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }
 
+// Module-level cache for services data (persists across navigation)
+interface ServicesCache {
+  data: Service[]
+  timestamp: Date
+  key: string
+}
+let servicesCache: ServicesCache | null = null
+
 // Hook to get services
 export function useServices(cluster?: string, namespace?: string) {
-  const [services, setServices] = useState<Service[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cacheKey = `services:${cluster || 'all'}:${namespace || 'all'}`
+
+  // Initialize from cache if available and matches current key
+  const getCachedData = () => {
+    if (servicesCache && servicesCache.key === cacheKey) {
+      return { data: servicesCache.data, timestamp: servicesCache.timestamp }
+    }
+    return null
+  }
+
+  const cached = getCachedData()
+  const [services, setServices] = useState<Service[]>(cached?.data || [])
+  const [isLoading, setIsLoading] = useState(!cached)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cached?.timestamp || null)
   const [error, setError] = useState<string | null>(null)
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true)
+  const refetch = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true)
+    } else {
+      // Only show loading if we have no data
+      const hasCachedData = servicesCache && servicesCache.key === cacheKey
+      if (!hasCachedData) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
+    }
     try {
       const params = new URLSearchParams()
       if (cluster) params.append('cluster', cluster)
       if (namespace) params.append('namespace', namespace)
       const { data } = await api.get<{ services: Service[] }>(`/api/mcp/services?${params}`)
-      setServices(data.services || [])
+      const newData = data.services || []
+      const now = new Date()
+
+      // Update module-level cache
+      servicesCache = { data: newData, timestamp: now, key: cacheKey }
+
+      setServices(newData)
       setError(null)
+      setLastUpdated(now)
     } catch (err) {
       setError('Failed to fetch services')
-      setServices([])
+      // Don't clear services on error - keep stale data
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
-  }, [cluster, namespace])
+  }, [cluster, namespace, cacheKey])
 
   useEffect(() => {
-    refetch()
-  }, [refetch])
+    // If we have cached data, still refresh in background but don't show loading
+    const hasCachedData = servicesCache && servicesCache.key === cacheKey
+    refetch(!hasCachedData) // silent=true if we have cached data
 
-  return { services, isLoading, error, refetch }
+    // Poll every 30 seconds for service updates
+    const interval = setInterval(() => refetch(true), REFRESH_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [refetch, cacheKey])
+
+  return { services, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }
 
 // Hook to get jobs
@@ -1116,18 +1307,42 @@ export function usePodLogs(cluster: string, namespace: string, pod: string, cont
 }
 
 // Hook to get warning events
+// Module-level cache for warning events data (persists across navigation)
+interface WarningEventsCache {
+  data: ClusterEvent[]
+  timestamp: Date
+  key: string
+}
+let warningEventsCache: WarningEventsCache | null = null
+
 export function useWarningEvents(cluster?: string, namespace?: string, limit = 20) {
-  const [events, setEvents] = useState<ClusterEvent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const cacheKey = `warningEvents:${cluster || 'all'}:${namespace || 'all'}:${limit}`
+
+  // Initialize from cache if available
+  const getCachedData = () => {
+    if (warningEventsCache && warningEventsCache.key === cacheKey) {
+      return { data: warningEventsCache.data, timestamp: warningEventsCache.timestamp }
+    }
+    return null
+  }
+
+  const cached = getCachedData()
+  const [events, setEvents] = useState<ClusterEvent[]>(cached?.data || [])
+  const [isLoading, setIsLoading] = useState(!cached)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(cached?.timestamp || null)
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async (silent = false) => {
     if (silent) {
       setIsRefreshing(true)
     } else {
-      setIsLoading(true)
+      const hasCachedData = warningEventsCache && warningEventsCache.key === cacheKey
+      if (!hasCachedData) {
+        setIsLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
     }
     try {
       const params = new URLSearchParams()
@@ -1135,25 +1350,34 @@ export function useWarningEvents(cluster?: string, namespace?: string, limit = 2
       if (namespace) params.append('namespace', namespace)
       params.append('limit', limit.toString())
       const { data } = await api.get<{ events: ClusterEvent[] }>(`/api/mcp/events/warnings?${params}`)
-      setEvents(data.events || [])
+      const newData = data.events || []
+      const now = new Date()
+
+      // Update module-level cache
+      warningEventsCache = { data: newData, timestamp: now, key: cacheKey }
+
+      setEvents(newData)
       setError(null)
-      setLastUpdated(new Date())
+      setLastUpdated(now)
     } catch (err) {
       setError('Failed to fetch warning events')
-      if (!silent) {
+      // Keep stale data, only use demo if no cached data
+      if (!warningEventsCache) {
         setEvents(getDemoEvents().filter(e => e.type === 'Warning'))
       }
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [cluster, namespace, limit])
+  }, [cluster, namespace, limit, cacheKey])
 
   useEffect(() => {
-    refetch(false)
+    const hasCachedData = warningEventsCache && warningEventsCache.key === cacheKey
+    refetch(!hasCachedData)
+    // Poll every 30 seconds for events
     const interval = setInterval(() => refetch(true), REFRESH_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [refetch])
+  }, [refetch, cacheKey])
 
   return { events, isLoading, isRefreshing, lastUpdated, error, refetch: () => refetch(false) }
 }

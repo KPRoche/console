@@ -47,7 +47,8 @@ export function TimeSeriesChart({
         {title && (
           <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
         )}
-        <ResponsiveContainer width="100%" height={height}>
+        <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
+        <ResponsiveContainer width="100%" height={height} minHeight={100}>
           <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -94,6 +95,7 @@ export function TimeSeriesChart({
             />
           </AreaChart>
         </ResponsiveContainer>
+        </div>
       </div>
     )
   }
@@ -103,7 +105,8 @@ export function TimeSeriesChart({
       {title && (
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
-      <ResponsiveContainer width="100%" height={height}>
+      <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
+      <ResponsiveContainer width="100%" height={height} minHeight={100}>
         <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
           {showGrid && (
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
@@ -140,6 +143,7 @@ export function TimeSeriesChart({
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }
@@ -169,7 +173,8 @@ export function MultiSeriesChart({
       {title && (
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
-      <ResponsiveContainer width="100%" height={height}>
+      <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
+      <ResponsiveContainer width="100%" height={height} minHeight={100}>
         <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
           {showGrid && (
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
@@ -205,6 +210,7 @@ export function MultiSeriesChart({
           ))}
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }

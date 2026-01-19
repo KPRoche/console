@@ -14,6 +14,10 @@ interface DashboardContextType {
   openAddCardModal: () => void
   closeAddCardModal: () => void
 
+  // Pending open flag - for triggering modal after navigation
+  pendingOpenAddCardModal: boolean
+  setPendingOpenAddCardModal: (pending: boolean) => void
+
   // Templates Modal state (also can be triggered from sidebar)
   isTemplatesModalOpen: boolean
   openTemplatesModal: () => void
@@ -29,6 +33,7 @@ const DashboardContext = createContext<DashboardContextType | null>(null)
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false)
+  const [pendingOpenAddCardModal, setPendingOpenAddCardModalState] = useState(false)
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const [pendingRestoreCard, setPendingRestoreCardState] = useState<PendingRestoreCard | null>(null)
 
@@ -38,6 +43,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const closeAddCardModal = useCallback(() => {
     setIsAddCardModalOpen(false)
+  }, [])
+
+  const setPendingOpenAddCardModal = useCallback((pending: boolean) => {
+    setPendingOpenAddCardModalState(pending)
   }, [])
 
   const openTemplatesModal = useCallback(() => {
@@ -62,6 +71,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         isAddCardModalOpen,
         openAddCardModal,
         closeAddCardModal,
+        pendingOpenAddCardModal,
+        setPendingOpenAddCardModal,
         isTemplatesModalOpen,
         openTemplatesModal,
         closeTemplatesModal,

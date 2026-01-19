@@ -1,11 +1,39 @@
-import { useState, useMemo } from 'react'
-import { Shield, ShieldAlert, ShieldCheck, ShieldX, Users, Key, Lock, Eye, Clock, AlertTriangle, CheckCircle2, XCircle, ChevronRight } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Shield, ShieldAlert, ShieldCheck, ShieldX, Users, Key, Lock, Eye, Clock, AlertTriangle, CheckCircle2, XCircle, ChevronRight, Plus, Layout, LayoutGrid, ChevronDown, RefreshCw, Activity } from 'lucide-react'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { StatusIndicator } from '../charts/StatusIndicator'
 import { DonutChart } from '../charts/PieChart'
 import { ProgressBar } from '../charts/ProgressBar'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { cn } from '../../lib/cn'
+import { CardWrapper } from '../cards/CardWrapper'
+import { CARD_COMPONENTS } from '../cards/cardRegistry'
+import { AddCardModal } from '../dashboard/AddCardModal'
+import { TemplatesModal } from '../dashboard/TemplatesModal'
+import { ConfigureCardModal } from '../dashboard/ConfigureCardModal'
+import { DashboardTemplate } from '../dashboard/templates'
+
+interface SecurityCard {
+  id: string
+  card_type: string
+  config: Record<string, unknown>
+  title?: string
+}
+
+const SECURITY_CARDS_KEY = 'kubestellar-security-cards'
+
+function loadSecurityCards(): SecurityCard[] {
+  try {
+    const stored = localStorage.getItem(SECURITY_CARDS_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function saveSecurityCards(cards: SecurityCard[]) {
+  localStorage.setItem(SECURITY_CARDS_KEY, JSON.stringify(cards))
+}
 
 type ViewTab = 'overview' | 'issues' | 'rbac' | 'compliance'
 
@@ -154,9 +182,97 @@ export function Security() {
     filterBySeverity,
     customFilter,
   } = useGlobalFilters()
+
+  // Card state
+  const [cards, setCards] = useState<SecurityCard[]>(() => loadSecurityCards())
+  const [showStats, setShowStats] = useState(true)
+  const [showCards, setShowCards] = useState(true)
+  const [showAddCard, setShowAddCard] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [configuringCard, setConfiguringCard] = useState<SecurityCard | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<ViewTab>('overview')
   const [selectedIssueType, setSelectedIssueType] = useState<string | null>(null)
+
+  // Save cards to localStorage when they change
+  useEffect(() => {
+    saveSecurityCards(cards)
+  }, [cards])
+
+  // Trigger refresh on mount (ensures data is fresh when navigating to this page)
+  useEffect(() => {
+    setIsRefreshing(true)
+    // Simulate fetch since we're using mock data - in production use useSecurityIssues hook
+    const timeout = setTimeout(() => {
+      setIsRefreshing(false)
+      setLastUpdated(new Date())
+    }, 500)
+    return () => clearTimeout(timeout)
+  }, [])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      // In a real implementation, this would refetch security data
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [autoRefresh])
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    // In a real implementation, this would refetch security data
+    // For now, just simulate a refresh
+    await new Promise(resolve => setTimeout(resolve, 500))
+    setIsRefreshing(false)
+    setLastUpdated(new Date())
+  }, [])
+
+  const handleAddCards = useCallback((newCards: Array<{ type: string; title: string; config: Record<string, unknown> }>) => {
+    const cardsToAdd: SecurityCard[] = newCards.map(card => ({
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      card_type: card.type,
+      config: card.config,
+      title: card.title,
+    }))
+    setCards(prev => [...prev, ...cardsToAdd])
+    setShowCards(true)
+    setShowAddCard(false)
+  }, [])
+
+  const handleRemoveCard = useCallback((cardId: string) => {
+    setCards(prev => prev.filter(c => c.id !== cardId))
+  }, [])
+
+  const handleConfigureCard = useCallback((cardId: string) => {
+    const card = cards.find(c => c.id === cardId)
+    if (card) setConfiguringCard(card)
+  }, [cards])
+
+  const handleSaveCardConfig = useCallback((cardId: string, config: Record<string, unknown>) => {
+    setCards(prev => prev.map(c =>
+      c.id === cardId ? { ...c, config } : c
+    ))
+    setConfiguringCard(null)
+  }, [])
+
+  const applyTemplate = useCallback((template: DashboardTemplate) => {
+    const newCards: SecurityCard[] = template.cards.map(card => ({
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      card_type: card.card_type,
+      config: card.config || {},
+      title: card.title,
+    }))
+    setCards(newCards)
+    setShowCards(true)
+    setShowTemplates(false)
+  }, [])
 
   // In production, fetch from API
   const securityIssues = useMemo(() => getMockSecurityData(), [])
@@ -332,11 +448,104 @@ export function Security() {
     }, {} as Record<string, ComplianceCheck[]>)
   }, [filteredCompliance])
 
+  // Transform card for ConfigureCardModal
+  const configureCard = configuringCard ? {
+    id: configuringCard.id,
+    card_type: configuringCard.card_type,
+    config: configuringCard.config,
+    title: configuringCard.title,
+  } : null
+
   return (
     <div className="pt-16">
+      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Security</h1>
-        <p className="text-muted-foreground">RBAC, compliance, and security policies across your clusters</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Shield className="w-6 h-6 text-purple-400" />
+              Security
+            </h1>
+            <p className="text-muted-foreground">RBAC, compliance, and security policies across your clusters</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label htmlFor="security-auto-refresh" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                id="security-auto-refresh"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded border-border"
+              />
+              Auto-refresh
+            </label>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 text-foreground hover:bg-secondary transition-colors text-sm disabled:opacity-50"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Overview - collapsible */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Activity className="w-4 h-4" />
+            <span>Stats Overview</span>
+            {showStats ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground/60">
+              Updated {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
+        {showStats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-5 h-5 text-red-400" />
+                <span className="text-sm text-muted-foreground">High Severity</span>
+              </div>
+              <div className="text-3xl font-bold text-red-400">{stats.high}</div>
+              <div className="text-xs text-muted-foreground">security issues</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldX className="w-5 h-5 text-yellow-400" />
+                <span className="text-sm text-muted-foreground">Medium Severity</span>
+              </div>
+              <div className="text-3xl font-bold text-yellow-400">{stats.medium}</div>
+              <div className="text-xs text-muted-foreground">security issues</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                <span className="text-sm text-muted-foreground">RBAC Bindings</span>
+              </div>
+              <div className="text-3xl font-bold text-foreground">{stats.rbacTotal}</div>
+              <div className="text-xs text-muted-foreground">total bindings</div>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-5 h-5 text-green-400" />
+                <span className="text-sm text-muted-foreground">Compliance</span>
+              </div>
+              <div className="text-3xl font-bold text-green-400">{stats.complianceScore}%</div>
+              <div className="text-xs text-muted-foreground">compliance score</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -373,6 +582,107 @@ export function Security() {
           )
         })}
       </div>
+
+      {/* Dashboard Cards Section */}
+      <div className="mb-6">
+        {/* Card section header with toggle and buttons */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setShowCards(!showCards)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Security Cards ({cards.length})</span>
+            {showCards ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+            >
+              <Layout className="w-3.5 h-3.5" />
+              Templates
+            </button>
+            <button
+              onClick={() => setShowAddCard(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Card
+            </button>
+          </div>
+        </div>
+
+        {/* Cards grid */}
+        {showCards && (
+          <>
+            {cards.length === 0 ? (
+              <div className="glass p-8 rounded-lg border-2 border-dashed border-border/50 text-center">
+                <div className="flex justify-center mb-4">
+                  <Shield className="w-12 h-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Security Dashboard</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                  Add cards to monitor security issues, RBAC policies, and compliance checks across your clusters.
+                </p>
+                <button
+                  onClick={() => setShowAddCard(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Cards
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.map(card => {
+                  const CardComponent = CARD_COMPONENTS[card.card_type]
+                  if (!CardComponent) {
+                    console.warn(`Unknown card type: ${card.card_type}`)
+                    return null
+                  }
+                  return (
+                    <CardWrapper
+                      key={card.id}
+                      cardId={card.id}
+                      cardType={card.card_type}
+                      title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      onConfigure={() => handleConfigureCard(card.id)}
+                      onRemove={() => handleRemoveCard(card.id)}
+                    >
+                      <CardComponent config={card.config} />
+                    </CardWrapper>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Add Card Modal */}
+      <AddCardModal
+        isOpen={showAddCard}
+        onClose={() => setShowAddCard(false)}
+        onAddCards={handleAddCards}
+        existingCardTypes={cards.map(c => c.card_type)}
+      />
+
+      {/* Templates Modal */}
+      <TemplatesModal
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onApplyTemplate={applyTemplate}
+      />
+
+      {/* Configure Card Modal */}
+      <ConfigureCardModal
+        isOpen={!!configuringCard}
+        card={configureCard}
+        onClose={() => setConfiguringCard(null)}
+        onSave={handleSaveCardConfig}
+      />
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (

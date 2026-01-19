@@ -173,13 +173,26 @@ class KubectlProxy {
       throw new Error(response.error || 'Failed to get nodes')
     }
     const data = JSON.parse(response.output)
-    return (data.items || []).map((node: KubeNode) => ({
-      name: node.metadata.name,
-      ready: node.status.conditions?.find((c: NodeCondition) => c.type === 'Ready')?.status === 'True',
-      roles: Object.keys(node.metadata.labels || {})
-        .filter(k => k.startsWith('node-role.kubernetes.io/'))
-        .map(k => k.replace('node-role.kubernetes.io/', '')),
-    }))
+    return (data.items || []).map((node: KubeNode) => {
+      // Parse allocatable resources (prefer allocatable over capacity)
+      const alloc = node.status?.allocatable || node.status?.capacity || {}
+      const cpuStr = alloc.cpu || '0'
+      // CPU can be in millicores (e.g., "2000m") or cores (e.g., "2")
+      const cpuCores = cpuStr.endsWith('m')
+        ? parseResourceQuantity(cpuStr) / 1000
+        : parseResourceQuantity(cpuStr)
+
+      return {
+        name: node.metadata.name,
+        ready: node.status?.conditions?.find((c: NodeCondition) => c.type === 'Ready')?.status === 'True',
+        roles: Object.keys(node.metadata.labels || {})
+          .filter(k => k.startsWith('node-role.kubernetes.io/'))
+          .map(k => k.replace('node-role.kubernetes.io/', '')),
+        cpuCores: cpuCores,
+        memoryBytes: parseResourceQuantity(alloc.memory),
+        storageBytes: parseResourceQuantity(alloc['ephemeral-storage']),
+      }
+    })
   }
 
   /**
@@ -205,6 +218,12 @@ class KubectlProxy {
       ])
 
       const readyNodes = nodes.filter(n => n.ready).length
+
+      // Aggregate resource metrics from all nodes
+      const totalCpuCores = nodes.reduce((sum, n) => sum + (n.cpuCores || 0), 0)
+      const totalMemoryBytes = nodes.reduce((sum, n) => sum + (n.memoryBytes || 0), 0)
+      const totalStorageBytes = nodes.reduce((sum, n) => sum + (n.storageBytes || 0), 0)
+
       return {
         cluster: context,
         healthy: readyNodes === nodes.length && nodes.length > 0,
@@ -212,6 +231,11 @@ class KubectlProxy {
         nodeCount: nodes.length,
         readyNodes,
         podCount,
+        cpuCores: Math.round(totalCpuCores),
+        memoryBytes: totalMemoryBytes,
+        memoryGB: Math.round(totalMemoryBytes / (1024 * 1024 * 1024)),
+        storageBytes: totalStorageBytes,
+        storageGB: Math.round(totalStorageBytes / (1024 * 1024 * 1024)),
         lastSeen: new Date().toISOString(),
       }
     } catch (err) {
@@ -392,7 +416,21 @@ class KubectlProxy {
 // Type definitions for kubectl JSON output
 interface KubeNode {
   metadata: { name: string; labels?: Record<string, string> }
-  status: { conditions?: NodeCondition[] }
+  status: {
+    conditions?: NodeCondition[]
+    allocatable?: {
+      cpu?: string
+      memory?: string
+      'ephemeral-storage'?: string
+      pods?: string
+    }
+    capacity?: {
+      cpu?: string
+      memory?: string
+      'ephemeral-storage'?: string
+      pods?: string
+    }
+  }
 }
 
 interface NodeCondition {
@@ -425,11 +463,40 @@ interface KubeDeployment {
   }
 }
 
+// Helper to parse Kubernetes resource quantities
+function parseResourceQuantity(value: string | undefined): number {
+  if (!value) return 0
+  // Handle Ki, Mi, Gi, Ti suffixes for bytes
+  const match = value.match(/^(\d+(?:\.\d+)?)(Ki|Mi|Gi|Ti|K|M|G|T|m)?$/)
+  if (!match) {
+    // Try to parse as plain number
+    const num = parseFloat(value)
+    return isNaN(num) ? 0 : num
+  }
+  const num = parseFloat(match[1])
+  const suffix = match[2]
+  switch (suffix) {
+    case 'Ki': return num * 1024
+    case 'Mi': return num * 1024 * 1024
+    case 'Gi': return num * 1024 * 1024 * 1024
+    case 'Ti': return num * 1024 * 1024 * 1024 * 1024
+    case 'K': return num * 1000
+    case 'M': return num * 1000 * 1000
+    case 'G': return num * 1000 * 1000 * 1000
+    case 'T': return num * 1000 * 1000 * 1000 * 1000
+    case 'm': return num / 1000 // millicores
+    default: return num
+  }
+}
+
 // Export types used by hooks
 export interface NodeInfo {
   name: string
   ready: boolean
   roles: string[]
+  cpuCores?: number
+  memoryBytes?: number
+  storageBytes?: number
 }
 
 export interface ClusterHealth {

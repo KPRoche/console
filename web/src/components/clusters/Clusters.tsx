@@ -1,25 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Pencil, X, Check, Loader2, Hourglass, WifiOff, ChevronRight, CheckCircle, AlertTriangle, ChevronDown, HardDrive, Network, FolderOpen, Plus, Trash2, Box, Layers, Server, List, GitBranch, Eye, Terminal, FileText, Info, Activity, Briefcase, Lock, Settings, LayoutGrid, Wrench } from 'lucide-react'
+import { Pencil, X, Check, Loader2, Hourglass, WifiOff, ChevronRight, CheckCircle, AlertTriangle, ChevronDown, HardDrive, Network, FolderOpen, Plus, Trash2, Box, Layers, Server, List, GitBranch, Eye, Terminal, FileText, Info, Activity, Briefcase, Lock, Settings, LayoutGrid, Wrench, Layout, RefreshCw } from 'lucide-react'
 import { useClusters, useClusterHealth, usePodIssues, useDeploymentIssues, useGPUNodes, useNamespaceStats, useNodes, usePods, useDeployments, useServices, useJobs, useHPAs, useConfigMaps, useSecrets, usePodLogs, ClusterInfo, refreshSingleCluster } from '../../hooks/useMCP'
 import { AddCardModal } from '../dashboard/AddCardModal'
 import { TemplatesModal } from '../dashboard/TemplatesModal'
 import { DashboardTemplate } from '../dashboard/templates'
 import { CardWrapper } from '../cards/CardWrapper'
-import { ClusterHealth } from '../cards/ClusterHealth'
-import { PodIssues } from '../cards/PodIssues'
-import { DeploymentIssues } from '../cards/DeploymentIssues'
-import { ResourceUsage } from '../cards/ResourceUsage'
-import { ResourceCapacity } from '../cards/ResourceCapacity'
-import { GPUOverview } from '../cards/GPUOverview'
-import { GPUStatus } from '../cards/GPUStatus'
-import { GPUInventory } from '../cards/GPUInventory'
-import { ClusterFocus } from '../cards/ClusterFocus'
-import { ClusterComparison } from '../cards/ClusterComparison'
-import { ClusterNetwork } from '../cards/ClusterNetwork'
-import { ClusterCosts } from '../cards/ClusterCosts'
-import { UpgradeStatus } from '../cards/UpgradeStatus'
-import { EventStream } from '../cards/EventStream'
+import { CARD_COMPONENTS } from '../cards/cardRegistry'
 import { ClusterDetailModal } from './ClusterDetailModal'
 import {
   RenameModal,
@@ -29,24 +16,6 @@ import {
 } from './components'
 import { isClusterUnreachable, isClusterLoading } from './utils'
 import { formatK8sMemory } from '../../lib/formatters'
-
-// Card components mapping for clusters page
-const CLUSTER_CARD_COMPONENTS: Record<string, React.ComponentType<{ config?: Record<string, unknown> }>> = {
-  cluster_health: ClusterHealth,
-  pod_issues: PodIssues,
-  deployment_issues: DeploymentIssues,
-  resource_usage: ResourceUsage,
-  resource_capacity: ResourceCapacity,
-  gpu_overview: GPUOverview,
-  gpu_status: GPUStatus,
-  gpu_inventory: GPUInventory,
-  cluster_focus: ClusterFocus,
-  cluster_comparison: ClusterComparison,
-  cluster_network: ClusterNetwork,
-  cluster_costs: ClusterCosts,
-  upgrade_status: UpgradeStatus,
-  event_stream: EventStream,
-}
 
 interface ClusterCard {
   id: string
@@ -1364,7 +1333,7 @@ export function _ClusterDetail({ clusterName, onClose, onRename }: _ClusterDetai
 }
 
 export function Clusters() {
-  const { clusters, isLoading, isUpdating, error, refetch } = useClusters()
+  const { clusters, isLoading, isRefreshing, lastUpdated, error, refetch } = useClusters()
   const { nodes: gpuNodes } = useGPUNodes()
   const { isConnected } = useLocalAgent()
   const { isClusterAdmin, loading: permissionsLoading } = usePermissions()
@@ -1419,11 +1388,28 @@ export function Clusters() {
   const [showStats, setShowStats] = useState(true) // Stats overview visible by default
   const [showClusterGrid, setShowClusterGrid] = useState(true) // Cluster cards visible by default
   const [configuringCard, setConfiguringCard] = useState<ClusterCard | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
 
   // Save cards to localStorage when they change
   useEffect(() => {
     saveClusterCards(cards)
   }, [cards])
+
+  // Trigger refresh on mount (ensures data is fresh when navigating to this page)
+  useEffect(() => {
+    refetch()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      refetch()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [autoRefresh, refetch])
 
   const handleAddCards = useCallback((newCards: Array<{ type: string; title: string; config: Record<string, unknown> }>) => {
     const cardsToAdd: ClusterCard[] = newCards.map(card => ({
@@ -1615,7 +1601,10 @@ export function Clusters() {
     return (
       <div className="pt-16">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Clusters</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Server className="w-6 h-6 text-purple-400" />
+            Clusters
+          </h1>
           <p className="text-muted-foreground">Manage your Kubernetes clusters</p>
         </div>
 
@@ -1643,7 +1632,10 @@ export function Clusters() {
     return (
       <div className="pt-16">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Clusters</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Server className="w-6 h-6 text-purple-400" />
+            Clusters
+          </h1>
           <p className="text-muted-foreground">Manage your Kubernetes clusters</p>
         </div>
         <div className="p-6 rounded-lg border border-red-500/20 bg-red-500/10">
@@ -1655,47 +1647,65 @@ export function Clusters() {
 
   return (
     <div className="pt-16">
+      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">Clusters</h1>
-            {isUpdating && (
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Server className="w-6 h-6 text-purple-400" />
+                Clusters
+              </h1>
+              <p className="text-muted-foreground">Manage your Kubernetes clusters</p>
+            </div>
+            {isRefreshing && (
               <span className="flex items-center gap-1.5 text-sm text-amber-400 animate-pulse" title="Updating cluster list...">
                 <Hourglass className="w-4 h-4" />
                 <span>Updating...</span>
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <label htmlFor="clusters-auto-refresh" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                id="clusters-auto-refresh"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded border-border"
+              />
+              Auto-refresh
+            </label>
             <button
-              onClick={() => setShowAddCard(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm"
+              onClick={() => refetch()}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 text-foreground hover:bg-secondary transition-colors text-sm disabled:opacity-50"
+              title="Refresh data"
             >
-              <Plus className="w-4 h-4" />
-              Add Card
-            </button>
-            <button
-              onClick={() => setShowTemplates(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50 text-foreground hover:bg-secondary transition-colors text-sm"
-            >
-              <Layers className="w-4 h-4" />
-              Templates
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
         </div>
-        <p className="text-muted-foreground">Manage your Kubernetes clusters</p>
       </div>
 
       {/* Stats Overview - collapsible */}
       <div className="mb-6">
-        <button
-          onClick={() => setShowStats(!showStats)}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
-        >
-          <Activity className="w-4 h-4" />
-          <span>Stats Overview</span>
-          {showStats ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Activity className="w-4 h-4" />
+            <span>Stats Overview</span>
+            {showStats ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground/60">
+              Updated {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
 
         {showStats && <StatsOverview stats={stats} />}
       </div>
@@ -1872,39 +1882,82 @@ export function Clusters() {
       )}
 
       {/* Dashboard Cards Section */}
-      {cards.length > 0 && (
-        <div className="mb-6">
+      <div className="mb-6">
+        {/* Card section header with toggle and buttons */}
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setShowCards(!showCards)}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
             <span>Dashboard Cards ({cards.length})</span>
             {showCards ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
 
-          {showCards && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cards.map(card => {
-                const CardComponent = CLUSTER_CARD_COMPONENTS[card.card_type]
-                if (!CardComponent) return null
-                return (
-                  <CardWrapper
-                    key={card.id}
-                    cardId={card.id}
-                    cardType={card.card_type}
-                    title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    onConfigure={() => handleConfigureCard(card.id)}
-                    onRemove={() => handleRemoveCard(card.id)}
-                  >
-                    <CardComponent config={card.config} />
-                  </CardWrapper>
-                )
-              })}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
+            >
+              <Layout className="w-3.5 h-3.5" />
+              Templates
+            </button>
+            <button
+              onClick={() => setShowAddCard(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Card
+            </button>
+          </div>
         </div>
-      )}
+
+        {/* Cards grid */}
+        {showCards && (
+          <>
+            {cards.length === 0 ? (
+              <div className="glass p-8 rounded-lg border-2 border-dashed border-border/50 text-center">
+                <div className="flex justify-center mb-4">
+                  <Server className="w-12 h-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Cluster Dashboard</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+                  Add cards to monitor cluster health, resource usage, and workload status.
+                </p>
+                <button
+                  onClick={() => setShowAddCard(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Cards
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.map(card => {
+                  const CardComponent = CARD_COMPONENTS[card.card_type]
+                  if (!CardComponent) {
+                    console.warn(`Unknown card type: ${card.card_type}`)
+                    return null
+                  }
+                  return (
+                    <CardWrapper
+                      key={card.id}
+                      cardId={card.id}
+                      cardType={card.card_type}
+                      title={card.title || card.card_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      onConfigure={() => handleConfigureCard(card.id)}
+                      onRemove={() => handleRemoveCard(card.id)}
+                    >
+                      <CardComponent config={card.config} />
+                    </CardWrapper>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {selectedCluster && (
         <ClusterDetailModal

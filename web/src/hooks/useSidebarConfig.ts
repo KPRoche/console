@@ -47,14 +47,80 @@ const DEFAULT_CONFIG: SidebarConfig = {
   collapsed: false,
 }
 
-const STORAGE_KEY = 'kubestellar-sidebar-config-v2'
+const STORAGE_KEY = 'kubestellar-sidebar-config-v3'
+const OLD_STORAGE_KEY = 'kubestellar-sidebar-config-v2'
+
+// Routes to remove during migration (deprecated/removed routes)
+const DEPRECATED_ROUTES = ['/apps']
+
+// Migrate config to ensure all default routes exist
+function migrateConfig(stored: SidebarConfig): SidebarConfig {
+  // First, remove deprecated routes
+  let primaryNav = stored.primaryNav.filter(item => !DEPRECATED_ROUTES.includes(item.href))
+  let secondaryNav = stored.secondaryNav.filter(item => !DEPRECATED_ROUTES.includes(item.href))
+
+  // Find default routes that are missing from the stored config
+  const existingHrefs = new Set([
+    ...primaryNav.map(item => item.href),
+    ...secondaryNav.map(item => item.href),
+  ])
+
+  // Add missing default primary nav items
+  const missingPrimaryItems = DEFAULT_PRIMARY_NAV.filter(
+    item => !existingHrefs.has(item.href)
+  )
+
+  // Add missing default secondary nav items
+  const missingSecondaryItems = DEFAULT_SECONDARY_NAV.filter(
+    item => !existingHrefs.has(item.href)
+  )
+
+  // If there are missing items or deprecated routes were removed, update the config
+  const deprecatedRemoved = primaryNav.length !== stored.primaryNav.length || secondaryNav.length !== stored.secondaryNav.length
+
+  if (missingPrimaryItems.length > 0 || missingSecondaryItems.length > 0 || deprecatedRemoved) {
+    return {
+      ...stored,
+      primaryNav: [
+        ...primaryNav,
+        ...missingPrimaryItems.map((item, idx) => ({
+          ...item,
+          order: primaryNav.length + idx,
+        })),
+      ],
+      secondaryNav: [
+        ...secondaryNav,
+        ...missingSecondaryItems.map((item, idx) => ({
+          ...item,
+          order: secondaryNav.length + idx,
+        })),
+      ],
+    }
+  }
+
+  return stored
+}
 
 export function useSidebarConfig() {
   const [config, setConfig] = useState<SidebarConfig>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    // Try to load from current storage key
+    let stored = localStorage.getItem(STORAGE_KEY)
+
+    // Migrate from old storage key if needed
+    if (!stored) {
+      const oldStored = localStorage.getItem(OLD_STORAGE_KEY)
+      if (oldStored) {
+        stored = oldStored
+        // Remove old key after migration
+        localStorage.removeItem(OLD_STORAGE_KEY)
+      }
+    }
+
     if (stored) {
       try {
-        return JSON.parse(stored)
+        const parsed = JSON.parse(stored)
+        // Migrate config to ensure all default routes exist
+        return migrateConfig(parsed)
       } catch {
         return DEFAULT_CONFIG
       }

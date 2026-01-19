@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { Plus, GripVertical, Layout, AlertTriangle, X } from 'lucide-react'
 import {
   DndContext,
@@ -27,53 +27,7 @@ import { useDashboardContext } from '../../hooks/useDashboardContext'
 import { DashboardDropZone } from './DashboardDropZone'
 import { useToast } from '../ui/Toast'
 import { CardWrapper } from '../cards/CardWrapper'
-import { ClusterHealth } from '../cards/ClusterHealth'
-import { EventStream } from '../cards/EventStream'
-import { PodIssues } from '../cards/PodIssues'
-import { TopPods } from '../cards/TopPods'
-import { AppStatus } from '../cards/AppStatus'
-import { ResourceUsage } from '../cards/ResourceUsage'
-import { ClusterMetrics } from '../cards/ClusterMetrics'
-import { DeploymentStatus } from '../cards/DeploymentStatus'
-import { DeploymentProgress } from '../cards/DeploymentProgress'
-import { DeploymentIssues } from '../cards/DeploymentIssues'
-import { GitOpsDrift } from '../cards/GitOpsDrift'
-import { UpgradeStatus } from '../cards/UpgradeStatus'
-import { ResourceCapacity } from '../cards/ResourceCapacity'
-import { GPUInventory } from '../cards/GPUInventory'
-import { GPUStatus } from '../cards/GPUStatus'
-import { GPUOverview } from '../cards/GPUOverview'
-import { SecurityIssues } from '../cards/SecurityIssues'
-// Cluster-scoped cards
-import { ClusterFocus } from '../cards/ClusterFocus'
-import { ClusterComparison } from '../cards/ClusterComparison'
-import { ClusterCosts } from '../cards/ClusterCosts'
-import { ClusterNetwork } from '../cards/ClusterNetwork'
-// Namespace-scoped cards
-import { NamespaceOverview } from '../cards/NamespaceOverview'
-import { NamespaceQuotas } from '../cards/NamespaceQuotas'
-import { NamespaceRBAC } from '../cards/NamespaceRBAC'
-import { NamespaceEvents } from '../cards/NamespaceEvents'
-// Operator-scoped cards
-import { OperatorStatus } from '../cards/OperatorStatus'
-import { OperatorSubscriptions } from '../cards/OperatorSubscriptions'
-import { CRDHealth } from '../cards/CRDHealth'
-// Helm-scoped cards
-import { HelmReleaseStatus } from '../cards/HelmReleaseStatus'
-import { HelmValuesDiff } from '../cards/HelmValuesDiff'
-import { HelmHistory } from '../cards/HelmHistory'
-import { ChartVersions } from '../cards/ChartVersions'
-// Kustomize-scoped cards
-import { KustomizationStatus } from '../cards/KustomizationStatus'
-import { OverlayComparison } from '../cards/OverlayComparison'
-// ArgoCD cards
-import { ArgoCDApplications } from '../cards/ArgoCDApplications'
-import { ArgoCDSyncStatus } from '../cards/ArgoCDSyncStatus'
-import { ArgoCDHealth } from '../cards/ArgoCDHealth'
-// User management card
-import { UserManagement } from '../cards/UserManagement'
-// Klaude AI mission cards
-import { KlaudeIssuesCard, KlaudeKubeconfigAuditCard, KlaudeHealthCheckCard } from '../cards/KlaudeMissions'
+import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
 import { AddCardModal } from './AddCardModal'
 import { ReplaceCardModal } from './ReplaceCardModal'
 import { ConfigureCardModal } from './ConfigureCardModal'
@@ -97,71 +51,6 @@ interface DashboardData {
   cards: Card[]
 }
 
-const CARD_COMPONENTS: Record<string, React.ComponentType<{ config?: Record<string, unknown> }>> = {
-  // Core cards
-  cluster_health: ClusterHealth,
-  event_stream: EventStream,
-  pod_issues: PodIssues,
-  top_pods: TopPods,
-  app_status: AppStatus,
-  resource_usage: ResourceUsage,
-  cluster_metrics: ClusterMetrics,
-  deployment_status: DeploymentStatus,
-  deployment_progress: DeploymentProgress,
-  deployment_issues: DeploymentIssues,
-  gitops_drift: GitOpsDrift,
-  upgrade_status: UpgradeStatus,
-  resource_capacity: ResourceCapacity,
-  gpu_inventory: GPUInventory,
-  gpu_status: GPUStatus,
-  gpu_overview: GPUOverview,
-  security_issues: SecurityIssues,
-  // Cluster-scoped cards
-  cluster_focus: ClusterFocus,
-  cluster_comparison: ClusterComparison,
-  cluster_costs: ClusterCosts,
-  cluster_network: ClusterNetwork,
-  // Namespace-scoped cards
-  namespace_overview: NamespaceOverview,
-  namespace_quotas: NamespaceQuotas,
-  namespace_rbac: NamespaceRBAC,
-  namespace_events: NamespaceEvents,
-  // Operator-scoped cards
-  operator_status: OperatorStatus,
-  operator_subscriptions: OperatorSubscriptions,
-  crd_health: CRDHealth,
-  // Helm-scoped cards
-  helm_release_status: HelmReleaseStatus,
-  helm_values_diff: HelmValuesDiff,
-  helm_history: HelmHistory,
-  chart_versions: ChartVersions,
-  // Kustomize-scoped cards
-  kustomization_status: KustomizationStatus,
-  overlay_comparison: OverlayComparison,
-  // ArgoCD cards
-  argocd_applications: ArgoCDApplications,
-  argocd_sync_status: ArgoCDSyncStatus,
-  argocd_health: ArgoCDHealth,
-  // User management
-  user_management: UserManagement,
-  // Klaude AI mission cards
-  klaude_issues: KlaudeIssuesCard,
-  klaude_kubeconfig_audit: KlaudeKubeconfigAuditCard,
-  klaude_health_check: KlaudeHealthCheckCard,
-}
-
-// Cards that use demo/mock data instead of real data
-const DEMO_DATA_CARDS = new Set([
-  'app_status',
-  'cluster_metrics',
-  'deployment_status',
-  'argocd_applications',
-  'argocd_health',
-  'argocd_sync_status',
-  'overlay_comparison',
-  'helm_values_diff',
-])
-
 export function Dashboard() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -179,6 +68,8 @@ export function Dashboard() {
     isAddCardModalOpen,
     closeAddCardModal,
     openAddCardModal,
+    pendingOpenAddCardModal,
+    setPendingOpenAddCardModal,
     isTemplatesModalOpen,
     closeTemplatesModal,
     openTemplatesModal,
@@ -303,6 +194,14 @@ export function Dashboard() {
       showToast(`Restored "${pendingRestoreCard.cardTitle || pendingRestoreCard.cardType}" card`, 'success')
     }
   }, [pendingRestoreCard, isLoading, dashboard, recordCardAdded, clearPendingRestoreCard, showToast])
+
+  // Handle pending open add card modal from sidebar navigation
+  useEffect(() => {
+    if (pendingOpenAddCardModal && !isLoading) {
+      openAddCardModal()
+      setPendingOpenAddCardModal(false)
+    }
+  }, [pendingOpenAddCardModal, isLoading, openAddCardModal, setPendingOpenAddCardModal])
 
   const loadDashboard = async () => {
     try {
@@ -680,7 +579,7 @@ export function Dashboard() {
   )
 }
 
-// Sortable card component with drag handle
+// Sortable card component with drag handle - memoized to prevent unnecessary re-renders
 interface SortableCardProps {
   card: Card
   onConfigure: () => void
@@ -690,7 +589,7 @@ interface SortableCardProps {
   isDragging: boolean
 }
 
-function SortableCard({ card, onConfigure, onReplace, onRemove, onWidthChange, isDragging }: SortableCardProps) {
+const SortableCard = memo(function SortableCard({ card, onConfigure, onReplace, onRemove, onWidthChange, isDragging }: SortableCardProps) {
   const {
     attributes,
     listeners,
@@ -743,7 +642,20 @@ function SortableCard({ card, onConfigure, onReplace, onRemove, onWidthChange, i
       </CardWrapper>
     </div>
   )
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison - only re-render if card data or drag state changes
+  // Ignore callback references as they're stable via useCallback
+  return (
+    prevProps.card.id === nextProps.card.id &&
+    prevProps.card.card_type === nextProps.card.card_type &&
+    prevProps.card.position.w === nextProps.card.position.w &&
+    prevProps.card.position.h === nextProps.card.position.h &&
+    prevProps.card.title === nextProps.card.title &&
+    prevProps.card.last_summary === nextProps.card.last_summary &&
+    JSON.stringify(prevProps.card.config) === JSON.stringify(nextProps.card.config) &&
+    prevProps.isDragging === nextProps.isDragging
+  )
+})
 
 // Preview card shown during drag
 function DragPreviewCard({ card }: { card: Card }) {

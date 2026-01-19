@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useMissions } from '../../../hooks/useMissions'
 import { useLocalAgent } from '../../../hooks/useLocalAgent'
-import { useDrillDownActions } from '../../../hooks/useDrillDown'
+import { useDrillDownActions, useDrillDown } from '../../../hooks/useDrillDown'
+import { useCanI } from '../../../hooks/usePermissions'
 import { ClusterBadge } from '../../ui/ClusterBadge'
 import { FileText, Terminal, Zap, Code, Info, Tag, ChevronDown, ChevronUp, Loader2, Copy, Check, Box, Layers, Server, AlertTriangle, Pencil, Trash2, Plus, Save, X, RefreshCw } from 'lucide-react'
 import { cn } from '../../../lib/cn'
@@ -171,6 +172,11 @@ export function PodDrillDown({ data }: Props) {
   const [serviceAccount, setServiceAccount] = useState<string | null>(cache.serviceAccount || null)
   const [ownerChain, setOwnerChain] = useState<RelatedResource[]>(cache.ownerChain || [])
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [canDeletePod, setCanDeletePod] = useState<boolean | null>(null)
+  const [deletingPod, setDeletingPod] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const { checkPermission } = useCanI()
+  const { close: closeDrillDown } = useDrillDown()
 
   // Pod data from the issue
   const status = data.status as string
@@ -658,6 +664,82 @@ Please proceed step by step and ask for confirmation before making any changes.`
         issues,
       },
     })
+  }
+
+  // Check if user can delete pods in this namespace
+  const checkDeletePermission = useCallback(async () => {
+    try {
+      const result = await checkPermission({
+        cluster,
+        verb: 'delete',
+        resource: 'pods',
+        namespace,
+      })
+      setCanDeletePod(result.allowed)
+    } catch {
+      setCanDeletePod(false)
+    }
+  }, [cluster, namespace, checkPermission])
+
+  // Check delete permission on mount
+  useEffect(() => {
+    checkDeletePermission()
+  }, [checkDeletePermission])
+
+  // Check if pod is managed by a controller (can be safely deleted and will be recreated)
+  const isManagedPod = ownerChain.some(owner =>
+    ['ReplicaSet', 'Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(owner.kind)
+  )
+
+  // Delete pod handler
+  const handleDeletePod = async () => {
+    if (!agentConnected || !canDeletePod) return
+
+    // Confirm deletion
+    const confirmMessage = isManagedPod
+      ? `Delete pod "${podName}"? It will be recreated by its controller.`
+      : `Delete pod "${podName}"? This pod is not managed by a controller and will NOT be recreated.`
+
+    if (!window.confirm(confirmMessage)) return
+
+    setDeletingPod(true)
+    setDeleteError(null)
+
+    try {
+      const ws = new WebSocket('ws://127.0.0.1:8585/ws')
+      const requestId = `delete-pod-${Date.now()}`
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          id: requestId,
+          type: 'kubectl',
+          payload: { context: cluster, args: ['delete', 'pod', podName, '-n', namespace] }
+        }))
+      }
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data)
+        if (msg.id === requestId) {
+          if (msg.type === 'error' || msg.payload?.exitCode !== 0) {
+            setDeleteError(msg.payload?.error || 'Failed to delete pod')
+          } else {
+            // Success - close the drill down
+            closeDrillDown()
+          }
+        }
+        ws.close()
+        setDeletingPod(false)
+      }
+
+      ws.onerror = () => {
+        setDeleteError('Connection error')
+        setDeletingPod(false)
+        ws.close()
+      }
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Unknown error')
+      setDeletingPod(false)
+    }
   }
 
   const handleCopy = (field: string, value: string) => {
@@ -2159,6 +2241,55 @@ Please proceed step by step and ask for confirmation before making any changes.`
             >
               <KlaudeIcon size="lg" />
               <span>Klaude Repair</span>
+            </button>
+          </div>
+          {/* Delete Pod button */}
+          <div className="px-4 pb-4">
+            {deleteError && (
+              <div className="mb-2 p-2 rounded bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+                {deleteError}
+              </div>
+            )}
+            <button
+              onClick={handleDeletePod}
+              disabled={!agentConnected || canDeletePod === false || deletingPod}
+              title={
+                !agentConnected
+                  ? 'Agent not connected'
+                  : canDeletePod === false
+                  ? 'No permission to delete pods in this namespace'
+                  : canDeletePod === null
+                  ? 'Checking permissions...'
+                  : isManagedPod
+                  ? 'Delete pod (will be recreated by controller)'
+                  : 'Delete pod (will NOT be recreated)'
+              }
+              className={cn(
+                'w-full py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium',
+                canDeletePod === false || !agentConnected
+                  ? 'bg-secondary/30 text-muted-foreground cursor-not-allowed opacity-50'
+                  : 'bg-red-600/20 text-red-300 hover:bg-red-500/30 border border-red-500/40 hover:border-red-500/60'
+              )}
+            >
+              {deletingPod ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : canDeletePod === null ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Checking permissions...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Pod</span>
+                  {isManagedPod && (
+                    <span className="text-xs text-red-400/60">(will be recreated)</span>
+                  )}
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { ReactNode, useState, useEffect, useCallback } from 'react'
+import { ReactNode, useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Maximize2, MoreVertical, Clock, X, Settings, Replace, Trash2, MessageCircle, RefreshCw, MoveHorizontal, ChevronRight } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { useSnoozedCards } from '../../hooks/useSnoozedCards'
@@ -70,8 +71,8 @@ const CARD_TITLES: Record<string, string> = {
   cluster_costs: 'Cluster Costs',
   cluster_metrics: 'Cluster Metrics',
 
-  // App and deployment cards
-  app_status: 'App Status',
+  // Workload and deployment cards
+  app_status: 'Workload Status',
   deployment_progress: 'Deployment Progress',
   deployment_status: 'Deployment Status',
   deployment_issues: 'Deployment Issues',
@@ -126,10 +127,10 @@ const CARD_TITLES: Record<string, string> = {
   upgrade_status: 'Cluster Upgrade Status',
   user_management: 'User Management',
 
-  // Klaude AI cards
+  // Klaude AI cards (consistent naming with Klaude prefix)
   klaude_issues: 'Klaude Issues',
-  klaude_kubeconfig_audit: 'Kubeconfig Audit',
-  klaude_health_check: 'Health Check',
+  klaude_kubeconfig_audit: 'Klaude Kubeconfig Audit',
+  klaude_health_check: 'Klaude Health Check',
 }
 
 export function CardWrapper({
@@ -159,11 +160,15 @@ export function CardWrapper({
   const [showSummary, setShowSummary] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showResizeMenu, setShowResizeMenu] = useState(false)
+  const [resizeMenuOnLeft, setResizeMenuOnLeft] = useState(false)
   const [_timeRemaining, setTimeRemaining] = useState<number | null>(null)
   // Chat state reserved for future use
   // const [isChatOpen, setIsChatOpen] = useState(false)
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null)
   const { snoozeSwap } = useSnoozedCards()
+  const menuContainerRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   // Use external messages if provided, otherwise use local state
   const messages = externalMessages ?? localMessages
@@ -219,8 +224,47 @@ export function CardWrapper({
   useEffect(() => {
     if (!showMenu) {
       setShowResizeMenu(false)
+      setMenuPosition(null)
     }
   }, [showMenu])
+
+  // Calculate menu position when menu opens
+  useEffect(() => {
+    if (showMenu && menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect()
+      setMenuPosition({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [showMenu])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!showMenu) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      // Check if click is outside the menu button and menu content
+      if (!target.closest('[data-tour="card-menu"]') && !target.closest('.fixed.glass')) {
+        setShowMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showMenu])
+
+  // Calculate if resize submenu should be on the left side
+  useEffect(() => {
+    if (showResizeMenu && menuContainerRef.current) {
+      const rect = menuContainerRef.current.getBoundingClientRect()
+      const submenuWidth = 144 // w-36 = 9rem = 144px
+      const margin = 20
+      const shouldBeOnLeft = rect.right + submenuWidth + margin > window.innerWidth
+      setResizeMenuOnLeft(shouldBeOnLeft)
+    }
+  }, [showResizeMenu])
 
   // Silence unused variable warnings for future chat implementation
   void messages
@@ -301,14 +345,18 @@ export function CardWrapper({
             </button>
             <div className="relative" data-tour="card-menu">
               <button
+                ref={menuButtonRef}
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
                 title="Card menu - configure, replace, or remove"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-1 w-48 glass rounded-lg py-1 z-10">
+              {showMenu && menuPosition && createPortal(
+                <div
+                  className="fixed w-48 glass rounded-lg py-1 z-50 shadow-xl"
+                  style={{ top: menuPosition.top, right: menuPosition.right }}
+                >
                   <button
                     onClick={() => {
                       setShowMenu(false)
@@ -322,7 +370,7 @@ export function CardWrapper({
                   </button>
                   {/* Resize submenu */}
                   {onWidthChange && (
-                    <div className="relative">
+                    <div className="relative" ref={menuContainerRef}>
                       <button
                         onClick={() => setShowResizeMenu(!showResizeMenu)}
                         className="w-full px-4 py-2 text-left text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 flex items-center justify-between"
@@ -335,7 +383,10 @@ export function CardWrapper({
                         <ChevronRight className={cn('w-4 h-4 transition-transform', showResizeMenu && 'rotate-90')} />
                       </button>
                       {showResizeMenu && (
-                        <div className="absolute left-full top-0 ml-1 w-36 glass rounded-lg py-1 z-20">
+                        <div className={cn(
+                          'absolute top-0 w-36 glass rounded-lg py-1 z-20',
+                          resizeMenuOnLeft ? 'right-full mr-1' : 'left-full ml-1'
+                        )}>
                           {WIDTH_OPTIONS.map((option) => (
                             <button
                               key={option.value}
@@ -381,7 +432,8 @@ export function CardWrapper({
                     <Trash2 className="w-4 h-4" />
                     Remove
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>

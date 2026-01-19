@@ -32,8 +32,8 @@ const searchableItems: SearchResult[] = [
   { type: 'page', name: 'Settings', description: 'Console settings', href: '/settings', icon: Command },
   { type: 'cluster', name: 'kind-local', description: 'Local development cluster', href: '/clusters?name=kind-local', icon: Server },
   { type: 'cluster', name: 'vllm-d', description: 'Production GPU cluster', href: '/clusters?name=vllm-d', icon: Server },
-  { type: 'app', name: 'nginx-ingress', description: 'Ingress controller', href: '/apps?name=nginx-ingress', icon: Box },
-  { type: 'app', name: 'prometheus', description: 'Monitoring stack', href: '/apps?name=prometheus', icon: Box },
+  { type: 'app', name: 'nginx-ingress', description: 'Ingress controller', href: '/workloads?name=nginx-ingress', icon: Box },
+  { type: 'app', name: 'prometheus', description: 'Monitoring stack', href: '/workloads?name=prometheus', icon: Box },
 ]
 
 export function Navbar() {
