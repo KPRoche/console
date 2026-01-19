@@ -17,8 +17,8 @@ interface ClusterDetailModalProps {
 export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDetailModalProps) {
   const { health, isLoading } = useClusterHealth(clusterName)
   const { issues: podIssues } = usePodIssues(clusterName)
-  const { issues: deploymentIssues } = useDeploymentIssues()
-  const { nodes: gpuNodes } = useGPUNodes()
+  const { issues: deploymentIssues } = useDeploymentIssues(clusterName)
+  const { nodes: gpuNodes } = useGPUNodes(clusterName)
   const { nodes: clusterNodes, isLoading: nodesLoading } = useNodes(clusterName)
   const { stats: namespaceStats, isLoading: nsLoading } = useNamespaceStats(clusterName)
   const { deployments: clusterDeployments } = useDeployments(clusterName)
@@ -63,17 +63,7 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
     return map
   }, [clusterGPUs])
 
-  if (isLoading) {
-    return createPortal(
-      <div className="fixed inset-0 bg-black/50 z-50">
-        <div className="fixed top-[5vh] left-1/2 -translate-x-1/2 glass p-8 rounded-lg">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </div>,
-      document.body
-    )
-  }
-
+  // Show modal immediately with loading state for data - don't block on isLoading
   return createPortal(
     <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose}>
       <div className="fixed top-[5vh] left-1/2 -translate-x-1/2 glass p-6 rounded-lg w-[800px] h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -112,63 +102,93 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
         {/* Stats - Interactive Cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <button
-            onClick={() => !isUnreachable && setShowNodeDetails(!showNodeDetails)}
-            disabled={isUnreachable}
+            onClick={() => !isUnreachable && !isLoading && setShowNodeDetails(!showNodeDetails)}
+            disabled={isUnreachable || isLoading}
             className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
-              !isUnreachable ? 'border-border hover:border-cyan-500/50 hover:bg-cyan-500/5 hover:shadow-lg hover:shadow-cyan-500/10 cursor-pointer' : 'border-border cursor-default'
+              !isUnreachable && !isLoading ? 'border-border hover:border-cyan-500/50 hover:bg-cyan-500/5 hover:shadow-lg hover:shadow-cyan-500/10 cursor-pointer' : 'border-border cursor-default'
             } ${showNodeDetails ? 'border-cyan-500/50 bg-cyan-500/10 shadow-lg shadow-cyan-500/10' : ''}`}
-            title={!isUnreachable ? 'Click to view node details' : undefined}
+            title={!isUnreachable && !isLoading ? 'Click to view node details' : undefined}
           >
-            <div className="text-2xl font-bold text-foreground">{!isUnreachable ? (health?.nodeCount || 0) : '-'}</div>
-            <div className="text-sm text-muted-foreground flex items-center gap-1">
-              Nodes
-              {!isUnreachable && <ChevronDown className={`w-4 h-4 transition-transform text-cyan-400 ${showNodeDetails ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />}
-            </div>
-            <div className="text-xs text-green-400">{!isUnreachable ? `${health?.readyNodes || 0} ready` : 'unreachable'}</div>
-            {!isUnreachable && !showNodeDetails && (
-              <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-cyan-400/70 transition-colors">click to expand</div>
+            {isLoading ? (
+              <>
+                <div className="h-8 w-12 bg-muted/30 rounded animate-pulse mb-1" />
+                <div className="text-sm text-muted-foreground">Nodes</div>
+                <div className="h-4 w-16 bg-muted/30 rounded animate-pulse mt-1" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{!isUnreachable ? (health?.nodeCount || 0) : '-'}</div>
+                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                  Nodes
+                  {!isUnreachable && <ChevronDown className={`w-4 h-4 transition-transform text-cyan-400 ${showNodeDetails ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />}
+                </div>
+                <div className="text-xs text-green-400">{!isUnreachable ? `${health?.readyNodes || 0} ready` : 'unreachable'}</div>
+                {!isUnreachable && !showNodeDetails && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-cyan-400/70 transition-colors">click to expand</div>
+                )}
+              </>
             )}
           </button>
           <button
-            onClick={() => !isUnreachable && setShowPodsByNamespace(!showPodsByNamespace)}
-            disabled={isUnreachable}
+            onClick={() => !isUnreachable && !isLoading && setShowPodsByNamespace(!showPodsByNamespace)}
+            disabled={isUnreachable || isLoading}
             className={`group p-4 rounded-lg bg-card/50 border text-left transition-all duration-200 ${
-              !isUnreachable ? 'border-border hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:shadow-lg hover:shadow-indigo-500/10 cursor-pointer' : 'border-border cursor-default'
+              !isUnreachable && !isLoading ? 'border-border hover:border-indigo-500/50 hover:bg-indigo-500/5 hover:shadow-lg hover:shadow-indigo-500/10 cursor-pointer' : 'border-border cursor-default'
             } ${showPodsByNamespace ? 'border-indigo-500/50 bg-indigo-500/10 shadow-lg shadow-indigo-500/10' : ''}`}
-            title={!isUnreachable ? 'Click to view workloads by namespace' : undefined}
+            title={!isUnreachable && !isLoading ? 'Click to view workloads by namespace' : undefined}
           >
             <div className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
               Workloads
-              {!isUnreachable && <ChevronDown className={`w-4 h-4 transition-transform text-indigo-400 ${showPodsByNamespace ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />}
+              {!isUnreachable && !isLoading && <ChevronDown className={`w-4 h-4 transition-transform text-indigo-400 ${showPodsByNamespace ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />}
             </div>
-            <div className="space-y-0.5 text-xs">
-              {!isUnreachable ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Namespaces</span>
-                    <span className="text-foreground font-medium">{namespaceStats.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Deployments</span>
-                    <span className="text-foreground font-medium">{clusterDeployments.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pods</span>
-                    <span className="text-foreground font-medium">{health?.podCount || 0}</span>
-                  </div>
-                </>
-              ) : (
-                <span className="text-muted-foreground">-</span>
-              )}
-            </div>
-            {!isUnreachable && !showPodsByNamespace && (
-              <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-indigo-400/70 transition-colors">click to expand</div>
+            {isLoading ? (
+              <div className="space-y-1.5">
+                <div className="h-4 bg-muted/30 rounded animate-pulse" />
+                <div className="h-4 bg-muted/30 rounded animate-pulse" />
+                <div className="h-4 bg-muted/30 rounded animate-pulse" />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-0.5 text-xs">
+                  {!isUnreachable ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Namespaces</span>
+                        <span className="text-foreground font-medium">{namespaceStats.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Deployments</span>
+                        <span className="text-foreground font-medium">{clusterDeployments.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Pods</span>
+                        <span className="text-foreground font-medium">{health?.podCount || 0}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </div>
+                {!isUnreachable && !showPodsByNamespace && (
+                  <div className="text-[10px] text-muted-foreground/50 mt-2 group-hover:text-indigo-400/70 transition-colors">click to expand</div>
+                )}
+              </>
             )}
           </button>
           <div className={`p-4 rounded-lg bg-card/50 border ${clusterGPUs.length > 0 ? 'border-border' : 'border-border'}`}>
-            <div className="text-2xl font-bold text-foreground">{!isUnreachable ? clusterGPUs.reduce((sum, n) => sum + n.gpuCount, 0) : '-'}</div>
-            <div className="text-sm text-muted-foreground">GPUs</div>
-            <div className="text-xs text-yellow-400">{!isUnreachable ? `${clusterGPUs.reduce((sum, n) => sum + n.gpuAllocated, 0)} allocated` : ''}</div>
+            {isLoading ? (
+              <>
+                <div className="h-8 w-12 bg-muted/30 rounded animate-pulse mb-1" />
+                <div className="text-sm text-muted-foreground">GPUs</div>
+                <div className="h-4 w-20 bg-muted/30 rounded animate-pulse mt-1" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{!isUnreachable ? clusterGPUs.reduce((sum, n) => sum + n.gpuCount, 0) : '-'}</div>
+                <div className="text-sm text-muted-foreground">GPUs</div>
+                <div className="text-xs text-yellow-400">{!isUnreachable ? `${clusterGPUs.reduce((sum, n) => sum + n.gpuAllocated, 0)} allocated` : ''}</div>
+              </>
+            )}
           </div>
         </div>
 
@@ -179,28 +199,55 @@ export function ClusterDetailModal({ clusterName, onClose, onRename }: ClusterDe
               <Cpu className="w-4 h-4 text-blue-400" />
               <span className="text-sm text-muted-foreground">CPU</span>
             </div>
-            <div className="text-2xl font-bold text-foreground">{!isUnreachable ? (health?.cpuCores || 0) : '-'}</div>
-            <div className="text-xs text-muted-foreground">cores allocatable</div>
+            {isLoading ? (
+              <>
+                <div className="h-8 w-16 bg-muted/30 rounded animate-pulse mb-1" />
+                <div className="h-4 w-24 bg-muted/30 rounded animate-pulse" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{!isUnreachable ? (health?.cpuCores || 0) : '-'}</div>
+                <div className="text-xs text-muted-foreground">cores allocatable</div>
+              </>
+            )}
           </div>
           <div className="p-4 rounded-lg bg-card/50 border border-border">
             <div className="flex items-center gap-2 mb-2">
               <MemoryStick className="w-4 h-4 text-green-400" />
               <span className="text-sm text-muted-foreground">Memory</span>
             </div>
-            <div className="text-2xl font-bold text-foreground">
-              {!isUnreachable ? (health?.memoryGB ? (health.memoryGB >= 1024 ? `${(health.memoryGB / 1024).toFixed(1)} TB` : `${Math.round(health.memoryGB)} GB`) : '0 GB') : '-'}
-            </div>
-            <div className="text-xs text-muted-foreground">allocatable</div>
+            {isLoading ? (
+              <>
+                <div className="h-8 w-20 bg-muted/30 rounded animate-pulse mb-1" />
+                <div className="h-4 w-16 bg-muted/30 rounded animate-pulse" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">
+                  {!isUnreachable ? (health?.memoryGB ? (health.memoryGB >= 1024 ? `${(health.memoryGB / 1024).toFixed(1)} TB` : `${Math.round(health.memoryGB)} GB`) : '0 GB') : '-'}
+                </div>
+                <div className="text-xs text-muted-foreground">allocatable</div>
+              </>
+            )}
           </div>
           <div className="p-4 rounded-lg bg-card/50 border border-border">
             <div className="flex items-center gap-2 mb-2">
               <Database className="w-4 h-4 text-purple-400" />
               <span className="text-sm text-muted-foreground">Storage</span>
             </div>
-            <div className="text-2xl font-bold text-foreground">
-              {!isUnreachable ? (health?.storageGB ? (health.storageGB >= 1024 ? `${(health.storageGB / 1024).toFixed(1)} TB` : `${Math.round(health.storageGB)} GB`) : '0 GB') : '-'}
-            </div>
-            <div className="text-xs text-muted-foreground">ephemeral</div>
+            {isLoading ? (
+              <>
+                <div className="h-8 w-20 bg-muted/30 rounded animate-pulse mb-1" />
+                <div className="h-4 w-16 bg-muted/30 rounded animate-pulse" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">
+                  {!isUnreachable ? (health?.storageGB ? (health.storageGB >= 1024 ? `${(health.storageGB / 1024).toFixed(1)} TB` : `${Math.round(health.storageGB)} GB`) : '0 GB') : '-'}
+                </div>
+                <div className="text-xs text-muted-foreground">ephemeral</div>
+              </>
+            )}
           </div>
         </div>
 
