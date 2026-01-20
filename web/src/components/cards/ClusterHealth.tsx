@@ -240,7 +240,9 @@ export function ClusterHealth() {
           const clusterState = getClusterStateFromInfo(cluster)
           const clusterUnreachable = isUnreachable(cluster)
           const clusterLoading = isClusterLoading(cluster)
-          const provider = detectCloudProvider(cluster.name, cluster.server, undefined, cluster.user)
+          // Use detected distribution from health check, or detect from name/server/namespaces
+          const provider = cluster.distribution as CloudProvider ||
+            detectCloudProvider(cluster.name, cluster.server, cluster.namespaces, cluster.user)
           const providerLabel = getProviderLabel(provider)
           const consoleUrl = getConsoleUrl(provider, cluster.name, cluster.server)
           const statusTooltip = clusterLoading

@@ -33,6 +33,10 @@ export interface ClusterInfo {
   errorMessage?: string
   // Refresh state - true when a refresh is in progress for this cluster
   refreshing?: boolean
+  // Detected cluster distribution (openshift, eks, gke, etc.)
+  distribution?: string
+  // Namespaces in the cluster (for cloud provider detection)
+  namespaces?: string[]
 }
 
 export interface ClusterHealth {
@@ -432,6 +436,47 @@ async function fetchSingleClusterHealth(clusterName: string): Promise<ClusterHea
   return null
 }
 
+// Detect cluster distribution by checking for system namespaces
+// Returns the detected distribution and list of system namespaces
+async function detectClusterDistribution(clusterName: string): Promise<{ distribution?: string; namespaces?: string[] }> {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(
+      `/api/mcp/pods?cluster=${encodeURIComponent(clusterName)}&limit=500`,
+      {
+        signal: AbortSignal.timeout(5000), // Short timeout
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      }
+    )
+    if (response.ok) {
+      const data = await response.json()
+      // Extract unique namespaces from pods
+      const namespaces = Array.from(new Set<string>(
+        (data.pods || []).map((p: { namespace?: string }) => p.namespace).filter(Boolean)
+      ))
+
+      // Detect distribution based on namespaces
+      let distribution: string | undefined
+      if (namespaces.some(ns => ns.startsWith('openshift-') || ns === 'openshift')) {
+        distribution = 'openshift'
+      } else if (namespaces.some(ns => ns.startsWith('gke-') || ns === 'config-management-system')) {
+        distribution = 'gke'
+      } else if (namespaces.some(ns => ns.startsWith('aws-') || ns.startsWith('amazon-'))) {
+        distribution = 'eks'
+      } else if (namespaces.some(ns => ns.startsWith('azure-') || ns === 'azure-arc')) {
+        distribution = 'aks'
+      } else if (namespaces.some(ns => ns === 'cattle-system' || ns.startsWith('cattle-'))) {
+        distribution = 'rancher'
+      }
+
+      return { distribution, namespaces }
+    }
+  } catch {
+    // Ignore errors - distribution detection is optional
+  }
+  return {}
+}
+
 // Progressive health check - fetches health for each cluster individually
 // Updates shared cache so all consumers see the same data
 async function checkHealthProgressively(clusterList: ClusterInfo[]) {
@@ -443,6 +488,14 @@ async function checkHealthProgressively(clusterList: ClusterInfo[]) {
       // Health data available - cluster is reachable if we got a response
       // Only mark unreachable if explicitly set to false by backend
       const isReachable = health.reachable !== false
+
+      // Detect cluster distribution (async, non-blocking update)
+      detectClusterDistribution(cluster.name).then(({ distribution, namespaces }) => {
+        if (distribution || namespaces) {
+          updateSingleClusterInCache(cluster.name, { distribution, namespaces })
+        }
+      })
+
       updateSingleClusterInCache(cluster.name, {
         healthy: health.healthy,
         reachable: isReachable,
