@@ -9,31 +9,70 @@ interface CloudProviderIconProps {
   className?: string
 }
 
-// AWS icon - orange square with white AWS text/smile
+// AWS EKS icon - blue hexagon with K
 const AWSIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <rect width="24" height="24" rx="4" fill="#FF9900" />
-    <path d="M8.5 14.5c.3.8 1 1.5 2 1.5 1.5 0 2.5-1 2.5-2.5h1c0 2-1.5 3.5-3.5 3.5-1.5 0-2.7-.8-3.3-2h1.3z" fill="#252F3E" />
-    <path d="M7 11.5L8 8.5h1l1 3M9 11h-1.5" stroke="#252F3E" strokeWidth="1" fill="none" />
-    <path d="M12 8.5l1 3 1-3" stroke="#252F3E" strokeWidth="1" fill="none" />
-    <path d="M16 8.5v3c0 .5-.5 1-1 1" stroke="#252F3E" strokeWidth="1" fill="none" />
+    <defs>
+      <linearGradient id="eksGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#6B7AE8" />
+        <stop offset="100%" stopColor="#4B5BD4" />
+      </linearGradient>
+    </defs>
+    {/* Outer hexagon */}
+    <polygon points="12,1 22,6 22,18 12,23 2,18 2,6" fill="url(#eksGradient)" />
+    {/* Inner white hexagon cutout */}
+    <polygon points="12,5 18,8 18,16 12,19 6,16 6,8" fill="white" />
+    {/* K letter */}
+    <text x="12" y="15" textAnchor="middle" fill="#4B5BD4" fontSize="9" fontWeight="bold" fontFamily="Arial, sans-serif">K</text>
   </svg>
 )
 
-// Google Cloud icon - multicolor G
+// Google GKE icon - blue rounded hexagon with 3D cube
 const GCPIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <circle cx="12" cy="12" r="10" fill="#4285F4" />
-    <path d="M17.4 10.4h-5.2v3.2h3c-.3 1.5-1.5 2.4-3 2.4-1.8 0-3.3-1.5-3.3-3.3 0-1.8 1.5-3.3 3.3-3.3 1 0 1.8.4 2.4 1l2.2-2.2C15.4 7 13.8 6 12 6c-3.3 0-6 2.7-6 6s2.7 6 6 6c3 0 5.6-2.2 5.6-5.6 0-.4 0-.8-.1-1.1l-.1-.9z" fill="white" />
+    {/* Blue rounded hexagon background */}
+    <path d="M12 2 L20 6.5 Q22 8 22 10 L22 14 Q22 16 20 17.5 L12 22 L4 17.5 Q2 16 2 14 L2 10 Q2 8 4 6.5 Z" fill="#4285F4" />
+    {/* 3D cube icon - outer hexagon frame */}
+    <polygon points="12,5 17,7.5 17,12.5 12,15 7,12.5 7,7.5" stroke="white" strokeWidth="1.2" fill="none" />
+    {/* Cube top connector */}
+    <line x1="12" y1="5" x2="12" y2="3" stroke="white" strokeWidth="1.2" />
+    {/* Inner cube */}
+    <polygon points="12,8 15,9.5 15,12 12,13.5 9,12 9,9.5" stroke="white" strokeWidth="1" fill="none" />
+    {/* Cube center vertical line */}
+    <line x1="12" y1="8" x2="12" y2="10.5" stroke="white" strokeWidth="1" />
+    {/* Cube bottom lines */}
+    <line x1="12" y1="13.5" x2="12" y2="17" stroke="white" strokeWidth="1.2" />
+    <line x1="9" y1="12" x2="6" y2="14" stroke="white" strokeWidth="1" />
+    <line x1="15" y1="12" x2="18" y2="14" stroke="white" strokeWidth="1" />
   </svg>
 )
 
-// Azure icon - blue square
+// Azure AKS icon - purple gradient 3D cubes pattern
 const AzureIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <rect width="24" height="24" rx="4" fill="#0078D4" />
-    <path d="M7 6h4l-5 11h4l6-11h-4l1.5-3H7z" fill="white" fillOpacity="0.9" />
-    <path d="M13 8l-3 8h5l-6 3 7-11z" fill="white" />
+  <svg viewBox="0 0 16 16" width={size} height={size} className={className}>
+    <defs>
+      <linearGradient id="aksGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#B77AF4" />
+        <stop offset="100%" stopColor="#773ADC" />
+      </linearGradient>
+    </defs>
+    {/* Top row - 2 cubes */}
+    <path fill="url(#aksGradient1)" d="M5.5 2l-2.2.4v3l2.2.5 2.2-.9V2.8L5.5 2z"/>
+    <path fill="#341A6E" d="M3.3 2.4v3l2.2.5V2l-2.2.4zm.9 2.8l-.6-.1V2.8l.6-.1v2.5zm1 .2l-.7-.1V2.6l.7-.1v2.9z"/>
+    <path fill="url(#aksGradient1)" d="M10.3 2l-2.2.4v3l2.2.5 2.2-.9V2.8L10.3 2z"/>
+    <path fill="#341A6E" d="M8.1 2.5v3l2.2.5V2l-2.2.4zm.9 2.8l-.6-.1V2.8l.6-.1v2.5zm1 .2l-.7-.1V2.6l.7-.1v2.9z"/>
+    {/* Middle row - 3 cubes */}
+    <path fill="url(#aksGradient1)" d="M3.2 6.2l-2.2.4v3l2.2.5 2.2-.9V7L3.2 6.2z"/>
+    <path fill="#341A6E" d="M1 6.6v3l2.2.5V6.2L1 6.6zm.9 2.8l-.6-.1V6.9l.6-.1v2.6zm1 .2l-.7-.1V6.8l.7-.1v2.9z"/>
+    <path fill="url(#aksGradient1)" d="M8 6.2l-2.2.4v3l2.2.5 2.2-.9V6.9L8 6.2z"/>
+    <path fill="#341A6E" d="M5.8 6.6v3l2.2.5V6.2l-2.2.4zm.9 2.8l-.6-.1V6.9l.6-.1v2.6zm1 .2l-.7-.1V6.8l.7-.1v2.9z"/>
+    <path fill="url(#aksGradient1)" d="M12.8 6.2l-2.2.4v3l2.2.5 2.2-.9V7l-2.2-.8z"/>
+    <path fill="#341A6E" d="M10.6 6.6v3l2.2.5V6.2l-2.2.4zm1 2.8l-.6-.1V6.9l.6-.1v2.6zm1 .2l-.7-.1V6.8l.7-.1v2.9z"/>
+    {/* Bottom row - 2 cubes */}
+    <path fill="url(#aksGradient1)" d="M5.5 10.4l-2.2.4v3l2.2.5 2.2-.9v-2.3l-2.2-.7z"/>
+    <path fill="#341A6E" d="M3.2 10.8v3l2.2.5v-4l-2.2.5zm1 2.8l-.6-.1v-2.3l.6-.1v2.5zm1 .2l-.7-.1v-2.7l.7-.1v2.9z"/>
+    <path fill="url(#aksGradient1)" d="M10.3 10.4l-2.2.4v3l2.2.5 2.2-.9v-2.3l-2.2-.7z"/>
+    <path fill="#341A6E" d="M8 10.9v3l2.2.5v-3.9l-2.2.4zm1 2.8l-.6-.1v-2.3l.6-.1v2.5zm1 .2l-.7-.1v-2.7l.7-.1v2.9z"/>
   </svg>
 )
 
@@ -65,59 +104,162 @@ const OCIIcon: React.FC<{ size: number; className?: string }> = ({ size, classNa
   </svg>
 )
 
-// Alibaba Cloud icon - orange
+// Alibaba Cloud ACK icon - orange hexagon with connected cube nodes
 const AlibabaIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <rect width="24" height="24" rx="4" fill="#FF6A00" />
-    <path d="M6 10h5v1H6v-1zM13 10h5v1h-5v-1zM6 13h5v1H6v-1zM13 13h5v1h-5v-1z" fill="white" />
-    <circle cx="12" cy="12" r="2" fill="white" />
+    {/* Outer hexagon outline */}
+    <polygon points="12,2 21,7 21,17 12,22 3,17 3,7" stroke="#FF6A00" strokeWidth="2" fill="none" />
+    {/* Inner hexagon */}
+    <polygon points="12,6 17,9 17,15 12,18 7,15 7,9" stroke="#FF6A00" strokeWidth="1.5" fill="none" />
+    {/* Center cube */}
+    <rect x="10" y="10" width="4" height="4" fill="#FF6A00" rx="0.5" />
+    {/* Top node */}
+    <rect x="10.5" y="4" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Top-right node */}
+    <rect x="16" y="7" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Bottom-right node */}
+    <rect x="16" y="14" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Bottom node */}
+    <rect x="10.5" y="17" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Bottom-left node */}
+    <rect x="5" y="14" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Top-left node */}
+    <rect x="5" y="7" width="3" height="3" fill="#FF6A00" rx="0.5" />
+    {/* Connecting lines */}
+    <line x1="12" y1="7" x2="12" y2="10" stroke="#FF6A00" strokeWidth="1" />
+    <line x1="14" y1="11" x2="16" y2="9" stroke="#FF6A00" strokeWidth="1" />
+    <line x1="14" y1="13" x2="16" y2="15" stroke="#FF6A00" strokeWidth="1" />
+    <line x1="12" y1="14" x2="12" y2="17" stroke="#FF6A00" strokeWidth="1" />
+    <line x1="10" y1="13" x2="8" y2="15" stroke="#FF6A00" strokeWidth="1" />
+    <line x1="10" y1="11" x2="8" y2="9" stroke="#FF6A00" strokeWidth="1" />
   </svg>
 )
 
-// DigitalOcean icon - blue droplet
+// DigitalOcean icon - official DO logo with arc and pixels
 const DigitalOceanIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <circle cx="12" cy="12" r="10" fill="#0080FF" />
-    <path d="M12 17v-3h-3v-3c0-2.8 2.2-5 5-5 2.8 0 5 2.2 5 5h-4v3h-3v3z" fill="white" />
-    <rect x="6" y="14" width="3" height="3" fill="white" />
-    <rect x="6" y="17" width="3" height="2" fill="white" />
+    {/* Main arc/circle shape */}
+    <path
+      d="M12 4C7.6 4 4 7.6 4 12c0 4.4 3.6 8 8 8v-4c-2.2 0-4-1.8-4-4s1.8-4 4-4c2.2 0 4 1.8 4 4h4c0-4.4-3.6-8-8-8z"
+      fill="#0080FF"
+    />
+    {/* Bottom right square pixels */}
+    <rect x="12" y="16" width="4" height="4" fill="#0080FF" />
+    <rect x="16" y="12" width="4" height="4" fill="#0080FF" />
+    {/* Small pixel squares */}
+    <rect x="17" y="8" width="2" height="2" fill="#0080FF" />
+    <rect x="19" y="10" width="1.5" height="1.5" fill="#0080FF" />
+    <rect x="15" y="6" width="1.5" height="1.5" fill="#0080FF" />
   </svg>
 )
 
-// Rancher icon - blue with cow
+// Rancher icon - blue cow silhouette
 const RancherIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <rect width="24" height="24" rx="4" fill="#0075A8" />
-    <ellipse cx="12" cy="13" rx="5" ry="4" fill="white" />
-    <ellipse cx="9" cy="12" rx="1" ry="1.5" fill="#0075A8" />
-    <ellipse cx="15" cy="12" rx="1" ry="1.5" fill="#0075A8" />
-    <path d="M8 8c-1-1-2-1-2 0s1 2 2 2" stroke="white" strokeWidth="1.5" fill="none" />
-    <path d="M16 8c1-1 2-1 2 0s-1 2-2 2" stroke="white" strokeWidth="1.5" fill="none" />
+    {/* Blue rounded background */}
+    <rect width="24" height="24" rx="4" fill="#2453FF" />
+    {/* Simplified cow head - based on Rancher logo */}
+    {/* Left ear/horn */}
+    <path d="M5 7 L7 5 L7 8 Z" fill="white" />
+    {/* Right ear/horn */}
+    <path d="M19 7 L17 5 L17 8 Z" fill="white" />
+    {/* Head shape */}
+    <path d="M7 7 L7 13 C7 16 9 18 12 18 C15 18 17 16 17 13 L17 7 C17 5 15 4 12 4 C9 4 7 5 7 7 Z" fill="white" />
+    {/* Left eye */}
+    <circle cx="9.5" cy="10" r="1.2" fill="#2453FF" />
+    {/* Right eye */}
+    <circle cx="14.5" cy="10" r="1.2" fill="#2453FF" />
+    {/* Nose/snout */}
+    <ellipse cx="12" cy="14.5" rx="3" ry="2" fill="#2453FF" fillOpacity="0.3" />
+    {/* Nostrils */}
+    <circle cx="10.5" cy="14.5" r="0.6" fill="#2453FF" />
+    <circle cx="13.5" cy="14.5" r="0.6" fill="#2453FF" />
   </svg>
 )
 
-// Kind icon - docker whale in circle
+// Kind icon - ship in bottle (Kubernetes IN Docker)
 const KindIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <circle cx="12" cy="12" r="10" fill="#2496ED" />
-    <path d="M6 13h2v2H6zM9 11h2v4H9zM12 10h2v5h-2zM15 12h2v3h-2z" fill="white" />
-    <ellipse cx="12" cy="16" rx="7" ry="2" fill="white" fillOpacity="0.3" />
+    {/* Bottle outline */}
+    <path d="M8 4h8v2h-1v1c2 1 4 3 4 6v6c0 1-1 2-2 2H7c-1 0-2-1-2-2v-6c0-3 2-5 4-6V6H8V4z" fill="#2496ED" />
+    {/* Bottle glass effect */}
+    <path d="M9 5h6v1h-1v2c1.5.8 3 2.5 3 5v5c0 .5-.5 1-1 1H8c-.5 0-1-.5-1-1v-5c0-2.5 1.5-4.2 3-5V6H9V5z" fill="#4DB8FF" fillOpacity="0.3" />
+    {/* Ship hull */}
+    <path d="M7 15l2-2h6l2 2c0 1-2 2-5 2s-5-1-5-2z" fill="white" />
+    {/* Ship mast */}
+    <line x1="12" y1="10" x2="12" y2="15" stroke="white" strokeWidth="1" />
+    {/* Ship sail */}
+    <path d="M12 10l-3 4h3z" fill="white" fillOpacity="0.9" />
+    <path d="M12 10l2.5 3.5H12z" fill="white" fillOpacity="0.7" />
+    {/* Wave lines */}
+    <path d="M7 16.5c1 .5 2.5.5 3.5 0s2.5-.5 3.5 0 2 .5 3 0" stroke="#2496ED" strokeWidth="0.5" fill="none" />
   </svg>
 )
 
-// Minikube icon - blue hexagon
+// Minikube icon - hexagon with container and helm wheel
 const MinikubeIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <polygon points="12,2 22,7 22,17 12,22 2,17 2,7" fill="#326CE5" />
-    <text x="12" y="15" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">m</text>
+    {/* Outer hexagon outline */}
+    <polygon
+      points="12,1 22,5.5 22,18.5 12,23 2,18.5 2,5.5"
+      fill="none"
+      stroke="#326CE5"
+      strokeWidth="1.5"
+    />
+    {/* Inner hexagon (slightly smaller) */}
+    <polygon
+      points="12,2.5 20.5,6.5 20.5,17.5 12,21.5 3.5,17.5 3.5,6.5"
+      fill="white"
+    />
+    {/* Container/box shape at top - light cyan */}
+    <path d="M6 7 L12 4 L18 7 L18 11 L12 14 L6 11 Z" fill="#8FE3E3" />
+    <path d="M12 4 L12 8 L6 11 L6 7 Z" fill="#5DD3D3" />
+    <path d="M12 4 L12 8 L18 11 L18 7 Z" fill="#B8F0F0" />
+    {/* Helm wheel - blue */}
+    <circle cx="12" cy="16" r="4" fill="none" stroke="#326CE5" strokeWidth="1.5" />
+    <circle cx="12" cy="16" r="1" fill="#326CE5" />
+    {/* Helm spokes */}
+    <line x1="12" y1="12" x2="12" y2="14.5" stroke="#326CE5" strokeWidth="1" />
+    <line x1="12" y1="17.5" x2="12" y2="20" stroke="#326CE5" strokeWidth="1" />
+    <line x1="8" y1="16" x2="10.5" y2="16" stroke="#326CE5" strokeWidth="1" />
+    <line x1="13.5" y1="16" x2="16" y2="16" stroke="#326CE5" strokeWidth="1" />
+    {/* Diagonal spokes */}
+    <line x1="9.2" y1="13.2" x2="10.8" y2="14.8" stroke="#326CE5" strokeWidth="1" />
+    <line x1="13.2" y1="17.2" x2="14.8" y2="18.8" stroke="#326CE5" strokeWidth="1" />
+    <line x1="14.8" y1="13.2" x2="13.2" y2="14.8" stroke="#326CE5" strokeWidth="1" />
+    <line x1="10.8" y1="17.2" x2="9.2" y2="18.8" stroke="#326CE5" strokeWidth="1" />
   </svg>
 )
 
-// K3s icon - yellow/green
+// K3s icon - yellow with white three-blade propeller
 const K3sIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} className={className}>
-    <rect width="24" height="24" rx="4" fill="#FFC61C" />
-    <text x="12" y="16" textAnchor="middle" fill="#1A1A1A" fontSize="10" fontWeight="bold">k3s</text>
+    {/* Yellow rounded rectangle background */}
+    <rect width="24" height="24" rx="5" fill="#FFC61C" />
+    {/* Three-blade propeller shape */}
+    {/* Top blade */}
+    <path
+      d="M12 5 L12 11"
+      stroke="white"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
+    {/* Bottom-left blade */}
+    <path
+      d="M12 12 L7 17"
+      stroke="white"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
+    {/* Bottom-right blade */}
+    <path
+      d="M12 12 L17 17"
+      stroke="white"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    />
+    {/* Center circle */}
+    <circle cx="12" cy="12" r="1.5" fill="white" />
   </svg>
 )
 
@@ -189,15 +331,15 @@ export function getProviderLabel(provider: CloudProvider): string {
 // Get the primary brand color for each provider (for borders, accents, etc.)
 export function getProviderColor(provider: CloudProvider): string {
   switch (provider) {
-    case 'eks': return '#FF9900'         // AWS Orange
+    case 'eks': return '#5B6AD4'         // EKS Blue/Purple
     case 'gke': return '#4285F4'         // Google Blue
-    case 'aks': return '#0078D4'         // Azure Blue
+    case 'aks': return '#773ADC'         // AKS Purple
     case 'openshift': return '#EE0000'   // Red Hat Red
     case 'oci': return '#C74634'         // Oracle Red
     case 'alibaba': return '#FF6A00'     // Alibaba Orange
     case 'digitalocean': return '#0080FF' // DO Blue
-    case 'rancher': return '#0075A8'     // Rancher Blue
-    case 'kind': return '#2496ED'        // Docker Blue
+    case 'rancher': return '#2453FF'     // Rancher Blue
+    case 'kind': return '#2496ED'        // Kind Blue
     case 'minikube': return '#326CE5'    // K8s Blue
     case 'k3s': return '#FFC61C'         // K3s Yellow
     default: return '#326CE5'            // Kubernetes Blue
@@ -207,14 +349,14 @@ export function getProviderColor(provider: CloudProvider): string {
 // Get Tailwind border class for provider (for use in className)
 export function getProviderBorderClass(provider: CloudProvider): string {
   switch (provider) {
-    case 'eks': return 'border-orange-500/40'
+    case 'eks': return 'border-indigo-500/40'
     case 'gke': return 'border-blue-500/40'
-    case 'aks': return 'border-cyan-500/40'
+    case 'aks': return 'border-purple-500/40'
     case 'openshift': return 'border-red-500/40'
     case 'oci': return 'border-red-600/40'
     case 'alibaba': return 'border-orange-500/40'
     case 'digitalocean': return 'border-blue-400/40'
-    case 'rancher': return 'border-cyan-600/40'
+    case 'rancher': return 'border-blue-600/40'
     case 'kind': return 'border-blue-400/40'
     case 'minikube': return 'border-blue-500/40'
     case 'k3s': return 'border-yellow-500/40'
