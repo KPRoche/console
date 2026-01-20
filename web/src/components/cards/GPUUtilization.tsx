@@ -171,7 +171,7 @@ export function GPUUtilization() {
       <div className="flex items-center gap-4 mb-4">
         {/* Donut chart */}
         <div className="w-20 h-20 relative" style={{ minWidth: 80, minHeight: 80 }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={80} minHeight={80}>
             <PieChart>
               <Pie
                 data={pieData}

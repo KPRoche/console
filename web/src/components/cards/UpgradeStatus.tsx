@@ -74,6 +74,14 @@ async function fetchClusterVersion(clusterName: string): Promise<string | null> 
         resolve(version)
       })
 
+      // Check WebSocket state before sending - it may have closed between await and send
+      if (ws.readyState !== WebSocket.OPEN) {
+        versionPendingRequests.delete(requestId)
+        clearTimeout(timeout)
+        resolve(null)
+        return
+      }
+
       ws.send(JSON.stringify({
         id: requestId,
         type: 'kubectl',
