@@ -2658,11 +2658,28 @@ function getDemoDeployments(): Deployment[] {
 
 function getDemoGPUNodes(): GPUNode[] {
   return [
-    { name: 'gpu-node-1', cluster: 'vllm-d', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 6 },
-    { name: 'gpu-node-2', cluster: 'vllm-d', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 8 },
-    { name: 'gpu-node-3', cluster: 'vllm-d', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 4 },
-    { name: 'gpu-worker-1', cluster: 'ops', gpuType: 'NVIDIA V100', gpuCount: 4, gpuAllocated: 2 },
-    { name: 'ml-node-1', cluster: 'prod-east', gpuType: 'NVIDIA T4', gpuCount: 2, gpuAllocated: 2 },
+    // vllm-gpu-cluster - Large GPU cluster for AI/ML workloads
+    { name: 'gpu-node-1', cluster: 'vllm-gpu-cluster', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 6 },
+    { name: 'gpu-node-2', cluster: 'vllm-gpu-cluster', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 8 },
+    { name: 'gpu-node-3', cluster: 'vllm-gpu-cluster', gpuType: 'NVIDIA A100', gpuCount: 8, gpuAllocated: 4 },
+    { name: 'gpu-node-4', cluster: 'vllm-gpu-cluster', gpuType: 'NVIDIA H100', gpuCount: 8, gpuAllocated: 7 },
+    // EKS - Production ML inference
+    { name: 'eks-gpu-1', cluster: 'eks-prod-us-east-1', gpuType: 'NVIDIA A10G', gpuCount: 4, gpuAllocated: 3 },
+    { name: 'eks-gpu-2', cluster: 'eks-prod-us-east-1', gpuType: 'NVIDIA A10G', gpuCount: 4, gpuAllocated: 4 },
+    // GKE - Training workloads
+    { name: 'gke-gpu-pool-1', cluster: 'gke-staging', gpuType: 'NVIDIA T4', gpuCount: 2, gpuAllocated: 1 },
+    { name: 'gke-gpu-pool-2', cluster: 'gke-staging', gpuType: 'NVIDIA T4', gpuCount: 2, gpuAllocated: 2 },
+    // AKS - Dev/test GPUs
+    { name: 'aks-gpu-node', cluster: 'aks-dev-westeu', gpuType: 'NVIDIA V100', gpuCount: 2, gpuAllocated: 1 },
+    // OpenShift - Enterprise ML
+    { name: 'ocp-gpu-worker-1', cluster: 'openshift-prod', gpuType: 'NVIDIA A100', gpuCount: 4, gpuAllocated: 4 },
+    { name: 'ocp-gpu-worker-2', cluster: 'openshift-prod', gpuType: 'NVIDIA A100', gpuCount: 4, gpuAllocated: 2 },
+    // OCI - Oracle GPU shapes
+    { name: 'oke-gpu-node', cluster: 'oci-oke-phoenix', gpuType: 'NVIDIA A10', gpuCount: 4, gpuAllocated: 3 },
+    // Alibaba - China region ML
+    { name: 'ack-gpu-worker', cluster: 'alibaba-ack-shanghai', gpuType: 'NVIDIA V100', gpuCount: 8, gpuAllocated: 6 },
+    // Rancher - Managed GPU pool
+    { name: 'rancher-gpu-1', cluster: 'rancher-mgmt', gpuType: 'NVIDIA T4', gpuCount: 2, gpuAllocated: 1 },
   ]
 }
 
