@@ -60,35 +60,33 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          # Create prompt file for Claude Code
-          cat > /tmp/claude-prompt.txt <<EOF
-You are fixing a bug or implementing a feature request for the KubeStellar Console project.
+          # Create prompt directly without heredoc
+          PROMPT="You are fixing a bug or implementing a feature request for the KubeStellar Console project.
 
-Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
-Description:
-${ISSUE_BODY}
+          Description:
+          ${ISSUE_BODY}
 
-Instructions:
-1. Analyze the codebase to understand the issue
-2. Implement a fix or feature as described
-3. Make minimal, focused changes
-4. Ensure the code compiles and follows project patterns
-5. Add any necessary tests
-6. Do not create markdown documentation files
+          Instructions:
+          1. Analyze the codebase to understand the issue
+          2. Implement a fix or feature as described
+          3. Make minimal, focused changes
+          4. Ensure the code compiles and follows project patterns
+          5. Add any necessary tests
+          6. Do not create markdown documentation files
 
-The project structure:
-- /web: React 18 + TypeScript + Vite frontend
-- /pkg: Go backend with Fiber framework
-- /pkg/api: API handlers
-- /pkg/store: SQLite data store
-- /pkg/models: Data models
+          The project structure:
+          - /web: React 18 + TypeScript + Vite frontend
+          - /pkg: Go backend with Fiber framework
+          - /pkg/api: API handlers
+          - /pkg/store: SQLite data store
+          - /pkg/models: Data models
 
-Please implement the fix now.
-EOF
+          Please implement the fix now."
 
           # Run Claude Code in non-interactive mode
-          echo "$(cat /tmp/claude-prompt.txt)" | claude-code --non-interactive || true
+          echo "$PROMPT" | claude-code --non-interactive || true
 
       - name: Check for changes
         id: check_changes
