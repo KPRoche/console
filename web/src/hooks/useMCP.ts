@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import { reportAgentDataError, reportAgentDataSuccess } from './useLocalAgent'
 import { getDemoMode, useDemoMode } from './useDemoMode'
+import { useAuth } from '../lib/auth'
 
 // Refresh interval for automatic polling (2 minutes) - manual refresh bypasses this
 const REFRESH_INTERVAL_MS = 120000
@@ -1082,7 +1083,8 @@ export function useClusters() {
       }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//localhost:8080/ws`
+      const token = localStorage.getItem('token')
+      const wsUrl = `${protocol}//localhost:8080/ws${token ? `?token=${token}` : ''}`
       let ws: WebSocket | null = null
 
       const connect = () => {
