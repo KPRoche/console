@@ -591,13 +591,13 @@ export function ClusterCosts({ config }: ClusterCostsProps) {
                   <div className="flex-shrink-0" title={providerPricing.name}>
                     <CloudProviderIcon provider={mapProviderToIconProvider(cluster.provider)} size={16} />
                   </div>
-                  {/* 3. Text badge (clickable to change) - styled as obvious editable button */}
+                  {/* 3. Text badge (clickable to change) - styled as obvious dropdown button */}
                   <button
-                    className={`group/badge px-1.5 py-0.5 text-[9px] font-medium rounded flex-shrink-0 flex items-center gap-0.5 border border-dashed ${providerIcon.bg} ${providerIcon.color} ${
+                    className={`group/badge px-1.5 py-0.5 text-[9px] font-medium rounded flex-shrink-0 flex items-center gap-0.5 ${providerIcon.bg} ${providerIcon.color} ${
                       isOverridden
-                        ? 'ring-1 ring-purple-500/50 border-purple-500/50'
-                        : 'border-current/30 hover:border-current/60'
-                    } hover:scale-105 active:scale-95 transition-all cursor-pointer`}
+                        ? 'ring-1 ring-purple-500/50'
+                        : ''
+                    } hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-sm hover:shadow`}
                     title={`${providerPricing.name}${isOverridden ? ' (manually set)' : pricingMode === 'per-cluster' ? ' (auto-detected)' : ''}\nClick to change • Right-click to reset`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -623,7 +623,7 @@ export function ClusterCosts({ config }: ClusterCostsProps) {
                     }}
                   >
                     {providerIcon.short}
-                    <Pencil className="w-2 h-2 opacity-0 group-hover/badge:opacity-100 transition-opacity" />
+                    <ChevronDown className="w-2.5 h-2.5 opacity-60 group-hover/badge:opacity-100 transition-opacity" />
                   </button>
                   {/* 4. Cluster name */}
                   <span className="text-sm font-medium text-foreground truncate">{cluster.name}</span>
