@@ -1,5 +1,5 @@
 const API_BASE = ''
-const DEFAULT_TIMEOUT = 15000 // 15 seconds default timeout
+const DEFAULT_TIMEOUT = 5000 // 5 seconds default timeout
 const BACKEND_CHECK_INTERVAL = 30000 // 30 seconds between backend checks when unavailable
 const BACKEND_FAILURE_THRESHOLD = 2 // Consecutive failures before marking unavailable
 
@@ -107,10 +107,8 @@ class ApiClient {
         if (response.status === 401) {
           console.warn('[API] Unauthorized - token may be expired')
         }
-        // 5xx errors indicate backend issues
-        if (response.status >= 500) {
-          markBackendFailure()
-        }
+        // Note: 5xx errors don't mark backend unavailable - the backend IS responding,
+        // just with an error for that specific endpoint. Only network failures count.
         throw new Error(errorText || `API error: ${response.status}`)
       }
       markBackendSuccess()
@@ -148,7 +146,6 @@ class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (response.status >= 500) markBackendFailure()
         throw new Error(`API error: ${response.status}`)
       }
       markBackendSuccess()
@@ -185,7 +182,6 @@ class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (response.status >= 500) markBackendFailure()
         throw new Error(`API error: ${response.status}`)
       }
       markBackendSuccess()
@@ -221,7 +217,6 @@ class ApiClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (response.status >= 500) markBackendFailure()
         throw new Error(`API error: ${response.status}`)
       }
       markBackendSuccess()
