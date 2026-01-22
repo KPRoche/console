@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
   const { config } = useSidebarConfig()
   const { isSidebarOpen: isMissionSidebarOpen, isSidebarMinimized: isMissionSidebarMinimized, isFullScreen: isMissionFullScreen } = useMissions()
   const { isDemoMode, toggleDemoMode } = useDemoMode()
-  const { status: agentStatus, isDemoMode: isAgentDemoMode } = useLocalAgent()
+  const { status: agentStatus } = useLocalAgent()
   const [offlineBannerDismissed, setOfflineBannerDismissed] = useState(false)
 
   // Show offline banner when agent is disconnected (not demo mode, not connecting)

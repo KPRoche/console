@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../lib/api'
+import { api, BackendUnavailableError } from '../lib/api'
 
 export interface DashboardCard {
   id: string
@@ -30,8 +30,13 @@ export function useDashboards() {
       setDashboards(data || [])
       setError(null)
     } catch (err) {
-      console.error('Failed to load dashboards:', err)
-      setError('Failed to load dashboards')
+      // Don't log or set error for expected failures (backend unavailable)
+      if (err instanceof BackendUnavailableError) {
+        // Silent - backend is known to be unavailable
+      } else {
+        console.error('Failed to load dashboards:', err)
+        setError('Failed to load dashboards')
+      }
     } finally {
       setIsLoading(false)
     }
