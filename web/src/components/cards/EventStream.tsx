@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { AlertTriangle, Info, XCircle, ChevronRight } from 'lucide-react'
+import { AlertTriangle, Info, XCircle, ChevronRight, Search } from 'lucide-react'
 import { useEvents } from '../../hooks/useMCP'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
@@ -22,6 +22,7 @@ export function EventStream() {
   const [itemsPerPage, setItemsPerPage] = useState<number | 'unlimited'>(5)
   const [sortBy, setSortBy] = useState<SortByOption>('time')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [searchQuery, setSearchQuery] = useState('')
   // Fetch more events from API to enable pagination
   const {
     events: rawEvents,
@@ -40,7 +41,20 @@ export function EventStream() {
 
   // Filter and sort events
   const filteredAndSorted = useMemo(() => {
-    const filtered = filterByCluster(rawEvents)
+    let filtered = filterByCluster(rawEvents)
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(event =>
+        event.message.toLowerCase().includes(query) ||
+        event.object.toLowerCase().includes(query) ||
+        event.namespace.toLowerCase().includes(query) ||
+        event.type.toLowerCase().includes(query) ||
+        (event.cluster?.toLowerCase() || '').includes(query)
+      )
+    }
+
     const sorted = [...filtered].sort((a, b) => {
       let result = 0
       if (sortBy === 'count') result = b.count - a.count
@@ -49,7 +63,7 @@ export function EventStream() {
       return sortDirection === 'asc' ? -result : result
     })
     return sorted
-  }, [rawEvents, sortBy, sortDirection, filterByCluster])
+  }, [rawEvents, sortBy, sortDirection, filterByCluster, searchQuery])
 
   // Use pagination hook
   const effectivePerPage = itemsPerPage === 'unlimited' ? 1000 : itemsPerPage
@@ -63,6 +77,11 @@ export function EventStream() {
     needsPagination,
   } = usePagination(filteredAndSorted, effectivePerPage)
   const { drillToEvents, drillToPod, drillToDeployment } = useDrillDownActions()
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query)
+    goToPage(1)
+  }
 
   const handleEventClick = (event: typeof events[0]) => {
     // Parse object to get resource type and name
@@ -128,6 +147,18 @@ export function EventStream() {
             onRefresh={() => refetch()}
           />
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search events..."
+          className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+        />
       </div>
 
       {/* Event list */}

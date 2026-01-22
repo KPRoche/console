@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
+  Search,
 } from 'lucide-react'
 import { useAlerts } from '../../hooks/useAlerts'
 import { useGlobalFilters, type SeverityLevel } from '../../hooks/useGlobalFilters'
@@ -51,6 +52,7 @@ export function ActiveAlerts() {
   const [showAcknowledged, setShowAcknowledged] = useState(false)
   const [limit, setLimit] = useState<number | 'unlimited'>(5)
   const [sortBy, setSortBy] = useState<SortField>('severity')
+  const [localSearch, setLocalSearch] = useState('')
   const clusterFilterRef = useRef<HTMLDivElement>(null)
 
   // Combine active and acknowledged alerts when toggle is on
@@ -134,6 +136,16 @@ export function ActiveAlerts() {
       )
     }
 
+    // Apply local search filter
+    if (localSearch.trim()) {
+      const query = localSearch.toLowerCase()
+      result = result.filter(a =>
+        a.ruleName.toLowerCase().includes(query) ||
+        a.message.toLowerCase().includes(query) ||
+        (a.cluster?.toLowerCase() || '').includes(query)
+      )
+    }
+
     // Sort by selected field
     return result.sort((a, b) => {
       if (sortBy === 'severity') {
@@ -145,7 +157,7 @@ export function ActiveAlerts() {
         return new Date(b.firedAt).getTime() - new Date(a.firedAt).getTime()
       }
     })
-  }, [allAlertsToShow, selectedClusters, isAllClustersSelected, localClusterFilter, sortBy, selectedSeverities, isAllSeveritiesSelected, customFilter])
+  }, [allAlertsToShow, selectedClusters, isAllClustersSelected, localClusterFilter, sortBy, selectedSeverities, isAllSeveritiesSelected, customFilter, localSearch])
 
   // Apply pagination
   const displayedAlerts = useMemo(() => {
@@ -312,6 +324,18 @@ export function ActiveAlerts() {
           </div>
         </div>
       )}
+
+      {/* Local Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
+          placeholder="Search alerts..."
+          className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+        />
+      </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-2 mb-3">

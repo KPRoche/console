@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { GitBranch, CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, ChevronRight, ExternalLink, AlertCircle } from 'lucide-react'
+import { GitBranch, CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, ChevronRight, ExternalLink, AlertCircle, Search } from 'lucide-react'
 import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { ClusterBadge } from '../ui/ClusterBadge'
@@ -128,6 +128,7 @@ export function ArgoCDApplications({ config }: ArgoCDApplicationsProps) {
   const [sortBy, setSortBy] = useState<SortByOption>('syncStatus')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [limit, setLimit] = useState<number | 'unlimited'>(5)
+  const [localSearch, setLocalSearch] = useState('')
 
   const filteredClusters = useMemo(() => {
     if (isAllClustersSelected) return clusters.map(c => c.name)
@@ -153,6 +154,17 @@ export function ArgoCDApplications({ config }: ArgoCDApplicationsProps) {
       filtered = filtered.filter(a => a.healthStatus !== 'Healthy')
     }
 
+    // Apply local search filter
+    if (localSearch.trim()) {
+      const query = localSearch.toLowerCase()
+      filtered = filtered.filter(a =>
+        a.name.toLowerCase().includes(query) ||
+        a.namespace.toLowerCase().includes(query) ||
+        a.cluster.toLowerCase().includes(query) ||
+        a.source.repoURL.toLowerCase().includes(query)
+      )
+    }
+
     // Sort
     const syncOrder: Record<string, number> = { OutOfSync: 0, Unknown: 1, Synced: 2 }
     const healthOrder: Record<string, number> = { Degraded: 0, Missing: 1, Progressing: 2, Unknown: 3, Healthy: 4 }
@@ -176,7 +188,7 @@ export function ArgoCDApplications({ config }: ArgoCDApplicationsProps) {
     })
 
     return sorted
-  }, [filteredClusters, config, selectedFilter, sortBy, sortDirection])
+  }, [filteredClusters, config, selectedFilter, sortBy, sortDirection, localSearch])
 
   // Use pagination hook
   const effectivePerPage = limit === 'unlimited' ? 1000 : limit
@@ -266,6 +278,18 @@ export function ArgoCDApplications({ config }: ArgoCDApplicationsProps) {
             </a>
           </p>
         </div>
+      </div>
+
+      {/* Local Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
+          placeholder="Search applications..."
+          className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+        />
       </div>
 
       {/* Stats */}

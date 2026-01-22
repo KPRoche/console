@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Anchor, CheckCircle, AlertTriangle, XCircle, Clock } from 'lucide-react'
+import { Anchor, CheckCircle, AlertTriangle, XCircle, Clock, Search } from 'lucide-react'
 import { useClusters, useHelmReleases } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { Skeleton } from '../ui/Skeleton'
@@ -44,6 +44,7 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
   const [sortBy, setSortBy] = useState<SortByOption>('status')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [limit, setLimit] = useState<number | 'unlimited'>(5)
+  const [localSearch, setLocalSearch] = useState('')
   const {
     selectedClusters: globalSelectedClusters,
     isAllClustersSelected,
@@ -130,9 +131,20 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
     // Apply status filter
     result = filterByStatus(result)
 
-    // Apply custom text filter
+    // Apply custom text filter (global)
     if (customFilter.trim()) {
       const query = customFilter.toLowerCase()
+      result = result.filter(r =>
+        r.name.toLowerCase().includes(query) ||
+        r.namespace.toLowerCase().includes(query) ||
+        r.chart.toLowerCase().includes(query) ||
+        r.version.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply local search filter
+    if (localSearch.trim()) {
+      const query = localSearch.toLowerCase()
       result = result.filter(r =>
         r.name.toLowerCase().includes(query) ||
         r.namespace.toLowerCase().includes(query) ||
@@ -163,7 +175,7 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
     })
 
     return result
-  }, [allReleases, selectedNamespace, filterByStatus, customFilter, sortBy, sortDirection])
+  }, [allReleases, selectedNamespace, filterByStatus, customFilter, sortBy, sortDirection, localSearch])
 
   // Use pagination hook
   const effectivePerPage = limit === 'unlimited' ? 1000 : limit
@@ -303,6 +315,18 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
                 <span className="text-sm text-foreground">{selectedNamespace}</span>
               </>
             )}
+          </div>
+
+          {/* Local Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Search releases..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+            />
           </div>
 
           {/* Summary */}
