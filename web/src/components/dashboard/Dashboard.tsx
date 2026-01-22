@@ -21,7 +21,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { api } from '../../lib/api'
+import { api, BackendUnavailableError } from '../../lib/api'
 import { useDashboards } from '../../hooks/useDashboards'
 import { useClusters } from '../../hooks/useMCP'
 import { useCardHistory } from '../../hooks/useCardHistory'
@@ -361,7 +361,12 @@ export function Dashboard() {
         dashboardCache = { dashboard: null, cards, timestamp: Date.now() }
       }
     } catch (error) {
-      console.error('Failed to load dashboard:', error)
+      // Don't log expected failures (backend unavailable or timeout)
+      const isExpectedFailure = error instanceof BackendUnavailableError ||
+        (error instanceof Error && error.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        console.error('Failed to load dashboard:', error)
+      }
       // Preserve local-only cards even on error, only add demo cards if needed
       setLocalCards((prevCards) => {
         const localOnlyCards = prevCards.filter(c => isLocalOnlyCard(c.id))
