@@ -8,6 +8,7 @@ import { useTokenUsage } from '../../hooks/useTokenUsage'
 import { useLocalAgent } from '../../hooks/useLocalAgent'
 import { useActiveUsers } from '../../hooks/useActiveUsers'
 import { useDemoMode } from '../../hooks/useDemoMode'
+import { useMissions } from '../../hooks/useMissions'
 import { useGlobalFilters, SEVERITY_LEVELS, SEVERITY_CONFIG, STATUS_LEVELS, STATUS_CONFIG } from '../../hooks/useGlobalFilters'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { languages } from '../../lib/i18n'
@@ -49,6 +50,7 @@ export function Navbar() {
   const { status: agentStatus, health: agentHealth, connectionEvents, isConnected, isDegraded, dataErrorCount, lastDataError } = useLocalAgent()
   const { isDemoMode, toggleDemoMode } = useDemoMode()
   const { activeUsers, showBadge: showActiveUsersBadge } = useActiveUsers()
+  const { isSidebarOpen: isMissionSidebarOpen, isSidebarMinimized: isMissionSidebarMinimized, isFullScreen: isMissionFullScreen } = useMissions()
   const {
     selectedClusters,
     toggleCluster,
@@ -209,7 +211,12 @@ export function Navbar() {
   }
 
   return (
-    <nav data-tour="navbar" className="fixed top-0 left-0 right-0 h-16 glass z-50 px-6 flex items-center justify-between">
+    <nav data-tour="navbar" className={cn(
+      "fixed top-0 left-0 right-0 h-16 glass z-50 px-6 flex items-center justify-between transition-[padding] duration-300",
+      // Add right padding when mission sidebar is open to prevent content overlap
+      isMissionSidebarOpen && !isMissionSidebarMinimized && !isMissionFullScreen && 'pr-[25rem]',
+      isMissionSidebarOpen && isMissionSidebarMinimized && !isMissionFullScreen && 'pr-16'
+    )}>
       {/* Logo */}
       <div className="flex items-center gap-3">
         <img
