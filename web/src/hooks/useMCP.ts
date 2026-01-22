@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../lib/api'
+import { api, BackendUnavailableError } from '../lib/api'
 import { reportAgentDataError, reportAgentDataSuccess, isAgentUnavailable } from './useLocalAgent'
 import { getDemoMode, useDemoMode } from './useDemoMode'
 
@@ -1135,14 +1135,17 @@ async function fullFetchClusters() {
     // Check health progressively (non-blocking) - will update each cluster's data including cpuCores
     checkHealthProgressively(data.clusters || [])
   } catch (err) {
+    // Don't show error message for expected failures (backend unavailable or timeout)
+    const isExpectedFailure = err instanceof BackendUnavailableError ||
+      (err instanceof Error && err.message.includes('Request timeout'))
     const newFailures = clusterCache.consecutiveFailures + 1
     await finishWithMinDuration({
-      error: 'Failed to fetch clusters',
+      error: isExpectedFailure ? null : 'Failed to fetch clusters',
       clusters: clusterCache.clusters.length > 0 ? clusterCache.clusters : getDemoClusters(),
       isLoading: false,
       isRefreshing: false,
       consecutiveFailures: newFailures,
-      isFailed: newFailures >= 3,
+      isFailed: isExpectedFailure ? false : newFailures >= 3,
       lastRefresh: new Date(),
     })
     fetchInProgress = false
