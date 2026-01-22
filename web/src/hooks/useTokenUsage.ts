@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { isAgentUnavailable, reportAgentDataSuccess, reportAgentDataError } from './useLocalAgent'
 
 export interface TokenUsage {
   used: number
@@ -66,20 +67,33 @@ function updateSharedUsage(updates: Partial<TokenUsage>, forceNotify = false) {
 
 // Fetch token usage from local agent (singleton - only runs once)
 async function fetchTokenUsage() {
+  // Skip if agent is known to be unavailable (uses shared state from useLocalAgent)
+  if (isAgentUnavailable()) {
+    return
+  }
+
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
     const response = await fetch(`${LOCAL_AGENT_URL}/health`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
     })
+    clearTimeout(timeoutId)
+
     if (response.ok) {
+      reportAgentDataSuccess()
       const data = await response.json()
       if (data.claude?.tokenUsage?.today) {
         const todayTokens = data.claude.tokenUsage.today
         updateSharedUsage({ used: todayTokens.output })
       }
+    } else {
+      reportAgentDataError('/health (token)', `HTTP ${response.status}`)
     }
   } catch {
-    // Local agent not available, keep current usage
+    // Error will be tracked by useLocalAgent's health check
   }
 }
 

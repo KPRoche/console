@@ -5,6 +5,7 @@ import { RefreshButton } from '../ui/RefreshIndicator'
 import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useMissions } from '../../hooks/useMissions'
+import { isAgentUnavailable } from '../../hooks/useLocalAgent'
 
 // Violation detail interface
 interface Violation {
@@ -49,6 +50,11 @@ let gatekeeperWs: WebSocket | null = null
 let gatekeeperPendingRequests: Map<string, (result: GatekeeperStatus) => void> = new Map()
 
 function ensureGatekeeperWs(): Promise<WebSocket> {
+  // Don't try to connect if agent is unavailable
+  if (isAgentUnavailable()) {
+    return Promise.reject(new Error('Agent unavailable'))
+  }
+
   if (gatekeeperWs?.readyState === WebSocket.OPEN) {
     return Promise.resolve(gatekeeperWs)
   }

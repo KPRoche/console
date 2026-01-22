@@ -26,8 +26,9 @@ export interface ConnectionEvent {
 }
 
 const LOCAL_AGENT_URL = 'http://127.0.0.1:8585'
-const POLL_INTERVAL = 10000 // Check every 10 seconds
-const FAILURE_THRESHOLD = 3 // Require 3 consecutive failures before disconnecting
+const POLL_INTERVAL = 10000 // Check every 10 seconds when connected
+const DISCONNECTED_POLL_INTERVAL = 60000 // Check every 60 seconds when disconnected
+const FAILURE_THRESHOLD = 2 // Require 2 consecutive failures before disconnecting
 
 // Demo data for when agent is not connected
 const DEMO_DATA: AgentHealth = {
@@ -79,13 +80,16 @@ class AgentManager {
   private dataErrorWindow = 60000 // 1 minute window for data errors
   private dataErrorThreshold = 3 // Errors within window to trigger degraded
 
+  private currentPollInterval = POLL_INTERVAL
+
   start() {
     if (this.isStarted) return
     this.isStarted = true
     console.log('[AgentManager] Starting singleton polling')
     this.addEvent('connecting', 'Attempting to connect to local agent...')
     this.checkAgent()
-    this.pollInterval = setInterval(() => this.checkAgent(), POLL_INTERVAL)
+    this.currentPollInterval = POLL_INTERVAL
+    this.pollInterval = setInterval(() => this.checkAgent(), this.currentPollInterval)
   }
 
   stop() {
@@ -96,6 +100,16 @@ class AgentManager {
     this.isStarted = false
     this.isChecking = false // Reset so next start can check immediately
     console.log('[AgentManager] Stopped polling')
+  }
+
+  private adjustPollInterval(interval: number) {
+    if (this.currentPollInterval === interval) return
+    this.currentPollInterval = interval
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval)
+      this.pollInterval = setInterval(() => this.checkAgent(), interval)
+      console.log(`[AgentManager] Adjusted poll interval to ${interval}ms`)
+    }
   }
 
   subscribe(listener: Listener): () => void {
@@ -171,6 +185,8 @@ class AgentManager {
         this.failureCount = 0 // Reset failure count on success
         if (wasDisconnected) {
           this.addEvent('connected', `Connected to local agent v${data.version || 'unknown'}`)
+          // Reconnected - speed up polling
+          this.adjustPollInterval(POLL_INTERVAL)
         }
         this.setState({
           health: data,
@@ -181,28 +197,32 @@ class AgentManager {
       } else {
         throw new Error(`Agent returned ${response.status}`)
       }
-    } catch (err) {
+    } catch {
       this.failureCount++
-      console.log(
-        `[AgentManager] Check failed (attempt ${this.failureCount}/${FAILURE_THRESHOLD})`,
-        err
-      )
+      // Only log on final failure attempt (suppress intermediate noise)
+      if (this.failureCount === FAILURE_THRESHOLD) {
+        console.log(`[AgentManager] Agent check failed after ${FAILURE_THRESHOLD} attempts`)
+      }
       // Only mark as disconnected after multiple consecutive failures
       if (this.failureCount >= FAILURE_THRESHOLD) {
         const wasConnected = this.state.status === 'connected'
+        const wasConnecting = this.state.status === 'connecting'
         if (wasConnected) {
           this.addEvent('disconnected', 'Lost connection to local agent')
           console.log(
             `[AgentManager] Transitioning to disconnected after ${this.failureCount} failures`
           )
-        } else if (this.state.status === 'connecting') {
+        } else if (wasConnecting) {
           this.addEvent('error', 'Failed to connect - local agent not available')
+          console.log('[AgentManager] Agent not available, using demo mode')
         }
         this.setState({
           status: 'disconnected',
           health: DEMO_DATA,
           error: 'Local agent not available',
         })
+        // Slow down polling when disconnected to avoid spamming console errors
+        this.adjustPollInterval(DISCONNECTED_POLL_INTERVAL)
       }
     } finally {
       this.isChecking = false
@@ -286,6 +306,26 @@ export function reportAgentDataError(endpoint: string, error: string) {
  */
 export function reportAgentDataSuccess() {
   agentManager.reportDataSuccess()
+}
+
+/**
+ * Check if the agent is currently connected (from non-hook code)
+ * Returns true if connected or degraded, false if disconnected or connecting
+ */
+export function isAgentConnected(): boolean {
+  const state = agentManager.getState()
+  return state.status === 'connected' || state.status === 'degraded'
+}
+
+/**
+ * Check if the agent is known to be unavailable (from non-hook code)
+ * Returns true unless the agent is confirmed connected/degraded
+ * This is conservative - we don't try the agent unless we know it's available
+ */
+export function isAgentUnavailable(): boolean {
+  const state = agentManager.getState()
+  // Only return false (agent available) if we've confirmed connection
+  return state.status !== 'connected' && state.status !== 'degraded'
 }
 
 // ============================================================================
