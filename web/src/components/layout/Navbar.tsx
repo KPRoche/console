@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, Server, Box, Activity, Command, Sun, Moon, Monitor, Coins, Globe, Filter, Check, AlertTriangle, Plus, Folder, X, Trash2, Wifi, WifiOff } from 'lucide-react'
+import { Search, Server, Box, Activity, Command, Sun, Moon, Monitor, Coins, Globe, Filter, Check, AlertTriangle, Plus, Folder, X, Trash2, Wifi, WifiOff, Users } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
 import { useTheme } from '../../hooks/useTheme'
 import { useTokenUsage } from '../../hooks/useTokenUsage'
 import { useLocalAgent } from '../../hooks/useLocalAgent'
+import { useActiveUsers } from '../../hooks/useActiveUsers'
 import { useDemoMode } from '../../hooks/useDemoMode'
 import { useGlobalFilters, SEVERITY_LEVELS, SEVERITY_CONFIG, STATUS_LEVELS, STATUS_CONFIG } from '../../hooks/useGlobalFilters'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
@@ -47,6 +48,7 @@ export function Navbar() {
   const { usage, alertLevel, percentage, remaining } = useTokenUsage()
   const { status: agentStatus, health: agentHealth, connectionEvents, isConnected, isDegraded, dataErrorCount, lastDataError } = useLocalAgent()
   const { isDemoMode, toggleDemoMode } = useDemoMode()
+  const { activeUsers, showBadge: showActiveUsersBadge } = useActiveUsers()
   const {
     selectedClusters,
     toggleCluster,
@@ -935,6 +937,17 @@ export function Navbar() {
 
         {/* Tour trigger */}
         <TourTrigger />
+
+        {/* Active Users Badge */}
+        {showActiveUsersBadge && (
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20"
+            title={`${activeUsers} user${activeUsers !== 1 ? 's' : ''} online`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-xs font-medium">{activeUsers} online</span>
+          </div>
+        )}
 
         {/* Feature Request (includes notifications) */}
         <FeatureRequestButton />

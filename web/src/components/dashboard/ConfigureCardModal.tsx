@@ -268,6 +268,12 @@ const CARD_CONFIG_FIELDS: Record<string, Array<{ key: string; label: string; typ
   upgrade_status: [
     { key: 'cluster', label: 'Cluster', type: 'cluster' },
   ],
+  // Default fields for cards not specifically listed above
+  default: [
+    { key: 'cluster', label: 'Filter by Cluster', type: 'cluster' },
+    { key: 'namespace', label: 'Filter by Namespace', type: 'text' },
+    { key: 'maxItems', label: 'Max Items to Display', type: 'number' },
+  ],
 }
 
 export function ConfigureCardModal({ isOpen, card, onClose, onSave, onCreateCard }: ConfigureCardModalProps) {
@@ -313,7 +319,7 @@ export function ConfigureCardModal({ isOpen, card, onClose, onSave, onCreateCard
 
   if (!isOpen || !card) return null
 
-  const fields = CARD_CONFIG_FIELDS[card.card_type] || []
+  const fields = CARD_CONFIG_FIELDS[card.card_type] || CARD_CONFIG_FIELDS.default || []
   const cardBehaviors = CARD_BEHAVIORS[card.card_type] || CARD_BEHAVIORS.default || []
 
   const handleSave = () => {
