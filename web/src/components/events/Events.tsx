@@ -23,6 +23,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { useEvents, useWarningEvents } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
+import { useDashboardReset } from '../../hooks/useDashboardReset'
+import { DEFAULT_EVENTS_CARDS } from '../../lib/defaultCards'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { DonutChart } from '../charts/PieChart'
 import { BarChart } from '../charts/BarChart'
@@ -50,10 +52,13 @@ const EVENTS_CARDS_KEY = 'kubestellar-events-cards'
 function loadEventCards(): EventCard[] {
   try {
     const stored = localStorage.getItem(EVENTS_CARDS_KEY)
-    return stored ? JSON.parse(stored) : []
+    if (stored) {
+      return JSON.parse(stored)
+    }
   } catch {
-    return []
+    // Fall through to return defaults
   }
+  return DEFAULT_EVENTS_CARDS as EventCard[]
 }
 
 function saveEventCards(cards: EventCard[]) {
@@ -230,6 +235,14 @@ export function Events() {
   const [showTemplates, setShowTemplates] = useState(false)
   const [configuringCard, setConfiguringCard] = useState<EventCard | null>(null)
 
+  // Reset functionality using shared hook
+  const { isCustomized, setCustomized, reset } = useDashboardReset({
+    storageKey: EVENTS_CARDS_KEY,
+    defaultCards: DEFAULT_EVENTS_CARDS as EventCard[],
+    setCards,
+    cards,
+  })
+
   const [selectedNamespace, setSelectedNamespace] = useState<string>('')
   const [selectedReason, setSelectedReason] = useState<string>('')
   const [filter, setFilter] = useState<EventFilter>('all')
@@ -276,10 +289,11 @@ export function Events() {
   const isFetching = isLoading || isRefreshing
   const lastUpdated = filter === 'warning' ? warningsUpdated : allUpdated
 
-  // Save cards to localStorage when they change
+  // Save cards to localStorage when they change (mark as customized)
   useEffect(() => {
     saveEventCards(cards)
-  }, [cards])
+    setCustomized(true)
+  }, [cards, setCustomized])
 
   // Handle addCard URL param - open modal and clear param
   useEffect(() => {
@@ -826,6 +840,8 @@ export function Events() {
       <FloatingDashboardActions
         onAddCard={() => setShowAddCard(true)}
         onOpenTemplates={() => setShowTemplates(true)}
+        onReset={reset}
+        isCustomized={isCustomized}
       />
 
       {/* Add Card Modal */}

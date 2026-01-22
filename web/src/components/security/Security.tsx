@@ -22,6 +22,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
+import { useDashboardReset } from '../../hooks/useDashboardReset'
+import { DEFAULT_SECURITY_CARDS } from '../../lib/defaultCards'
 import { StatusIndicator } from '../charts/StatusIndicator'
 import { DonutChart } from '../charts/PieChart'
 import { ProgressBar } from '../charts/ProgressBar'
@@ -49,10 +51,13 @@ const SECURITY_CARDS_KEY = 'kubestellar-security-cards'
 function loadSecurityCards(): SecurityCard[] {
   try {
     const stored = localStorage.getItem(SECURITY_CARDS_KEY)
-    return stored ? JSON.parse(stored) : []
+    if (stored) {
+      return JSON.parse(stored)
+    }
   } catch {
-    return []
+    // Fall through to return defaults
   }
+  return DEFAULT_SECURITY_CARDS as SecurityCard[]
 }
 
 function saveSecurityCards(cards: SecurityCard[]) {
@@ -299,6 +304,14 @@ export function Security() {
   const { showCards, setShowCards, expandCards } = useShowCards('kubestellar-security')
   const [showAddCard, setShowAddCard] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+
+  // Reset functionality using shared hook
+  const { isCustomized, setCustomized, reset } = useDashboardReset({
+    storageKey: SECURITY_CARDS_KEY,
+    defaultCards: DEFAULT_SECURITY_CARDS as SecurityCard[],
+    setCards,
+    cards,
+  })
   const [configuringCard, setConfiguringCard] = useState<SecurityCard | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -338,10 +351,11 @@ export function Security() {
     }
   }
 
-  // Save cards to localStorage when they change
+  // Save cards to localStorage when they change (mark as customized)
   useEffect(() => {
     saveSecurityCards(cards)
-  }, [cards])
+    setCustomized(true)
+  }, [cards, setCustomized])
 
   // Handle addCard URL param - open modal and clear param
   useEffect(() => {
@@ -832,6 +846,8 @@ export function Security() {
       <FloatingDashboardActions
         onAddCard={() => setShowAddCard(true)}
         onOpenTemplates={() => setShowTemplates(true)}
+        onReset={reset}
+        isCustomized={isCustomized}
       />
 
       {/* Add Card Modal */}

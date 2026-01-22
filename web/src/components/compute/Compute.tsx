@@ -24,6 +24,7 @@ import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
+import { useDashboardReset } from '../../hooks/useDashboardReset'
 import { Skeleton } from '../ui/Skeleton'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
@@ -169,6 +170,14 @@ export function Compute() {
   const { showCards, setShowCards, expandCards } = useShowCards('kubestellar-compute')
   const [showAddCard, setShowAddCard] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+
+  // Reset functionality using shared hook
+  const { isCustomized, setCustomized, reset } = useDashboardReset({
+    storageKey: COMPUTE_CARDS_KEY,
+    defaultCards: DEFAULT_COMPUTE_CARDS,
+    setCards,
+    cards,
+  })
   const [configuringCard, setConfiguringCard] = useState<ComputeCard | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -207,10 +216,11 @@ export function Compute() {
   // Only show skeletons when we have no data yet
   const showSkeletons = clusters.length === 0 && isLoading
 
-  // Save cards to localStorage when they change
+  // Save cards to localStorage when they change (mark as customized)
   useEffect(() => {
     saveComputeCards(cards)
-  }, [cards])
+    setCustomized(true)
+  }, [cards, setCustomized])
 
   // Handle addCard URL param - open modal and clear param
   useEffect(() => {
@@ -555,6 +565,8 @@ export function Compute() {
       <FloatingDashboardActions
         onAddCard={() => setShowAddCard(true)}
         onOpenTemplates={() => setShowTemplates(true)}
+        onReset={reset}
+        isCustomized={isCustomized}
       />
 
       {/* Add Card Modal */}

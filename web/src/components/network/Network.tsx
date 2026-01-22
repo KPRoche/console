@@ -24,6 +24,7 @@ import { useServices } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
+import { useDashboardReset } from '../../hooks/useDashboardReset'
 // Skeleton imported but not used - removed to fix TS error
 import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
 import { CardWrapper } from '../cards/CardWrapper'
@@ -66,10 +67,6 @@ function loadNetworkCards(): NetworkCard[] {
 
 function saveNetworkCards(cards: NetworkCard[]) {
   localStorage.setItem(NETWORK_CARDS_KEY, JSON.stringify(cards))
-}
-
-function isCardsCustomized(): boolean {
-  return localStorage.getItem(NETWORK_CARDS_KEY) !== null
 }
 
 // Sortable card component with drag handle
@@ -167,17 +164,17 @@ export function Network() {
 
   // Card state
   const [cards, setCards] = useState<NetworkCard[]>(() => loadNetworkCards())
-  const [cardsCustomized, setCardsCustomized] = useState(isCardsCustomized)
   // Stats collapsed state is now managed by StatsOverview component
   const { showCards, setShowCards, expandCards } = useShowCards('kubestellar-network')
   const [showAddCard, setShowAddCard] = useState(false)
 
-  // Reset dashboard to default cards
-  const handleResetToDefaults = useCallback(() => {
-    setCards(DEFAULT_NETWORK_CARDS)
-    localStorage.removeItem(NETWORK_CARDS_KEY)
-    setCardsCustomized(false)
-  }, [])
+  // Reset functionality using shared hook
+  const { isCustomized, setCustomized, reset } = useDashboardReset({
+    storageKey: NETWORK_CARDS_KEY,
+    defaultCards: DEFAULT_NETWORK_CARDS,
+    setCards,
+    cards,
+  })
   const [showTemplates, setShowTemplates] = useState(false)
   const [configuringCard, setConfiguringCard] = useState<NetworkCard | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
@@ -220,8 +217,8 @@ export function Network() {
   // Save cards to localStorage when they change (mark as customized)
   useEffect(() => {
     saveNetworkCards(cards)
-    setCardsCustomized(true)
-  }, [cards])
+    setCustomized(true)
+  }, [cards, setCustomized])
 
   // Handle addCard URL param - open modal and clear param
   useEffect(() => {
@@ -473,8 +470,8 @@ export function Network() {
       <FloatingDashboardActions
         onAddCard={() => setShowAddCard(true)}
         onOpenTemplates={() => setShowTemplates(true)}
-        onResetToDefaults={handleResetToDefaults}
-        isCustomized={cardsCustomized}
+        onReset={reset}
+        isCustomized={isCustomized}
       />
 
       {/* Add Card Modal */}

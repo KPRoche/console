@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
+import { useDashboardReset } from '../../hooks/useDashboardReset'
 import { Skeleton } from '../ui/Skeleton'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
@@ -136,6 +137,8 @@ function DragPreviewCard({ card }: { card: CostCard }) {
   )
 }
 
+const COST_CARDS_KEY = 'kubestellar-cost-cards'
+
 // Default cards for the Cost dashboard
 const DEFAULT_COST_CARDS: CostCard[] = [
   { id: 'cost-1', card_type: 'cluster_costs', config: {}, position: { w: 6, h: 4 } },
@@ -145,16 +148,25 @@ const DEFAULT_COST_CARDS: CostCard[] = [
   { id: 'cost-5', card_type: 'resource_capacity', config: {}, position: { w: 3, h: 2 } },
 ]
 
+function loadCostCards(): CostCard[] {
+  try {
+    const stored = localStorage.getItem(COST_CARDS_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch {
+    // Fall through to return defaults
+  }
+  return DEFAULT_COST_CARDS
+}
+
 export function Cost() {
   const location = useLocation()
   const { clusters, isLoading, refetch, lastUpdated, isRefreshing } = useClusters()
   const { selectedClusters: globalSelectedClusters, isAllClustersSelected } = useGlobalFilters()
   const { showCards, expandCards } = useShowCards('kubestellar-cost')
 
-  const [cards, setCards] = useState<CostCard[]>(() => {
-    const saved = localStorage.getItem('cost-dashboard-cards')
-    return saved ? JSON.parse(saved) : DEFAULT_COST_CARDS
-  })
+  const [cards, setCards] = useState<CostCard[]>(() => loadCostCards())
 
   const [showAddCard, setShowAddCard] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
@@ -163,10 +175,19 @@ export function Cost() {
   const [showStats, setShowStats] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // Save cards to localStorage
+  // Reset functionality using shared hook
+  const { isCustomized, setCustomized, reset } = useDashboardReset({
+    storageKey: COST_CARDS_KEY,
+    defaultCards: DEFAULT_COST_CARDS,
+    setCards,
+    cards,
+  })
+
+  // Save cards to localStorage (mark as customized)
   useEffect(() => {
-    localStorage.setItem('cost-dashboard-cards', JSON.stringify(cards))
-  }, [cards])
+    localStorage.setItem(COST_CARDS_KEY, JSON.stringify(cards))
+    setCustomized(true)
+  }, [cards, setCustomized])
 
   // DnD sensors
   const sensors = useSensors(
@@ -410,6 +431,8 @@ export function Cost() {
       <FloatingDashboardActions
         onAddCard={() => setShowAddCard(true)}
         onOpenTemplates={() => setShowTemplates(true)}
+        onReset={reset}
+        isCustomized={isCustomized}
       />
 
       {/* Add Card Modal */}
