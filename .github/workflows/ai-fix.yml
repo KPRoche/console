@@ -134,6 +134,7 @@ jobs:
           4. Ensure the code compiles and follows project patterns
           5. Add any necessary tests
           6. Do not create markdown documentation files
+          7. Do not modify any files in .github/workflows/
 
           The project structure:
           - /web: React 18 + TypeScript + Vite frontend
@@ -162,11 +163,12 @@ jobs:
       - name: Commit and push
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
-          # Restore build artifacts that shouldn't be committed
+          # Restore files that shouldn't be committed
           git checkout -- web/dist/ 2>/dev/null || true
           git checkout -- '*.tsbuildinfo' 2>/dev/null || true
           git checkout -- '*.lock' 2>/dev/null || true
           git checkout -- 'package-lock.json' 2>/dev/null || true
+          git checkout -- '.github/workflows/' 2>/dev/null || true
 
           # Check if there are still meaningful changes after excluding build artifacts
           if [ -z "$(git status --porcelain)" ]; then
@@ -407,6 +409,7 @@ jobs:
           3. Make the necessary modifications to address the feedback
           4. Ensure the code compiles and follows project patterns
           5. Do not create markdown documentation files
+          6. Do not modify any files in .github/workflows/
 
           The project structure:
           - /web: React 18 + TypeScript + Vite frontend
@@ -432,11 +435,12 @@ jobs:
       - name: Commit and push
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
-          # Restore build artifacts that shouldn't be committed
+          # Restore files that shouldn't be committed
           git checkout -- web/dist/ 2>/dev/null || true
           git checkout -- '*.tsbuildinfo' 2>/dev/null || true
           git checkout -- '*.lock' 2>/dev/null || true
           git checkout -- 'package-lock.json' 2>/dev/null || true
+          git checkout -- '.github/workflows/' 2>/dev/null || true
 
           # Check if there are still meaningful changes after excluding build artifacts
           if [ -z "$(git status --porcelain)" ]; then
