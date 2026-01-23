@@ -1667,7 +1667,19 @@ export function useEvents(cluster?: string, namespace?: string, limit = 20) {
       if (cluster) params.append('cluster', cluster)
       if (namespace) params.append('namespace', namespace)
       params.append('limit', limit.toString())
-      const { data } = await api.get<{ events: ClusterEvent[] }>(`/api/mcp/events?${params}`)
+      const url = `/api/mcp/events?${params}`
+
+      // Use direct fetch to bypass the global circuit breaker
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      const token = localStorage.getItem('token')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      const response = await fetch(url, { method: 'GET', headers })
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+      const data = await response.json() as { events: ClusterEvent[] }
       const newData = data.events || []
       const now = new Date()
 
@@ -2608,7 +2620,19 @@ export function useWarningEvents(cluster?: string, namespace?: string, limit = 2
       if (cluster) params.append('cluster', cluster)
       if (namespace) params.append('namespace', namespace)
       params.append('limit', limit.toString())
-      const { data } = await api.get<{ events: ClusterEvent[] }>(`/api/mcp/events/warnings?${params}`)
+      const url = `/api/mcp/events/warnings?${params}`
+
+      // Use direct fetch to bypass the global circuit breaker
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      const token = localStorage.getItem('token')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      const response = await fetch(url, { method: 'GET', headers })
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+      const data = await response.json() as { events: ClusterEvent[] }
       const newData = data.events || []
       const now = new Date()
 
