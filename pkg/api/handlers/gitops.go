@@ -1115,9 +1115,11 @@ func (h *GitOpsHandlers) GetHelmValues(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "release parameter is required"})
 	}
 
-	// If namespace not provided, look it up from helm list
+	// If namespace not provided, look it up from helm list (with timeout)
 	if namespace == "" {
-		namespace = h.findReleaseNamespace(c.Context(), cluster, release)
+		lookupCtx, lookupCancel := context.WithTimeout(c.Context(), 10*time.Second)
+		defer lookupCancel()
+		namespace = h.findReleaseNamespace(lookupCtx, cluster, release)
 	}
 
 	args := []string{"get", "values", release, "--output", "json"}
@@ -1145,6 +1147,11 @@ func (h *GitOpsHandlers) GetHelmValues(c *fiber.Ctx) error {
 	if err := json.Unmarshal(stdout.Bytes(), &values); err != nil {
 		// If JSON fails, return as raw YAML string
 		return c.JSON(fiber.Map{"values": stdout.String(), "format": "yaml"})
+	}
+
+	// Handle null (no custom values) - return empty object instead
+	if values == nil {
+		values = map[string]interface{}{}
 	}
 
 	return c.JSON(fiber.Map{"values": values, "format": "json"})
