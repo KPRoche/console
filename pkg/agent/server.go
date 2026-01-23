@@ -16,7 +16,7 @@ import (
 	"github.com/kubestellar/console/pkg/agent/protocol"
 )
 
-const Version = "0.3.2"
+const Version = "0.3.3"
 
 // Config holds agent configuration
 type Config struct {
@@ -856,7 +856,7 @@ func (s *Server) refreshProviderAvailability() {
 
 // validateClaudeKey tests an Anthropic API key
 func validateClaudeKey(ctx context.Context, apiKey string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", claudeAPIURL, strings.NewReader(`{"model":"claude-3-5-haiku-20241022","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}`))
+	req, err := http.NewRequestWithContext(ctx, "POST", claudeAPIURL, strings.NewReader(`{"model":"claude-3-haiku-20240307","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}`))
 	if err != nil {
 		return false, err
 	}
