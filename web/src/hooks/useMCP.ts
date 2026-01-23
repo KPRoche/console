@@ -4380,8 +4380,8 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
 
     if (!release) {
       setHistory([])
-      // Brief delay before clearing isRefreshing so animation shows
-      setTimeout(() => setIsRefreshing(false), 100)
+      // Match MIN_SPIN_DURATION (500ms) so animation shows properly
+      setTimeout(() => setIsRefreshing(false), 500)
       return
     }
     // Also set loading if no cached data (use functional update to check)

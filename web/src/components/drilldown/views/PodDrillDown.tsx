@@ -2273,12 +2273,12 @@ Please proceed step by step and ask for confirmation before making any changes.`
               </div>
             </div>
           )}
-          <div className="flex items-center gap-3 p-4">
+          <div className="flex items-center gap-2 p-4">
             <button
               onClick={fetchAiAnalysis}
               disabled={aiAnalysisLoading}
               className={cn(
-                'flex-1 py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-3 text-sm font-semibold',
+                'flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium',
                 'bg-purple-600/20 text-purple-200 hover:bg-purple-500/30 border border-purple-500/50',
                 'shadow-[0_0_15px_rgba(147,51,234,0.2)] hover:shadow-[0_0_20px_rgba(147,51,234,0.3)]',
                 aiAnalysisLoading && 'opacity-70 cursor-wait'
@@ -2286,26 +2286,26 @@ Please proceed step by step and ask for confirmation before making any changes.`
             >
               {aiAnalysisLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Analyzing...</span>
                 </>
               ) : (
                 <>
-                  <KlaudeIcon size="lg" />
-                  <span>{aiAnalysis ? 'Re-analyze' : 'Klaude Diagnose'}</span>
+                  <KlaudeIcon />
+                  <span>{aiAnalysis ? 'Re-analyze' : 'Diagnose'}</span>
                 </>
               )}
             </button>
             <button
               onClick={handleRepairPod}
               className={cn(
-                'flex-1 py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-3 text-sm font-semibold',
+                'flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium',
                 'bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/50',
                 'shadow-[0_0_15px_rgba(234,88,12,0.2)] hover:shadow-[0_0_20px_rgba(234,88,12,0.3)]'
               )}
             >
-              <KlaudeIcon size="lg" />
-              <span>Klaude Repair</span>
+              <KlaudeIcon />
+              <span>Repair</span>
             </button>
           </div>
           {/* Delete Pod button */}

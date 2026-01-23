@@ -81,8 +81,11 @@ export function Layout({ children }: LayoutProps) {
       {/* Offline Mode Banner - positioned in main content area only */}
       {showOfflineBanner && (
         <div className={cn(
-          "fixed top-16 right-0 z-30 bg-orange-500/10 border-b border-orange-500/20",
-          config.collapsed ? "left-20" : "left-64"
+          "fixed top-16 z-30 bg-orange-500/10 border-b border-orange-500/20 transition-[right] duration-300",
+          config.collapsed ? "left-20" : "left-64",
+          // Adjust right edge when mission sidebar is open
+          isMissionSidebarOpen && !isMissionSidebarMinimized && !isMissionFullScreen ? "right-96" : "right-0",
+          isMissionSidebarOpen && isMissionSidebarMinimized && !isMissionFullScreen && "right-12"
         )}>
           <div className="flex items-center justify-between py-1.5 px-4">
             <div className="flex items-center gap-2 min-w-0">

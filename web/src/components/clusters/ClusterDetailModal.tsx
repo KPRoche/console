@@ -298,20 +298,20 @@ After I approve, help me execute the repairs step by step.`,
             <button
               onClick={handleDiagnose}
               disabled={isUnreachable}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Ask Klaude to analyze cluster health and identify issues"
             >
-              <Stethoscope className="w-4 h-4" />
-              Diagnose Cluster
+              <Stethoscope className="w-3.5 h-3.5" />
+              Diagnose
             </button>
             <button
               onClick={handleRepair}
               disabled={isUnreachable || (podIssues.length === 0 && clusterDeploymentIssues.length === 0)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={podIssues.length === 0 && clusterDeploymentIssues.length === 0 ? 'No issues to repair' : 'Ask Klaude to help fix cluster issues'}
             >
-              <Wrench className="w-4 h-4" />
-              Repair Issues
+              <Wrench className="w-3.5 h-3.5" />
+              Repair
               {(podIssues.length > 0 || clusterDeploymentIssues.length > 0) && (
                 <span className="px-1.5 py-0.5 rounded bg-orange-500/30 text-xs">
                   {podIssues.length + clusterDeploymentIssues.length}
@@ -330,11 +330,11 @@ After I approve, help me execute the repairs step by step.`,
                 })
               }}
               disabled={isUnreachable}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Ask Klaude any question about this cluster"
             >
-              <Wand2 className="w-4 h-4" />
-              Ask Klaude
+              <Wand2 className="w-3.5 h-3.5" />
+              Ask
             </button>
           </div>
         </div>

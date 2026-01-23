@@ -54,43 +54,42 @@ export function MissionSuggestions() {
   // Force dependency on snoozedMissions for reactivity
   void snoozedMissions
 
-  const handleAction = async (suggestion: MissionSuggestion) => {
+  const handleAction = (suggestion: MissionSuggestion) => {
     setProcessingId(suggestion.id)
+    // Close dropdown immediately before action
+    setExpandedId(null)
 
-    try {
-      if (suggestion.action.type === 'navigate') {
-        navigate(suggestion.action.target)
-      } else if (suggestion.action.type === 'klaude') {
-        // Start a Klaude mission with the suggestion
-        startMission({
-          title: suggestion.title,
-          description: suggestion.description,
-          type: suggestion.type === 'security' ? 'analyze' : 'troubleshoot',
-          initialPrompt: suggestion.action.target,
-          context: suggestion.context,
-        })
-      }
-    } finally {
-      setProcessingId(null)
-      setExpandedId(null)
+    if (suggestion.action.type === 'navigate') {
+      navigate(suggestion.action.target)
+    } else if (suggestion.action.type === 'klaude') {
+      // Start a Klaude mission with the suggestion
+      startMission({
+        title: suggestion.title,
+        description: suggestion.description,
+        type: suggestion.type === 'security' ? 'analyze' : 'troubleshoot',
+        initialPrompt: suggestion.action.target,
+        context: suggestion.context,
+      })
     }
+
+    setProcessingId(null)
   }
 
   const handleRepair = (suggestion: MissionSuggestion) => {
     setProcessingId(suggestion.id)
-    try {
-      // Start a Klaude Repair mission
-      startMission({
-        title: `Repair: ${suggestion.title}`,
-        description: `Auto-repair: ${suggestion.description}`,
-        type: 'repair',
-        initialPrompt: `Automatically fix the following issue: ${suggestion.action.target}. Apply safe remediation steps.`,
-        context: suggestion.context,
-      })
-    } finally {
-      setProcessingId(null)
-      setExpandedId(null)
-    }
+    // Close dropdown immediately before action
+    setExpandedId(null)
+
+    // Start a Klaude Repair mission
+    startMission({
+      title: `Repair: ${suggestion.title}`,
+      description: `Auto-repair: ${suggestion.description}`,
+      type: 'repair',
+      initialPrompt: `Automatically fix the following issue: ${suggestion.action.target}. Apply safe remediation steps.`,
+      context: suggestion.context,
+    })
+
+    setProcessingId(null)
   }
 
   const handleSnooze = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
