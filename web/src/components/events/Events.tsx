@@ -91,10 +91,12 @@ const SortableEventCard = memo(function SortableEventCard({
   } = useSortable({ id: card.id })
 
   const cardWidth = card.position?.w || 4
+  const cardHeight = card.position?.h || 3
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     gridColumn: `span ${cardWidth}`,
+    gridRow: `span ${cardHeight}`,
     opacity: isDragging ? 0.5 : 1,
   }
 

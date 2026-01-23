@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Layers, Plus, LayoutGrid, ChevronDown, ChevronRight, RefreshCw, Hourglass, GripVertical } from 'lucide-react'
+import { Box, Plus, LayoutGrid, ChevronDown, ChevronRight, RefreshCw, Hourglass, GripVertical } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -20,7 +20,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useDeploymentIssues, usePodIssues, useClusters, useDeployments } from '../../hooks/useMCP'
+import { usePodIssues, useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
@@ -38,7 +38,7 @@ import { FloatingDashboardActions } from '../dashboard/FloatingDashboardActions'
 import { DashboardTemplate } from '../dashboard/templates'
 import { formatCardTitle } from '../../lib/formatCardTitle'
 
-interface WorkloadCard {
+interface PodCard {
   id: string
   card_type: string
   config: Record<string, unknown>
@@ -46,49 +46,48 @@ interface WorkloadCard {
   position?: { w: number; h: number }
 }
 
-const WORKLOADS_CARDS_KEY = 'kubestellar-workloads-cards'
+const PODS_CARDS_KEY = 'kubestellar-pods-cards'
 
-// Default cards for the workloads dashboard
-const DEFAULT_WORKLOAD_CARDS: WorkloadCard[] = [
-  { id: 'default-app-status', card_type: 'app_status', title: 'Workload Status', config: {}, position: { w: 4, h: 2 } },
-  { id: 'default-deployment-status', card_type: 'deployment_status', title: 'Deployment Status', config: {}, position: { w: 4, h: 2 } },
-  { id: 'default-deployment-progress', card_type: 'deployment_progress', title: 'Deployment Progress', config: {}, position: { w: 4, h: 2 } },
+// Default cards for the pods dashboard
+const DEFAULT_POD_CARDS: PodCard[] = [
   { id: 'default-pod-issues', card_type: 'pod_issues', title: 'Pod Issues', config: {}, position: { w: 6, h: 2 } },
-  { id: 'default-deployment-issues', card_type: 'deployment_issues', title: 'Deployment Issues', config: {}, position: { w: 6, h: 2 } },
+  { id: 'default-pod-health-trend', card_type: 'pod_health_trend', title: 'Pod Health Trend', config: {}, position: { w: 6, h: 2 } },
+  { id: 'default-top-pods', card_type: 'top_pods', title: 'Top Pods', config: {}, position: { w: 6, h: 2 } },
+  { id: 'default-app-status', card_type: 'app_status', title: 'Workload Status', config: {}, position: { w: 6, h: 2 } },
 ]
 
-function loadWorkloadCards(): WorkloadCard[] {
+function loadPodCards(): PodCard[] {
   try {
-    const stored = localStorage.getItem(WORKLOADS_CARDS_KEY)
+    const stored = localStorage.getItem(PODS_CARDS_KEY)
     if (stored) {
       return JSON.parse(stored)
     }
   } catch {
     // Fall through to return defaults
   }
-  return DEFAULT_WORKLOAD_CARDS
+  return DEFAULT_POD_CARDS
 }
 
-function saveWorkloadCards(cards: WorkloadCard[]) {
-  localStorage.setItem(WORKLOADS_CARDS_KEY, JSON.stringify(cards))
+function savePodCards(cards: PodCard[]) {
+  localStorage.setItem(PODS_CARDS_KEY, JSON.stringify(cards))
 }
 
 // Sortable card component with drag handle
-interface SortableWorkloadCardProps {
-  card: WorkloadCard
+interface SortablePodCardProps {
+  card: PodCard
   onConfigure: () => void
   onRemove: () => void
   onWidthChange: (newWidth: number) => void
   isDragging: boolean
 }
 
-const SortableWorkloadCard = memo(function SortableWorkloadCard({
+const SortablePodCard = memo(function SortablePodCard({
   card,
   onConfigure,
   onRemove,
   onWidthChange,
   isDragging,
-}: SortableWorkloadCardProps) {
+}: SortablePodCardProps) {
   const {
     attributes,
     listeners,
@@ -142,7 +141,7 @@ const SortableWorkloadCard = memo(function SortableWorkloadCard({
 })
 
 // Drag preview for overlay
-function WorkloadDragPreviewCard({ card }: { card: WorkloadCard }) {
+function PodDragPreviewCard({ card }: { card: PodCard }) {
   const cardWidth = card.position?.w || 4
   return (
     <div
@@ -159,38 +158,26 @@ function WorkloadDragPreviewCard({ card }: { card: WorkloadCard }) {
   )
 }
 
-interface AppSummary {
-  namespace: string
-  cluster: string
-  deploymentCount: number
-  podIssues: number
-  deploymentIssues: number
-  status: 'healthy' | 'warning' | 'error'
-}
-
-export function Workloads() {
+export function Pods() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { issues: podIssues, isLoading: podIssuesLoading, isRefreshing: podIssuesRefreshing, lastUpdated, refetch: refetchPodIssues } = usePodIssues()
-  const { issues: deploymentIssues, isLoading: deploymentIssuesLoading, isRefreshing: deploymentIssuesRefreshing, refetch: refetchDeploymentIssues } = useDeploymentIssues()
-  const { deployments: allDeployments, isLoading: deploymentsLoading, isRefreshing: deploymentsRefreshing, refetch: refetchDeployments } = useDeployments()
   const { clusters, isLoading: clustersLoading, refetch: refetchClusters } = useClusters()
-  const { drillToNamespace } = useDrillDownActions()
+  const { drillToPod } = useDrillDownActions()
 
   // Card state
-  const [cards, setCards] = useState<WorkloadCard[]>(() => loadWorkloadCards())
-  // Stats collapsed state is now managed by StatsOverview component
-  const { showCards, setShowCards, expandCards } = useShowCards('kubestellar-workloads')
+  const [cards, setCards] = useState<PodCard[]>(() => loadPodCards())
+  const { showCards, setShowCards, expandCards } = useShowCards('kubestellar-pods')
   const [showAddCard, setShowAddCard] = useState(false)
 
   // Reset functionality using shared hook
   const { isCustomized, setCustomized, reset } = useDashboardReset({
-    storageKey: WORKLOADS_CARDS_KEY,
-    defaultCards: DEFAULT_WORKLOAD_CARDS,
+    storageKey: PODS_CARDS_KEY,
+    defaultCards: DEFAULT_POD_CARDS,
     setCards,
     cards,
   })
   const [showTemplates, setShowTemplates] = useState(false)
-  const [configuringCard, setConfiguringCard] = useState<WorkloadCard | null>(null)
+  const [configuringCard, setConfiguringCard] = useState<PodCard | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -224,19 +211,18 @@ export function Workloads() {
   }
 
   // Combined loading/refreshing states
-  const isLoading = podIssuesLoading || deploymentIssuesLoading || deploymentsLoading || clustersLoading
-  const isRefreshing = podIssuesRefreshing || deploymentIssuesRefreshing || deploymentsRefreshing
+  const isLoading = podIssuesLoading || clustersLoading
+  const isRefreshing = podIssuesRefreshing
   const isFetching = isLoading || isRefreshing
-  // Only show skeletons when we have no data yet
-  const showSkeletons = (allDeployments.length === 0 && podIssues.length === 0 && deploymentIssues.length === 0) && isLoading
+  const showSkeletons = podIssues.length === 0 && isLoading
 
-  // Save cards to localStorage when they change (mark as customized)
+  // Save cards to localStorage when they change
   useEffect(() => {
-    saveWorkloadCards(cards)
+    savePodCards(cards)
     setCustomized(true)
   }, [cards, setCustomized])
 
-  // Handle addCard URL param - open modal and clear param
+  // Handle addCard URL param
   useEffect(() => {
     if (searchParams.get('addCard') === 'true') {
       setShowAddCard(true)
@@ -249,21 +235,19 @@ export function Workloads() {
     if (!autoRefresh) return
 
     const interval = setInterval(() => {
-      Promise.all([refetchPodIssues(), refetchDeploymentIssues(), refetchDeployments(), refetchClusters()])
+      Promise.all([refetchPodIssues(), refetchClusters()])
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [autoRefresh, refetchPodIssues, refetchDeploymentIssues, refetchDeployments, refetchClusters])
+  }, [autoRefresh, refetchPodIssues, refetchClusters])
 
   const handleRefresh = useCallback(() => {
     refetchPodIssues()
-    refetchDeploymentIssues()
-    refetchDeployments()
     refetchClusters()
-  }, [refetchPodIssues, refetchDeploymentIssues, refetchDeployments, refetchClusters])
+  }, [refetchPodIssues, refetchClusters])
 
   const handleAddCards = useCallback((newCards: Array<{ type: string; title: string; config: Record<string, unknown> }>) => {
-    const cardsToAdd: WorkloadCard[] = newCards.map(card => ({
+    const cardsToAdd: PodCard[] = newCards.map(card => ({
       id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       card_type: card.type,
       config: card.config,
@@ -297,7 +281,7 @@ export function Workloads() {
   }, [])
 
   const applyTemplate = useCallback((template: DashboardTemplate) => {
-    const newCards: WorkloadCard[] = template.cards.map(card => ({
+    const newCards: PodCard[] = template.cards.map(card => ({
       id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       card_type: card.card_type,
       config: card.config || {},
@@ -307,168 +291,79 @@ export function Workloads() {
     expandCards()
     setShowTemplates(false)
   }, [expandCards])
+
   const {
     selectedClusters: globalSelectedClusters,
     isAllClustersSelected,
     customFilter,
   } = useGlobalFilters()
 
-  // Group applications by namespace with global filter applied
-  const apps = useMemo(() => {
-    // Filter deployments and issues by global cluster selection
-    let filteredDeployments = allDeployments
-    let filteredPodIssues = podIssues
-    let filteredDeploymentIssues = deploymentIssues
+  // Filter pod issues by global cluster selection
+  const filteredPodIssues = useMemo(() => {
+    let filtered = podIssues
 
     if (!isAllClustersSelected) {
-      filteredDeployments = filteredDeployments.filter(d =>
-        d.cluster && globalSelectedClusters.includes(d.cluster)
-      )
-      filteredPodIssues = filteredPodIssues.filter(issue =>
-        issue.cluster && globalSelectedClusters.includes(issue.cluster)
-      )
-      filteredDeploymentIssues = filteredDeploymentIssues.filter(issue =>
+      filtered = filtered.filter(issue =>
         issue.cluster && globalSelectedClusters.includes(issue.cluster)
       )
     }
 
-    // Apply custom text filter
     if (customFilter.trim()) {
       const query = customFilter.toLowerCase()
-      filteredDeployments = filteredDeployments.filter(d =>
-        d.name.toLowerCase().includes(query) ||
-        d.namespace.toLowerCase().includes(query) ||
-        (d.cluster && d.cluster.toLowerCase().includes(query))
-      )
-      filteredPodIssues = filteredPodIssues.filter(issue =>
+      filtered = filtered.filter(issue =>
         issue.name.toLowerCase().includes(query) ||
         issue.namespace.toLowerCase().includes(query) ||
-        (issue.cluster && issue.cluster.toLowerCase().includes(query))
-      )
-      filteredDeploymentIssues = filteredDeploymentIssues.filter(issue =>
-        issue.name.toLowerCase().includes(query) ||
-        issue.namespace.toLowerCase().includes(query) ||
-        (issue.cluster && issue.cluster.toLowerCase().includes(query))
+        (issue.cluster && issue.cluster.toLowerCase().includes(query)) ||
+        (issue.reason && issue.reason.toLowerCase().includes(query))
       )
     }
 
-    const appMap = new Map<string, AppSummary>()
+    return filtered
+  }, [podIssues, globalSelectedClusters, isAllClustersSelected, customFilter])
 
-    // First, populate from ALL deployments (not just issues)
-    filteredDeployments.forEach(deployment => {
-      const key = `${deployment.cluster}/${deployment.namespace}`
-      if (!appMap.has(key)) {
-        appMap.set(key, {
-          namespace: deployment.namespace,
-          cluster: deployment.cluster || 'unknown',
-          deploymentCount: 0,
-          podIssues: 0,
-          deploymentIssues: 0,
-          status: 'healthy',
-        })
-      }
-      const app = appMap.get(key)!
-      app.deploymentCount++
-    })
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalPods = clusters.reduce((sum, c) => sum + (c.podCount || 0), 0)
+    const issueCount = filteredPodIssues.length
+    const pendingCount = filteredPodIssues.filter(p => p.reason === 'Pending' || p.status === 'Pending').length
+    const restartCount = filteredPodIssues.filter(p => (p.restarts || 0) > 5).length
+    const clusterCount = isAllClustersSelected ? clusters.length : globalSelectedClusters.length
 
-    // Add pod issues to the map
-    filteredPodIssues.forEach(issue => {
-      const key = `${issue.cluster}/${issue.namespace}`
-      if (!appMap.has(key)) {
-        appMap.set(key, {
-          namespace: issue.namespace,
-          cluster: issue.cluster || 'unknown',
-          deploymentCount: 0,
-          podIssues: 0,
-          deploymentIssues: 0,
-          status: 'healthy',
-        })
-      }
-      const app = appMap.get(key)!
-      app.podIssues++
-      app.status = app.podIssues > 3 ? 'error' : 'warning'
-    })
+    return {
+      totalPods,
+      healthy: Math.max(0, totalPods - issueCount),
+      issues: issueCount,
+      pending: pendingCount,
+      restarts: restartCount,
+      clusters: clusterCount,
+    }
+  }, [clusters, filteredPodIssues, isAllClustersSelected, globalSelectedClusters])
 
-    // Add deployment issues to the map
-    filteredDeploymentIssues.forEach(issue => {
-      const key = `${issue.cluster}/${issue.namespace}`
-      if (!appMap.has(key)) {
-        appMap.set(key, {
-          namespace: issue.namespace,
-          cluster: issue.cluster || 'unknown',
-          deploymentCount: 0,
-          podIssues: 0,
-          deploymentIssues: 0,
-          status: 'healthy',
-        })
-      }
-      const app = appMap.get(key)!
-      app.deploymentIssues++
-      if (app.status !== 'error') {
-        app.status = 'warning'
-      }
-    })
-
-    return Array.from(appMap.values()).sort((a, b) => {
-      // Sort by status (critical first), then by deployment count
-      const statusOrder: Record<string, number> = { error: 0, critical: 0, warning: 1, healthy: 2 }
-      if (statusOrder[a.status] !== statusOrder[b.status]) {
-        return statusOrder[a.status] - statusOrder[b.status]
-      }
-      // Then sort by deployment count (more deployments = more important)
-      return b.deploymentCount - a.deploymentCount
-    })
-  }, [allDeployments, podIssues, deploymentIssues, globalSelectedClusters, isAllClustersSelected, customFilter])
-
-  const stats = useMemo(() => ({
-    total: apps.length,
-    healthy: apps.filter(a => a.status === 'healthy').length,
-    warning: apps.filter(a => a.status === 'warning').length,
-    critical: apps.filter(a => a.status === 'error').length,
-    totalDeployments: apps.reduce((sum, a) => sum + a.deploymentCount, 0),
-    totalPodIssues: podIssues.length,
-    totalDeploymentIssues: deploymentIssues.length,
-  }), [apps, podIssues, deploymentIssues])
-
-  // Stats value getter for the configurable StatsOverview component
+  // Stats value getter
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
-    const drillToFirst = () => {
-      if (apps.length > 0 && apps[0]) {
-        drillToNamespace(apps[0].cluster, apps[0].namespace)
+    const drillToFirstIssue = () => {
+      if (filteredPodIssues.length > 0 && filteredPodIssues[0]) {
+        drillToPod(filteredPodIssues[0].cluster || '', filteredPodIssues[0].namespace, filteredPodIssues[0].name)
       }
-    }
-    const drillToCritical = () => {
-      const criticalApp = apps.find(a => a.status === 'error')
-      if (criticalApp) drillToNamespace(criticalApp.cluster, criticalApp.namespace)
-    }
-    const drillToWarning = () => {
-      const warningApp = apps.find(a => a.status === 'warning')
-      if (warningApp) drillToNamespace(warningApp.cluster, warningApp.namespace)
-    }
-    const drillToHealthy = () => {
-      const healthyApp = apps.find(a => a.status === 'healthy')
-      if (healthyApp) drillToNamespace(healthyApp.cluster, healthyApp.namespace)
     }
 
     switch (blockId) {
-      case 'namespaces':
-        return { value: stats.total, sublabel: 'active namespaces', onClick: drillToFirst, isClickable: apps.length > 0 }
-      case 'critical':
-        return { value: stats.critical, sublabel: 'critical issues', onClick: drillToCritical, isClickable: stats.critical > 0 }
-      case 'warning':
-        return { value: stats.warning, sublabel: 'warning issues', onClick: drillToWarning, isClickable: stats.warning > 0 }
+      case 'total_pods':
+        return { value: stats.totalPods, sublabel: 'total pods' }
       case 'healthy':
-        return { value: stats.healthy, sublabel: 'healthy namespaces', onClick: drillToHealthy, isClickable: stats.healthy > 0 }
-      case 'deployments':
-        return { value: stats.totalDeployments, sublabel: 'total deployments', onClick: drillToFirst, isClickable: stats.totalDeployments > 0 }
-      case 'pod_issues':
-        return { value: stats.totalPodIssues, sublabel: 'pod issues', onClick: drillToFirst, isClickable: stats.totalPodIssues > 0 }
-      case 'deployment_issues':
-        return { value: stats.totalDeploymentIssues, sublabel: 'deployment issues', onClick: drillToFirst, isClickable: stats.totalDeploymentIssues > 0 }
+        return { value: stats.healthy, sublabel: 'healthy pods' }
+      case 'issues':
+        return { value: stats.issues, sublabel: 'pod issues', onClick: drillToFirstIssue, isClickable: stats.issues > 0 }
+      case 'pending':
+        return { value: stats.pending, sublabel: 'pending pods' }
+      case 'restarts':
+        return { value: stats.restarts, sublabel: 'high restart pods' }
+      case 'clusters':
+        return { value: stats.clusters, sublabel: 'clusters' }
       default:
         return { value: '-', sublabel: '' }
     }
-  }, [stats, apps, drillToNamespace])
+  }, [stats, filteredPodIssues, drillToPod])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {
@@ -486,10 +381,10 @@ export function Workloads() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Layers className="w-6 h-6 text-purple-400" />
-                Workloads
+                <Box className="w-6 h-6 text-purple-400" />
+                Pods
               </h1>
-              <p className="text-muted-foreground">View and manage deployed applications across clusters</p>
+              <p className="text-muted-foreground">Monitor pod health and issues across clusters</p>
             </div>
             {isRefreshing && (
               <span className="flex items-center gap-1 text-xs text-amber-400 animate-pulse" title="Updating...">
@@ -499,10 +394,10 @@ export function Workloads() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <label htmlFor="workloads-auto-refresh" className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground" title="Auto-refresh every 30s">
+            <label htmlFor="pods-auto-refresh" className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground" title="Auto-refresh every 30s">
               <input
                 type="checkbox"
-                id="workloads-auto-refresh"
+                id="pods-auto-refresh"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
                 className="rounded border-border w-3.5 h-3.5"
@@ -521,26 +416,25 @@ export function Workloads() {
         </div>
       </div>
 
-      {/* Stats Overview - configurable */}
+      {/* Stats Overview */}
       <StatsOverview
-        dashboardType="workloads"
+        dashboardType="pods"
         getStatValue={getStatValue}
-        hasData={apps.length > 0 || !showSkeletons}
+        hasData={!showSkeletons}
         isLoading={showSkeletons}
         lastUpdated={lastUpdated}
-        collapsedStorageKey="kubestellar-workloads-stats-collapsed"
+        collapsedStorageKey="kubestellar-pods-stats-collapsed"
       />
 
       {/* Dashboard Cards Section */}
       <div className="mb-6">
-        {/* Card section header with toggle and buttons */}
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setShowCards(!showCards)}
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <LayoutGrid className="w-4 h-4" />
-            <span>Workload Cards ({cards.length})</span>
+            <span>Pod Cards ({cards.length})</span>
             {showCards ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
         </div>
@@ -551,11 +445,11 @@ export function Workloads() {
             {cards.length === 0 ? (
               <div className="glass p-8 rounded-lg border-2 border-dashed border-border/50 text-center">
                 <div className="flex justify-center mb-4">
-                  <Layers className="w-12 h-12 text-muted-foreground" />
+                  <Box className="w-12 h-12 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-medium text-foreground mb-2">Workloads Dashboard</h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">Pods Dashboard</h3>
                 <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
-                  Add cards to monitor deployments, pods, and application health across your clusters.
+                  Add cards to monitor pod health, issues, and resource usage across your clusters.
                 </p>
                 <button
                   onClick={() => setShowAddCard(true)}
@@ -575,7 +469,7 @@ export function Workloads() {
                 <SortableContext items={cards.map(c => c.id)} strategy={rectSortingStrategy}>
                   <div className="grid grid-cols-12 gap-4">
                     {cards.map(card => (
-                      <SortableWorkloadCard
+                      <SortablePodCard
                         key={card.id}
                         card={card}
                         onConfigure={() => handleConfigureCard(card.id)}
@@ -589,7 +483,7 @@ export function Workloads() {
                 <DragOverlay>
                   {activeId ? (
                     <div className="opacity-80 rotate-3 scale-105">
-                      <WorkloadDragPreviewCard card={cards.find(c => c.id === activeId)!} />
+                      <PodDragPreviewCard card={cards.find(c => c.id === activeId)!} />
                     </div>
                   ) : null}
                 </DragOverlay>
@@ -630,9 +524,8 @@ export function Workloads() {
         onSave={handleSaveCardConfig}
       />
 
-      {/* Workloads List */}
+      {/* Pod Issues List */}
       {showSkeletons ? (
-        // Loading skeletons for workloads list (only when no cached data)
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="glass p-4 rounded-lg border-l-4 border-l-gray-500/50">
@@ -649,48 +542,49 @@ export function Workloads() {
             </div>
           ))}
         </div>
-      ) : apps.length === 0 ? (
+      ) : filteredPodIssues.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📦</div>
-          <p className="text-lg text-foreground">No workloads found</p>
-          <p className="text-sm text-muted-foreground">No deployments detected across your clusters</p>
+          <div className="text-6xl mb-4">🎉</div>
+          <p className="text-lg text-foreground">No Pod Issues</p>
+          <p className="text-sm text-muted-foreground">All pods are running healthy across your clusters</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {apps.map((app, i) => (
+          <h2 className="text-lg font-semibold text-foreground mb-4">Pod Issues ({filteredPodIssues.length})</h2>
+          {filteredPodIssues.map((issue, i) => (
             <div
               key={i}
-              onClick={() => drillToNamespace(app.cluster, app.namespace)}
+              onClick={() => drillToPod(issue.cluster || '', issue.namespace, issue.name)}
               className={`glass p-4 rounded-lg cursor-pointer transition-all hover:scale-[1.01] border-l-4 ${
-                app.status === 'error' ? 'border-l-red-500' :
-                app.status === 'warning' ? 'border-l-yellow-500' :
-                'border-l-green-500'
+                issue.reason === 'CrashLoopBackOff' || issue.reason === 'OOMKilled' ? 'border-l-red-500' :
+                issue.reason === 'Pending' || issue.reason === 'ContainerCreating' ? 'border-l-yellow-500' :
+                'border-l-orange-500'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <StatusIndicator status={app.status} size="lg" />
+                  <StatusIndicator
+                    status={issue.reason === 'CrashLoopBackOff' || issue.reason === 'OOMKilled' ? 'error' : 'warning'}
+                    size="lg"
+                  />
                   <div>
-                    <h3 className="font-semibold text-foreground">{app.namespace}</h3>
-                    <ClusterBadge cluster={app.cluster.split('/').pop() || app.cluster} size="sm" />
+                    <h3 className="font-semibold text-foreground">{issue.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <ClusterBadge cluster={issue.cluster?.split('/').pop() || 'unknown'} size="sm" />
+                      <span className="text-xs text-muted-foreground">{issue.namespace}</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-foreground">{app.deploymentCount}</div>
-                    <div className="text-xs text-muted-foreground">Deployments</div>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-orange-400">{issue.reason || 'Unknown'}</div>
+                    <div className="text-xs text-muted-foreground">{issue.status || 'Unknown status'}</div>
                   </div>
-                  {app.deploymentIssues > 0 && (
+                  {(issue.restarts || 0) > 0 && (
                     <div className="text-center">
-                      <div className="text-lg font-bold text-orange-400">{app.deploymentIssues}</div>
-                      <div className="text-xs text-muted-foreground">Issues</div>
-                    </div>
-                  )}
-                  {app.podIssues > 0 && (
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-red-400">{app.podIssues}</div>
-                      <div className="text-xs text-muted-foreground">Pod Issues</div>
+                      <div className="text-lg font-bold text-red-400">{issue.restarts}</div>
+                      <div className="text-xs text-muted-foreground">Restarts</div>
                     </div>
                   )}
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -719,7 +613,7 @@ export function Workloads() {
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {cluster.reachable !== false ? (cluster.podCount ?? '-') : '-'} pods • {cluster.reachable !== false ? (cluster.nodeCount ?? '-') : '-'} nodes
+                {cluster.reachable !== false ? (cluster.podCount ?? '-') : '-'} pods
               </div>
             </div>
           ))}

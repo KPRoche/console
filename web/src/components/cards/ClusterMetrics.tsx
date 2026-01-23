@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { TimeSeriesChart } from '../charts'
+import { TimeSeriesChart, MultiSeriesChart } from '../charts'
 import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
-import { Server, Clock, Filter, ChevronDown } from 'lucide-react'
+import { Server, Clock, Filter, ChevronDown, Layers, TrendingUp } from 'lucide-react'
 import { RefreshButton } from '../ui/RefreshIndicator'
 
 type TimeRange = '15m' | '1h' | '6h' | '24h'
@@ -16,12 +16,20 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string; points: number; int
 
 
 type MetricType = 'cpu' | 'memory' | 'pods' | 'nodes'
+type ChartMode = 'total' | 'per-cluster'
 
 const metricConfig = {
   cpu: { label: 'CPU Cores', color: '#9333ea', unit: '', baseValue: 65, variance: 30 },
   memory: { label: 'Memory', color: '#3b82f6', unit: ' GB', baseValue: 72, variance: 20 },
   pods: { label: 'Pods', color: '#10b981', unit: '', baseValue: 150, variance: 100 },
   nodes: { label: 'Nodes', color: '#f59e0b', unit: '', baseValue: 10, variance: 5 },
+}
+
+interface ClusterMetricValues {
+  cpu: number
+  memory: number
+  pods: number
+  nodes: number
 }
 
 interface MetricPoint {
@@ -31,6 +39,8 @@ interface MetricPoint {
   memory: number
   pods: number
   nodes: number
+  // Per-cluster values for comparison mode
+  clusters?: Record<string, ClusterMetricValues>
 }
 
 const STORAGE_KEY = 'cluster-metrics-history'
@@ -41,6 +51,7 @@ export function ClusterMetrics() {
   const { selectedClusters, isAllClustersSelected } = useGlobalFilters()
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('cpu')
   const [timeRange, setTimeRange] = useState<TimeRange>('1h')
+  const [chartMode, setChartMode] = useState<ChartMode>('total')
   const [localClusterFilter, setLocalClusterFilter] = useState<string[]>([])
   const [showClusterFilter, setShowClusterFilter] = useState(false)
   const clusterFilterRef = useRef<HTMLDivElement>(null)
@@ -131,6 +142,16 @@ export function ClusterMetrics() {
     if (realValues.nodes === 0 && realValues.cpu === 0) return
 
     const now = Date.now()
+    // Build per-cluster values for comparison mode
+    const clusterValues: Record<string, ClusterMetricValues> = {}
+    clusters.forEach(c => {
+      clusterValues[c.name] = {
+        cpu: c.cpuCores || 0,
+        memory: c.memoryGB || 0,
+        pods: c.podCount || 0,
+        nodes: c.nodeCount || 0,
+      }
+    })
     const newPoint: MetricPoint = {
       time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       timestamp: now,
@@ -138,6 +159,7 @@ export function ClusterMetrics() {
       memory: realValues.memory,
       pods: realValues.pods,
       nodes: realValues.nodes,
+      clusters: clusterValues,
     }
 
     // Only add if data changed or at least 30 seconds since last point
@@ -155,7 +177,7 @@ export function ClusterMetrics() {
       historyRef.current = newHistory
       setHistory(newHistory)
     }
-  }, [realValues, isLoading, hasRealData])
+  }, [realValues, isLoading, hasRealData, clusters])
 
   // Transform history to chart data for selected metric
   const data = useMemo(() => {
@@ -175,6 +197,57 @@ export function ClusterMetrics() {
       value: point[selectedMetric],
     }))
   }, [history, selectedMetric, timeRange])
+
+  // Generate per-cluster data for comparison mode
+  const perClusterData = useMemo(() => {
+    if (chartMode !== 'per-cluster') return { data: [], series: [] }
+
+    const now = Date.now()
+    const rangeMs = {
+      '15m': 15 * 60 * 1000,
+      '1h': 60 * 60 * 1000,
+      '6h': 6 * 60 * 60 * 1000,
+      '24h': 24 * 60 * 60 * 1000,
+    }[timeRange]
+
+    const filteredHistory = history.filter(p => now - p.timestamp <= rangeMs && p.clusters)
+
+    // Get all unique cluster names from history
+    const clusterNames = new Set<string>()
+    filteredHistory.forEach(point => {
+      if (point.clusters) {
+        Object.keys(point.clusters).forEach(name => clusterNames.add(name))
+      }
+    })
+
+    // Colors for different clusters
+    const clusterColors = [
+      '#9333ea', '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+      '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#ec4899',
+    ]
+
+    // Build series config
+    const series = Array.from(clusterNames).map((name, i) => ({
+      dataKey: name,
+      color: clusterColors[i % clusterColors.length],
+      name: name.length > 15 ? name.slice(0, 12) + '...' : name,
+    }))
+
+    // Build data with all clusters as keys
+    const chartData = filteredHistory.map(point => {
+      const entry: { time: string; value: number; [key: string]: string | number } = {
+        time: point.time,
+        value: 0, // Required by DataPoint interface, not used by MultiSeriesChart
+      }
+      clusterNames.forEach(name => {
+        const clusterData = point.clusters?.[name]
+        entry[name] = clusterData ? clusterData[selectedMetric] : 0
+      })
+      return entry
+    })
+
+    return { data: chartData, series }
+  }, [history, selectedMetric, timeRange, chartMode])
 
   const config = metricConfig[selectedMetric]
   // Use real current value if available, otherwise use last chart value
@@ -298,6 +371,36 @@ export function ClusterMetrics() {
             )}
           </div>
         )}
+
+        {/* Chart Mode Toggle */}
+        {clusters.length > 1 && (
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => setChartMode('total')}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-colors ${
+                chartMode === 'total'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+              }`}
+              title="Show aggregated total"
+            >
+              <TrendingUp className="w-3 h-3" />
+              Total
+            </button>
+            <button
+              onClick={() => setChartMode('per-cluster')}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-colors ${
+                chartMode === 'per-cluster'
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+              }`}
+              title="Show per-cluster comparison"
+            >
+              <Layers className="w-3 h-3" />
+              Per Cluster
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Chart */}
@@ -312,6 +415,13 @@ export function ClusterMetrics() {
             <span>{data.length === 0 ? 'Collecting data...' : 'Waiting for next data point...'}</span>
             <span className="text-xs text-muted-foreground/70">Chart will appear after collecting more data</span>
           </div>
+        ) : chartMode === 'per-cluster' && perClusterData.series.length > 0 ? (
+          <MultiSeriesChart
+            data={perClusterData.data}
+            series={perClusterData.series}
+            height={160}
+            showGrid
+          />
         ) : (
           <TimeSeriesChart
             data={data}

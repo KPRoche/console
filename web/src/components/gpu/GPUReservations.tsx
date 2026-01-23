@@ -12,9 +12,11 @@ import {
   CheckCircle2,
   Settings2,
   TrendingUp,
+  FlaskConical,
 } from 'lucide-react'
 import { useGPUNodes } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
+import { useDemoMode } from '../../hooks/useDemoMode'
 import { DonutChart } from '../charts/PieChart'
 import { BarChart } from '../charts/BarChart'
 import { ClusterBadge } from '../ui/ClusterBadge'
@@ -117,10 +119,15 @@ function getMockQuotas(): GPUQuota[] {
 export function GPUReservations() {
   const { nodes: rawNodes, isLoading } = useGPUNodes()
   const { selectedClusters, isAllClustersSelected } = useGlobalFilters()
+  const { isDemoMode: _isDemoMode } = useDemoMode()
   const [activeTab, setActiveTab] = useState<ViewTab>('overview')
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showNewReservationForm, setShowNewReservationForm] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<GPUReservation | null>(null)
+
+  // This page uses mock data for reservations, quotas, and team usage
+  // Real GPU node data comes from useGPUNodes()
+  const showDemoIndicator = true // Always show demo indicator since reservations are mocked
 
   // Filter nodes by global cluster selection
   const nodes = useMemo(() => {
@@ -230,7 +237,15 @@ export function GPUReservations() {
   return (
     <div className="pt-16">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">GPU Reservations</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground">GPU Reservations</h1>
+          {showDemoIndicator && (
+            <span className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+              <FlaskConical className="w-3 h-3" />
+              Demo
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground">Schedule and manage GPU resources across your clusters</p>
       </div>
 

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lightbulb, Clock, X, ChevronDown, Zap, AlertTriangle, Shield, Server, Scale, Activity, Wrench } from 'lucide-react'
+import { Lightbulb, Clock, X, ChevronDown, Zap, AlertTriangle, Shield, Server, Scale, Activity, Wrench, Stethoscope } from 'lucide-react'
 import { useMissionSuggestions, MissionSuggestion, MissionType } from '../../hooks/useMissionSuggestions'
 import { useSnoozedMissions, formatTimeRemaining } from '../../hooks/useSnoozedMissions'
 import { useMissions } from '../../hooks/useMissions'
@@ -50,18 +50,54 @@ export function MissionSuggestions() {
   const { startMission } = useMissions()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Force dependency on snoozedMissions for reactivity
   void snoozedMissions
 
-  const handleAction = async (suggestion: MissionSuggestion) => {
-    setProcessingId(suggestion.id)
+  // Close dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!expandedId) return
 
-    try {
+    const handleClickOutside = (e: MouseEvent) => {
+      // Check if click is outside the dropdown content
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setExpandedId(null)
+      }
+    }
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedId(null)
+      }
+    }
+
+    // Use setTimeout to avoid closing immediately when clicking to open
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+    }, 0)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [expandedId])
+
+  const handleAction = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    // Close dropdown and dismiss the suggestion permanently
+    setExpandedId(null)
+    setProcessingId(null)
+    dismissMission(suggestion.id) // Permanently remove tile after starting action
+
+    // Execute action after dropdown closes
+    setTimeout(() => {
       if (suggestion.action.type === 'navigate') {
         navigate(suggestion.action.target)
       } else if (suggestion.action.type === 'klaude') {
-        // Start a Klaude mission with the suggestion
         startMission({
           title: suggestion.title,
           description: suggestion.description,
@@ -70,16 +106,20 @@ export function MissionSuggestions() {
           context: suggestion.context,
         })
       }
-    } finally {
-      setProcessingId(null)
-      setExpandedId(null)
-    }
+    }, 0)
   }
 
-  const handleRepair = (suggestion: MissionSuggestion) => {
-    setProcessingId(suggestion.id)
-    try {
-      // Start a Klaude Repair mission
+  const handleRepair = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    // Close dropdown and dismiss the suggestion permanently
+    setExpandedId(null)
+    setProcessingId(null)
+    dismissMission(suggestion.id) // Permanently remove tile after starting repair
+
+    // Start mission after dropdown closes
+    setTimeout(() => {
       startMission({
         title: `Repair: ${suggestion.title}`,
         description: `Auto-repair: ${suggestion.description}`,
@@ -87,10 +127,7 @@ export function MissionSuggestions() {
         initialPrompt: `Automatically fix the following issue: ${suggestion.action.target}. Apply safe remediation steps.`,
         context: suggestion.context,
       })
-    } finally {
-      setProcessingId(null)
-      setExpandedId(null)
-    }
+    }, 0)
   }
 
   const handleSnooze = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
@@ -141,7 +178,10 @@ export function MissionSuggestions() {
 
               {/* Expanded dropdown */}
               {isExpanded && (
-                <div className={`absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border ${style.border} ${style.bg} backdrop-blur-sm shadow-xl`}>
+                <div
+                  ref={dropdownRef}
+                  className={`absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border ${style.border} ${style.bg} backdrop-blur-sm shadow-xl`}
+                >
                   <div className="p-3">
                     {/* Description */}
                     <p className="text-xs text-muted-foreground mb-2">{suggestion.description}</p>
@@ -171,9 +211,9 @@ export function MissionSuggestions() {
                     {/* Action buttons */}
                     <div className="flex flex-wrap gap-1.5">
                       <button
-                        onClick={() => handleAction(suggestion)}
+                        onClick={(e) => handleAction(e, suggestion)}
                         disabled={isProcessing}
-                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
                           suggestion.priority === 'critical'
                             ? 'bg-red-500 hover:bg-red-600 text-white'
                             : suggestion.priority === 'high'
@@ -181,10 +221,11 @@ export function MissionSuggestions() {
                             : 'bg-purple-500 hover:bg-purple-600 text-white'
                         } disabled:opacity-50`}
                       >
+                        <Stethoscope className="w-3 h-3" />
                         {suggestion.action.label}
                       </button>
                       <button
-                        onClick={() => handleRepair(suggestion)}
+                        onClick={(e) => handleRepair(e, suggestion)}
                         disabled={isProcessing}
                         className="px-2 py-1.5 rounded text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-400 transition-colors flex items-center gap-1"
                         title="Klaude Repair - automatically fix this issue"

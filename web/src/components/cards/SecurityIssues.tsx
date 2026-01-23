@@ -5,7 +5,7 @@ import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { PaginatedList } from '../ui/PaginatedList'
 import { ClusterBadge } from '../ui/ClusterBadge'
-import { CardControls } from '../ui/CardControls'
+import { CardControls, SortDirection } from '../ui/CardControls'
 import { RefreshButton } from '../ui/RefreshIndicator'
 import { LimitedAccessWarning } from '../ui/LimitedAccessWarning'
 
@@ -49,6 +49,7 @@ export function SecurityIssues({ config }: SecurityIssuesProps) {
   const { filterItems } = useGlobalFilters()
   const { drillToPod } = useDrillDownActions()
   const [sortBy, setSortBy] = useState<SortByOption>('severity')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [limit, setLimit] = useState<number | 'unlimited'>(5)
   const [localSearch, setLocalSearch] = useState('')
 
@@ -79,22 +80,49 @@ export function SecurityIssues({ config }: SecurityIssuesProps) {
     }
 
     const sorted = [...filtered].sort((a, b) => {
-      if (sortBy === 'severity') return (severityOrder[a.severity] || 5) - (severityOrder[b.severity] || 5)
-      if (sortBy === 'name') return a.name.localeCompare(b.name)
-      if (sortBy === 'cluster') return (a.cluster || '').localeCompare(b.cluster || '')
-      return 0
+      let comparison = 0
+      if (sortBy === 'severity') comparison = (severityOrder[a.severity] || 5) - (severityOrder[b.severity] || 5)
+      else if (sortBy === 'name') comparison = a.name.localeCompare(b.name)
+      else if (sortBy === 'cluster') comparison = (a.cluster || '').localeCompare(b.cluster || '')
+      return sortDirection === 'asc' ? comparison : -comparison
     })
-    if (limit === 'unlimited') return sorted
-    return sorted.slice(0, limit)
-  }, [rawIssues, sortBy, limit, filterItems, localSearch])
+    return sorted
+  }, [rawIssues, sortBy, sortDirection, filterItems, localSearch])
 
   const highCount = rawIssues.filter(i => i.severity === 'high').length
   const mediumCount = rawIssues.filter(i => i.severity === 'medium').length
 
-  if (isLoading) {
+  // Show skeleton only on initial load (no cached data)
+  if (isLoading && rawIssues.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="spinner w-8 h-8" />
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-24 bg-secondary rounded animate-pulse" />
+            <div className="h-4 w-12 bg-secondary rounded animate-pulse" />
+          </div>
+          <div className="h-6 w-6 bg-secondary rounded animate-pulse" />
+        </div>
+        <div className="flex-1 space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-3 rounded-lg bg-secondary/30 border border-border">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-secondary rounded-lg animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex gap-2">
+                    <div className="h-4 w-16 bg-secondary rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-secondary rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-32 bg-secondary rounded animate-pulse" />
+                  <div className="flex gap-2">
+                    <div className="h-5 w-24 bg-secondary rounded animate-pulse" />
+                    <div className="h-5 w-16 bg-secondary rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -138,6 +166,8 @@ export function SecurityIssues({ config }: SecurityIssuesProps) {
               {mediumCount} med
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-2">
           <RefreshButton
             isRefreshing={isRefreshing}
             isFailed={isFailed}
@@ -146,14 +176,14 @@ export function SecurityIssues({ config }: SecurityIssuesProps) {
             onRefresh={refetch}
             size="sm"
           />
-        </div>
-        <div className="flex items-center gap-2">
           <CardControls
             limit={limit}
             onLimitChange={setLimit}
             sortBy={sortBy}
             sortOptions={SORT_OPTIONS}
             onSortChange={setSortBy}
+            sortDirection={sortDirection}
+            onSortDirectionChange={setSortDirection}
           />
         </div>
       </div>

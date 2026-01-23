@@ -109,7 +109,7 @@ export function FeatureRequestModal({ isOpen, onClose }: FeatureRequestModalProp
   const { user, isAuthenticated, token } = useAuth()
   const currentGitHubLogin = user?.github_login || ''
   const { createRequest, isSubmitting, requests, isLoading: requestsLoading, isRefreshing: requestsRefreshing, refresh: refreshRequests, requestUpdate, closeRequest, isDemoMode: _isDemoMode } = useFeatureRequests(currentGitHubLogin)
-  const { notifications, unreadCount, markAsRead, markAllAsRead, isLoading: notificationsLoading, isRefreshing: notificationsRefreshing, refresh: refreshNotifications } = useNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead, isLoading: notificationsLoading, isRefreshing: notificationsRefreshing, refresh: refreshNotifications, getUnreadCountForRequest, markRequestNotificationsAsRead } = useNotifications()
   const isRefreshing = requestsRefreshing || notificationsRefreshing
   // User can't perform actions if not authenticated or if using demo token
   const canPerformActions = isAuthenticated && token !== 'demo-token'
@@ -408,10 +408,14 @@ export function FeatureRequestModal({ isOpen, onClose }: FeatureRequestModalProp
                         : request.user_id === currentGitHubLogin
                       // Blur untriaged issues that aren't owned by the current user
                       const shouldBlur = !isTriaged(request.status) && !isOwnedByUser
+                      // Get unread notification count for this request
+                      const requestUnreadCount = getUnreadCountForRequest(request.id)
                       return (
                         <div
                           key={request.id}
-                          className="p-3 border-b border-border/50 hover:bg-secondary/30 transition-colors"
+                          className={`p-3 border-b border-border/50 hover:bg-secondary/30 transition-colors ${
+                            requestUnreadCount > 0 ? 'bg-purple-500/5' : ''
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
@@ -430,6 +434,21 @@ export function FeatureRequestModal({ isOpen, onClose }: FeatureRequestModalProp
                                   <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-500/20 text-blue-400">
                                     Yours
                                   </span>
+                                )}
+                                {/* Unread updates badge with clear button */}
+                                {requestUnreadCount > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      markRequestNotificationsAsRead(request.id)
+                                    }}
+                                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors"
+                                    title="Click to clear updates"
+                                  >
+                                    <Bell className="w-3 h-3" />
+                                    {requestUnreadCount} update{requestUnreadCount !== 1 ? 's' : ''}
+                                    <X className="w-3 h-3 ml-0.5 hover:text-purple-300" />
+                                  </button>
                                 )}
                               </div>
                               <p className={`text-sm font-medium text-foreground mt-1 truncate ${shouldBlur ? 'blur-sm select-none' : ''}`}>

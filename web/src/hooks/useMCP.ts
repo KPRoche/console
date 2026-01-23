@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../lib/api'
-import { reportAgentDataError, reportAgentDataSuccess } from './useLocalAgent'
+import { api, BackendUnavailableError } from '../lib/api'
+import { reportAgentDataError, reportAgentDataSuccess, isAgentUnavailable } from './useLocalAgent'
 import { getDemoMode, useDemoMode } from './useDemoMode'
 
 // Refresh interval for automatic polling (2 minutes) - manual refresh bypasses this
@@ -639,10 +639,164 @@ function updateSingleClusterInCache(clusterName: string, updates: Partial<Cluste
 // Track if initial fetch has been triggered (to avoid duplicate fetches)
 let initialFetchStarted = false
 
+// Shared WebSocket connection state - prevents multiple connections
+const sharedWebSocket: {
+  ws: WebSocket | null
+  connecting: boolean
+  reconnectTimeout: ReturnType<typeof setTimeout> | null
+  reconnectAttempts: number
+} = {
+  ws: null,
+  connecting: false,
+  reconnectTimeout: null,
+  reconnectAttempts: 0,
+}
+
+// Max reconnect attempts before giving up (prevents infinite loops)
+const MAX_RECONNECT_ATTEMPTS = 3
+const RECONNECT_BASE_DELAY_MS = 5000
+
+// Track if backend WebSocket is known unavailable
+let wsBackendUnavailable = false
+let wsLastBackendCheck = 0
+const WS_BACKEND_RECHECK_INTERVAL = 120000 // Re-check backend every 2 minutes
+
+// Connect to shared WebSocket for kubeconfig change notifications
+function connectSharedWebSocket() {
+  // Don't attempt WebSocket if not authenticated
+  const token = localStorage.getItem('token')
+  if (!token) {
+    return
+  }
+
+  // Set connecting flag FIRST to prevent race conditions (JS is single-threaded but
+  // multiple React hook instances can call this in quick succession during initial render)
+  if (sharedWebSocket.connecting || sharedWebSocket.ws?.readyState === WebSocket.OPEN) {
+    return
+  }
+
+  const now = Date.now()
+
+  // Skip if backend is known unavailable (with periodic re-check)
+  if (wsBackendUnavailable && now - wsLastBackendCheck < WS_BACKEND_RECHECK_INTERVAL) {
+    return
+  }
+
+  // Immediately mark as connecting to prevent other calls from starting
+  sharedWebSocket.connecting = true
+
+  // Don't reconnect if we've exceeded max attempts
+  if (sharedWebSocket.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    // Mark backend as unavailable and stop trying
+    wsBackendUnavailable = true
+    wsLastBackendCheck = now
+    sharedWebSocket.connecting = false
+    return
+  }
+
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.hostname}:8080/ws`
+
+    const ws = new WebSocket(wsUrl)
+
+    ws.onopen = () => {
+      console.log('[WebSocket] Connection opened, sending auth...')
+      // Send authentication message - backend requires this within 5 seconds
+      const token = localStorage.getItem('token')
+      if (token) {
+        ws.send(JSON.stringify({ type: 'auth', token }))
+      } else {
+        console.warn('[WebSocket] No auth token available, connection will be rejected')
+        ws.close()
+        return
+      }
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+        if (msg.type === 'authenticated') {
+          console.log('[WebSocket] Authenticated successfully')
+          sharedWebSocket.ws = ws
+          sharedWebSocket.connecting = false
+          sharedWebSocket.reconnectAttempts = 0 // Reset on successful connection
+          wsBackendUnavailable = false // Backend is available
+        } else if (msg.type === 'error') {
+          console.error('[WebSocket] Server error:', msg.data?.message || 'Unknown error')
+          ws.close()
+        } else if (msg.type === 'kubeconfig_changed') {
+          console.log('[WebSocket] Kubeconfig changed, refreshing clusters...')
+          // Reset failure tracking on fresh kubeconfig
+          clusterCache.consecutiveFailures = 0
+          clusterCache.isFailed = false
+          fullFetchClusters()
+        }
+      } catch (e) {
+        console.error('[WebSocket] Failed to parse message:', e)
+      }
+    }
+
+    ws.onerror = () => {
+      // Only log on first attempt to avoid console spam
+      if (sharedWebSocket.reconnectAttempts === 0) {
+        console.warn('[WebSocket] Connection error - backend may be unavailable')
+      }
+      sharedWebSocket.connecting = false
+    }
+
+    ws.onclose = (event) => {
+      // Only log meaningful closes, not connection failures
+      if (event.code !== 1006) {
+        console.log('[WebSocket] Connection closed:', event.code, event.reason)
+      }
+      sharedWebSocket.ws = null
+      sharedWebSocket.connecting = false
+
+      // Exponential backoff for reconnection
+      if (sharedWebSocket.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, sharedWebSocket.reconnectAttempts)
+        // Only log reconnect attempts on first few tries
+        if (sharedWebSocket.reconnectAttempts < 2) {
+          console.log(`[WebSocket] Will attempt reconnect in ${delay}ms (attempt ${sharedWebSocket.reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`)
+        }
+
+        // Clear any existing reconnect timeout
+        if (sharedWebSocket.reconnectTimeout) {
+          clearTimeout(sharedWebSocket.reconnectTimeout)
+        }
+
+        sharedWebSocket.reconnectTimeout = setTimeout(() => {
+          sharedWebSocket.reconnectAttempts++
+          connectSharedWebSocket()
+        }, delay)
+      }
+    }
+  } catch (e) {
+    console.error('[WebSocket] Failed to create connection:', e)
+    sharedWebSocket.connecting = false
+  }
+}
+
+// Cleanup WebSocket connection
+function cleanupSharedWebSocket() {
+  if (sharedWebSocket.reconnectTimeout) {
+    clearTimeout(sharedWebSocket.reconnectTimeout)
+    sharedWebSocket.reconnectTimeout = null
+  }
+  if (sharedWebSocket.ws) {
+    sharedWebSocket.ws.close()
+    sharedWebSocket.ws = null
+  }
+  sharedWebSocket.connecting = false
+  sharedWebSocket.reconnectAttempts = 0
+}
+
 // Reset shared state on HMR (hot module reload) in development
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     initialFetchStarted = false
+    cleanupSharedWebSocket()
     clusterCache = {
       clusters: [],
       lastUpdated: null,
@@ -659,6 +813,11 @@ if (import.meta.hot) {
 
 // Fetch basic cluster list from local agent (fast, no health check)
 async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
+  // Skip if agent is known to be unavailable (uses shared state from useLocalAgent)
+  if (isAgentUnavailable()) {
+    return null
+  }
+
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 3000)
@@ -687,10 +846,8 @@ async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
       // Non-OK response (e.g., 503 Service Unavailable)
       reportAgentDataError('/clusters', `HTTP ${response.status}`)
     }
-  } catch (err) {
-    // Local agent not available or timeout
-    // Note: We don't report this as a data error because if the agent
-    // is completely unavailable, the health check will catch it
+  } catch {
+    // Error will be tracked by useLocalAgent's health check
   }
   return null
 }
@@ -841,67 +998,6 @@ async function checkHealthProgressively(clusterList: ClusterInfo[]) {
   })
 }
 
-// Silent fetch - updates shared cache without showing loading state
-async function silentFetchClusters() {
-  try {
-    // Try local agent first - get cluster list quickly
-    const agentClusters = await fetchClusterListFromAgent()
-    if (agentClusters) {
-      // Preserve existing detected distribution and namespaces
-      const existingClusters = clusterCache.clusters
-      const mergedClusters = agentClusters.map(newCluster => {
-        const existing = existingClusters.find(c => c.name === newCluster.name)
-        if (existing) {
-          return {
-            ...newCluster,
-            // Preserve detected distribution and namespaces
-            distribution: existing.distribution,
-            namespaces: existing.namespaces,
-            // Preserve health data if available
-            ...(existing.nodeCount !== undefined ? {
-              nodeCount: existing.nodeCount,
-              podCount: existing.podCount,
-              cpuCores: existing.cpuCores,
-              memoryGB: existing.memoryGB,
-              storageGB: existing.storageGB,
-              healthy: existing.healthy,
-              reachable: existing.reachable,
-            } : {}),
-          }
-        }
-        return newCluster
-      })
-      updateClusterCache({
-        clusters: mergedClusters,
-        error: null,
-        lastUpdated: new Date(),
-      })
-      // Check health progressively (non-blocking)
-      checkHealthProgressively(agentClusters)
-      return
-    }
-    // Fall back to backend API
-    const { data } = await api.get<{ clusters: ClusterInfo[] }>('/api/mcp/clusters')
-    // Preserve existing distribution data
-    const existingClusters = clusterCache.clusters
-    const mergedClusters = (data.clusters || []).map(newCluster => {
-      const existing = existingClusters.find(c => c.name === newCluster.name)
-      if (existing?.distribution) {
-        return { ...newCluster, distribution: existing.distribution, namespaces: existing.namespaces }
-      }
-      return newCluster
-    })
-    updateClusterCache({
-      clusters: mergedClusters,
-      error: null,
-      lastUpdated: new Date(),
-    })
-  } catch (err) {
-    // On silent fetch, don't replace with demo data - keep existing
-    console.error('Silent fetch failed:', err)
-  }
-}
-
 // Track if a fetch is in progress to prevent duplicate requests
 let fetchInProgress = false
 
@@ -916,6 +1012,13 @@ async function fullFetchClusters() {
       isRefreshing: false,
       error: null,
     })
+    return
+  }
+
+  // Skip fetching if not authenticated (prevents errors on login page)
+  const token = localStorage.getItem('token')
+  if (!token) {
+    updateClusterCache({ isLoading: false, isRefreshing: false })
     return
   }
 
@@ -1029,15 +1132,20 @@ async function fullFetchClusters() {
       lastRefresh: new Date(),
     })
     fetchInProgress = false
+    // Check health progressively (non-blocking) - will update each cluster's data including cpuCores
+    checkHealthProgressively(data.clusters || [])
   } catch (err) {
+    // Don't show error message for expected failures (backend unavailable or timeout)
+    const isExpectedFailure = err instanceof BackendUnavailableError ||
+      (err instanceof Error && err.message.includes('Request timeout'))
     const newFailures = clusterCache.consecutiveFailures + 1
     await finishWithMinDuration({
-      error: 'Failed to fetch clusters',
+      error: isExpectedFailure ? null : 'Failed to fetch clusters',
       clusters: clusterCache.clusters.length > 0 ? clusterCache.clusters : getDemoClusters(),
       isLoading: false,
       isRefreshing: false,
       consecutiveFailures: newFailures,
-      isFailed: newFailures >= 3,
+      isFailed: isExpectedFailure ? false : newFailures >= 3,
       lastRefresh: new Date(),
     })
     fetchInProgress = false
@@ -1140,63 +1248,16 @@ export function useClusters() {
         return
       }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//localhost:8080/ws`
-      let ws: WebSocket | null = null
-
-      const connect = () => {
-        ws = new WebSocket(wsUrl)
-
-        ws.onopen = () => {
-          // Send authentication as first message (more secure than query param)
-          const token = localStorage.getItem('token')
-          if (token && ws) {
-            ws.send(JSON.stringify({ type: 'auth', token }))
-          }
-        }
-
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data)
-
-            // Handle authentication confirmation
-            if (message.type === 'authenticated') {
-              console.log('WebSocket authenticated for cluster updates')
-              return
-            }
-
-            // Handle error messages
-            if (message.type === 'error') {
-              console.error('WebSocket error:', message.data?.message)
-              ws?.close()
-              return
-            }
-
-            // Handle kubeconfig change notifications
-            if (message.type === 'kubeconfig_changed') {
-              console.log('Kubeconfig changed, updating clusters...')
-              silentFetchClusters()
-            }
-          } catch (e) {
-            // Ignore non-JSON messages
-          }
-        }
-
-        ws.onclose = () => {
-          console.log('WebSocket disconnected, reconnecting in 5s...')
-          setTimeout(connect, 5000)
-        }
-
-        ws.onerror = (err) => {
-          console.error('WebSocket error:', err)
-          ws?.close()
-        }
+      // Don't attempt WebSocket if not authenticated
+      const token = localStorage.getItem('token')
+      if (!token) {
+        return
       }
 
-      connect()
-
-      // Note: We intentionally don't clean up WebSocket here
-      // because we want to keep the connection alive for the entire app session
+      // Use shared WebSocket connection to prevent multiple connections
+      if (!sharedWebSocket.connecting && !sharedWebSocket.ws) {
+        connectSharedWebSocket()
+      }
     }
   }, [])
 
@@ -2662,6 +2723,13 @@ async function fetchGPUNodes(cluster?: string) {
       consecutiveFailures: 0,
       lastRefresh: new Date(),
     })
+    return
+  }
+
+  // Skip fetching if not authenticated (prevents errors on login page)
+  const token = localStorage.getItem('token')
+  if (!token) {
+    updateGPUNodeCache({ isLoading: false, isRefreshing: false })
     return
   }
 
@@ -4307,16 +4375,18 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
   const [lastRefresh, setLastRefresh] = useState<number | null>(cachedEntry?.timestamp || null)
 
   const refetch = useCallback(async () => {
+    // Always set isRefreshing to show animation on manual refresh (even if returning early)
+    setIsRefreshing(true)
+
     if (!release) {
       setHistory([])
+      // Match MIN_SPIN_DURATION (500ms) so animation shows properly
+      setTimeout(() => setIsRefreshing(false), 500)
       return
     }
-
-    // Always set isRefreshing to show animation on manual refresh
-    setIsRefreshing(true)
     // Also set loading if no cached data (use functional update to check)
     setHistory(prev => {
-      if (prev.length === 0 && (!cachedEntry?.data?.length)) {
+      if (prev.length === 0) {
         setIsLoading(true)
       }
       return prev
@@ -4347,19 +4417,24 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
       setError(errorMessage)
       setConsecutiveFailures(prev => prev + 1)
 
-      // Update cache failure count
-      if (cluster && release && cachedEntry) {
-        helmHistoryCache.set(`${cluster}:${release}`, {
-          ...cachedEntry,
-          consecutiveFailures: (cachedEntry.consecutiveFailures || 0) + 1
-        })
+      // Update cache failure count on error
+      if (cluster && release) {
+        const currentCached = helmHistoryCache.get(`${cluster}:${release}`)
+        if (currentCached) {
+          helmHistoryCache.set(`${cluster}:${release}`, {
+            ...currentCached,
+            consecutiveFailures: (currentCached.consecutiveFailures || 0) + 1
+          })
+        }
       }
       // Keep cached data on error
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }, [cluster, release, namespace, cachedEntry])
+    // Note: cachedEntry deliberately excluded to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cluster, release, namespace])
 
   useEffect(() => {
     // Use cached data if available
@@ -4405,13 +4480,16 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
   const [lastRefresh, setLastRefresh] = useState<number | null>(cachedEntry?.timestamp || null)
 
   const refetch = useCallback(async () => {
+    // Always set isRefreshing to show animation on manual refresh (even if returning early)
+    setIsRefreshing(true)
+
     if (!release) {
       setValues(null)
+      // Brief delay before clearing isRefreshing so animation shows
+      setTimeout(() => setIsRefreshing(false), 100)
       return
     }
 
-    // Always set isRefreshing to show animation on manual refresh
-    setIsRefreshing(true)
     // Also set loading if no cached data (use functional update to check)
     setValues(prev => {
       if (prev === null && cachedEntry?.values === null) {

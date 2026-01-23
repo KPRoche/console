@@ -76,7 +76,7 @@ export function useMissionSuggestions() {
         action: {
           type: 'klaude',
           target: `Diagnose why pods are restarting frequently: ${topPods.map(p => p.name).join(', ')}`,
-          label: 'Diagnose with Klaude',
+          label: 'Diagnose',
         },
         context: {
           count: highRestartPods.length,
@@ -100,7 +100,7 @@ export function useMissionSuggestions() {
         action: {
           type: 'klaude',
           target: `Diagnose why deployments have unavailable replicas: ${unavailableDeployments.slice(0, 3).map(d => d.name).join(', ')}`,
-          label: 'Diagnose with Klaude',
+          label: 'Diagnose',
         },
         context: {
           count: unavailableDeployments.length,
@@ -144,7 +144,7 @@ export function useMissionSuggestions() {
         action: {
           type: 'klaude',
           target: `Diagnose cluster health issues for: ${unhealthyClusters.map(c => c.name).join(', ')}`,
-          label: 'Diagnose with Klaude',
+          label: 'Diagnose',
         },
         context: {
           count: unhealthyClusters.length,
@@ -195,7 +195,7 @@ export function useMissionSuggestions() {
         action: {
           type: 'klaude',
           target: `Diagnose resource pressure on nodes: ${pressuredNodes.map(n => n.name).join(', ')}`,
-          label: 'Diagnose with Klaude',
+          label: 'Diagnose',
         },
         context: {
           count: pressuredNodes.length,

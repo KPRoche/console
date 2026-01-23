@@ -1,5 +1,6 @@
-import { ReactNode } from 'react'
-import { Box, X } from 'lucide-react'
+import { ReactNode, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Box, WifiOff, X, Settings } from 'lucide-react'
 import { Navbar } from './Navbar'
 import { Sidebar } from './Sidebar'
 import { MissionSidebar, MissionSidebarToggle } from './MissionSidebar'
@@ -7,6 +8,7 @@ import { useSidebarConfig } from '../../hooks/useSidebarConfig'
 import { useNavigationHistory } from '../../hooks/useNavigationHistory'
 import { useMissions } from '../../hooks/useMissions'
 import { useDemoMode } from '../../hooks/useDemoMode'
+import { useLocalAgent } from '../../hooks/useLocalAgent'
 import { cn } from '../../lib/cn'
 import { TourOverlay, TourPrompt } from '../onboarding/Tour'
 import { TourProvider } from '../../hooks/useTour'
@@ -19,6 +21,11 @@ export function Layout({ children }: LayoutProps) {
   const { config } = useSidebarConfig()
   const { isSidebarOpen: isMissionSidebarOpen, isSidebarMinimized: isMissionSidebarMinimized, isFullScreen: isMissionFullScreen } = useMissions()
   const { isDemoMode, toggleDemoMode } = useDemoMode()
+  const { status: agentStatus } = useLocalAgent()
+  const [offlineBannerDismissed, setOfflineBannerDismissed] = useState(false)
+
+  // Show offline banner when agent is disconnected (not demo mode, not connecting)
+  const showOfflineBanner = !isDemoMode && agentStatus === 'disconnected' && !offlineBannerDismissed
 
   // Track navigation for behavior analysis
   useNavigationHistory()
@@ -71,7 +78,50 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
 
-      <div className={cn("flex", isDemoMode ? "pt-[88px]" : "pt-16")}>
+      {/* Offline Mode Banner - positioned in main content area only */}
+      {showOfflineBanner && (
+        <div className={cn(
+          "fixed top-16 z-30 bg-orange-500/10 border-b border-orange-500/20 transition-[right] duration-300",
+          config.collapsed ? "left-20" : "left-64",
+          // Adjust right edge when mission sidebar is open
+          isMissionSidebarOpen && !isMissionSidebarMinimized && !isMissionFullScreen ? "right-96" : "right-0",
+          isMissionSidebarOpen && isMissionSidebarMinimized && !isMissionFullScreen && "right-12"
+        )}>
+          <div className="flex items-center justify-between py-1.5 px-4">
+            <div className="flex items-center gap-2 min-w-0">
+              <WifiOff className="w-4 h-4 text-orange-400 shrink-0" />
+              <span className="text-sm text-orange-400 font-medium shrink-0">Offline</span>
+              <span className="text-xs text-orange-400/70 truncate">
+                — Install: <code className="bg-orange-500/20 px-1 rounded">brew install kubestellar/tap/kkc-agent</code> → run <code className="bg-orange-500/20 px-1 rounded">kkc-agent</code> → configure your AI agent API keys in Settings
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <Link
+                to="/settings"
+                className="flex items-center gap-1 text-xs px-2 py-0.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded transition-colors whitespace-nowrap"
+              >
+                <Settings className="w-3 h-3" />
+                Settings
+              </Link>
+              <button
+                onClick={toggleDemoMode}
+                className="text-xs px-2 py-0.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded transition-colors whitespace-nowrap"
+              >
+                Switch to Demo Mode
+              </button>
+              <button
+                onClick={() => setOfflineBannerDismissed(true)}
+                className="p-1 hover:bg-orange-500/20 rounded transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5 text-orange-400" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={cn("flex", (isDemoMode || showOfflineBanner) ? "pt-[88px]" : "pt-16")}>
         <Sidebar />
         <main className={cn(
           'flex-1 p-6 transition-all duration-300',

@@ -1072,11 +1072,12 @@ func (h *GitOpsHandlers) ListHelmHistory(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "release parameter is required"})
 	}
 
-	args := []string{"history", release, "--output", "json"}
+	// Note: helm history doesn't support -A (all namespaces) flag
+	// If namespace not provided, helm will search in the default namespace
+	// The frontend should pass the namespace from the release data
+	args := []string{"history", release, "--output", "json", "--max", "20"}
 	if namespace != "" {
 		args = append(args, "-n", namespace)
-	} else {
-		args = append(args, "-A")
 	}
 	if cluster != "" {
 		args = append(args, "--kube-context", cluster)

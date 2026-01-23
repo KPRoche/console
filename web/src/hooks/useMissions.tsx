@@ -174,7 +174,7 @@ export function MissionProvider({ children }: { children: ReactNode }) {
   const [agents, setAgents] = useState<AgentInfo[]>([])
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
   const [defaultAgent, setDefaultAgent] = useState<string | null>(null)
-  const [agentsLoading, setAgentsLoading] = useState(true)
+  const [agentsLoading, setAgentsLoading] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pendingRequests = useRef<Map<string, string>>(new Map()) // requestId -> missionId
@@ -206,12 +206,16 @@ export function MissionProvider({ children }: { children: ReactNode }) {
     }
 
     return new Promise<void>((resolve, reject) => {
+      // Show loading state while connecting
+      setAgentsLoading(true)
+
       // Connection timeout - 5 seconds
       const timeout = setTimeout(() => {
         if (wsRef.current) {
           wsRef.current.close()
           wsRef.current = null
         }
+        setAgentsLoading(false)
         reject(new Error('CONNECTION_TIMEOUT'))
       }, 5000)
 

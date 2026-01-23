@@ -103,7 +103,8 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
   // Clear demo-generated alerts when demo mode is turned off
   useEffect(() => {
     if (previousDemoMode.current && !isDemoMode) {
-      setAlerts(prev => prev.filter(a => a.status === 'resolved'))
+      // Remove all alerts that were generated during demo mode
+      setAlerts(prev => prev.filter(a => !a.isDemo))
     }
     previousDemoMode.current = isDemoMode
   }, [isDemoMode])
@@ -234,12 +235,13 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
           resource,
           resourceKind,
           firedAt: new Date().toISOString(),
+          isDemo: isDemoMode, // Mark alert as demo if created during demo mode
         }
 
         return [alert, ...prev]
       })
     },
-    []
+    [isDemoMode]
   )
 
   // Run AI diagnosis on an alert

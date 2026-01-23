@@ -80,6 +80,7 @@ export interface Alert {
   acknowledgedAt?: string
   acknowledgedBy?: string
   aiDiagnosis?: AlertAIDiagnosis
+  isDemo?: boolean // True if alert was generated during demo mode
 }
 
 // Slack webhook configuration

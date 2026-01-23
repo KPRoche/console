@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   X,
   Send,
@@ -24,6 +25,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Maximize2,
+  Settings,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useMissions, Mission, MissionStatus } from '../../hooks/useMissions'
@@ -278,10 +280,35 @@ function MissionChat({ mission, isFullScreen = false }: { mission: Mission; isFu
             )}>
               {msg.role === 'assistant' || msg.role === 'system' ? (
                 <div className={cn(
-                  "text-sm prose prose-sm prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-2 prose-pre:bg-black/30 prose-pre:text-xs prose-code:text-purple-300 prose-code:bg-black/20 prose-code:px-1 prose-code:rounded prose-a:text-blue-400 prose-a:underline hover:prose-a:text-blue-300",
+                  "text-sm prose prose-sm prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:my-2 prose-pre:bg-black/30 prose-pre:text-xs prose-code:text-purple-300 prose-code:bg-black/20 prose-code:px-1 prose-code:rounded",
                   msg.role === 'system' ? 'text-yellow-200' : 'text-foreground'
                 )}>
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ href, children }) => {
+                        // Internal links use react-router Link styled as button
+                        if (href?.startsWith('/')) {
+                          return (
+                            <Link
+                              to={href}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 mt-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/30 rounded text-xs font-medium transition-colors no-underline"
+                            >
+                              <Settings className="w-3 h-3" />
+                              {children}
+                            </Link>
+                          )
+                        }
+                        // External links
+                        return (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">
+                            {children}
+                          </a>
+                        )
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>

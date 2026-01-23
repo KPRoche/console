@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Clock, ChevronDown, X, Plus, AlertTriangle, Info, Lightbulb } from 'lucide-react'
 import { useCardRecommendations, CardRecommendation } from '../../hooks/useCardRecommendations'
 import { useSnoozedRecommendations } from '../../hooks/useSnoozedRecommendations'
@@ -29,12 +29,42 @@ const PRIORITY_STYLES = {
 export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
   const { recommendations, hasRecommendations, highPriorityCount } = useCardRecommendations(currentCardTypes)
   // Subscribe to snoozedRecommendations to trigger re-render when snooze state changes
-  const { snoozeRecommendation, isSnoozed, snoozedRecommendations } = useSnoozedRecommendations()
+  const { snoozeRecommendation, dismissRecommendation, isSnoozed, isDismissed, snoozedRecommendations } = useSnoozedRecommendations()
   const [expandedRec, setExpandedRec] = useState<string | null>(null)
   const [addingCard, setAddingCard] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Force dependency on snoozedRecommendations for reactivity
   void snoozedRecommendations
+
+  // Close dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!expandedRec) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      // Check if click is outside the dropdown content
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setExpandedRec(null)
+      }
+    }
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedRec(null)
+      }
+    }
+
+    // Use setTimeout to avoid closing immediately when clicking to open
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+    }, 0)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [expandedRec])
 
   const handleAddCard = async (rec: CardRecommendation) => {
     setAddingCard(rec.id)
@@ -42,6 +72,7 @@ export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
     onAddCard(rec.cardType, rec.config)
     setAddingCard(null)
     setExpandedRec(null)
+    dismissRecommendation(rec.id) // Permanently hide tile after adding card
   }
 
   const handleSnooze = (e: React.MouseEvent, rec: CardRecommendation) => {
@@ -55,8 +86,8 @@ export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
     setExpandedRec(null)
   }
 
-  // Filter out snoozed recommendations
-  const visibleRecommendations = recommendations.filter(rec => !isSnoozed(rec.id))
+  // Filter out snoozed and dismissed recommendations
+  const visibleRecommendations = recommendations.filter(rec => !isSnoozed(rec.id) && !isDismissed(rec.id))
 
   if (!hasRecommendations || visibleRecommendations.length === 0) return null
 
@@ -101,7 +132,10 @@ export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
 
               {/* Expanded dropdown */}
               {isExpanded && (
-                <div className={`absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border ${style.border} ${style.bg} backdrop-blur-sm shadow-xl`}>
+                <div
+                  ref={dropdownRef}
+                  className={`absolute top-full left-0 mt-1 z-50 w-72 rounded-lg border ${style.border} ${style.bg} backdrop-blur-sm shadow-xl`}
+                >
                   <div className="p-3">
                     {/* Reason */}
                     <p className="text-xs text-muted-foreground mb-2">{rec.reason}</p>

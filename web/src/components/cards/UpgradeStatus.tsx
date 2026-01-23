@@ -4,7 +4,7 @@ import { useClusters } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { useMissions } from '../../hooks/useMissions'
-import { useLocalAgent } from '../../hooks/useLocalAgent'
+import { useLocalAgent, isAgentUnavailable } from '../../hooks/useLocalAgent'
 import { CardControls, SortDirection } from '../ui/CardControls'
 import { Pagination, usePagination } from '../ui/Pagination'
 import { RefreshButton } from '../ui/RefreshIndicator'
@@ -26,6 +26,11 @@ let versionWs: WebSocket | null = null
 let versionPendingRequests: Map<string, (version: string | null) => void> = new Map()
 
 function ensureVersionWs(): Promise<WebSocket> {
+  // Don't try to connect if agent is unavailable
+  if (isAgentUnavailable()) {
+    return Promise.reject(new Error('Agent unavailable'))
+  }
+
   if (versionWs?.readyState === WebSocket.OPEN) {
     return Promise.resolve(versionWs)
   }

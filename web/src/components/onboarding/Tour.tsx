@@ -121,7 +121,7 @@ export function TourOverlay() {
   if (!isActive || !currentStep) return null
 
   return (
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[100] pointer-events-none">
       {/* Overlay with cutout for target */}
       {targetRect && currentStep.highlight ? (
         // Use box-shadow trick to create cutout - the highlighted area stays clear
@@ -144,7 +144,7 @@ export function TourOverlay() {
       <div
         ref={tooltipRef}
         className={cn(
-          'absolute z-10 w-80 p-4 rounded-lg glass border border-purple-500/30 shadow-xl animate-fade-in-up',
+          'absolute z-10 w-80 p-4 rounded-lg glass border border-purple-500/30 shadow-xl animate-fade-in-up pointer-events-auto',
           // Center horizontally only for top/bottom placements (which use left positioning)
           (currentStep.placement === 'top' || currentStep.placement === 'bottom' || !currentStep.placement) && '-translate-x-1/2',
           // Center vertically for left/right placements (which use top positioning)

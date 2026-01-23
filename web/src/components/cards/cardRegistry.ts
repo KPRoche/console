@@ -190,6 +190,90 @@ export const DEMO_DATA_CARDS = new Set([
 ])
 
 /**
+ * Default widths for card types (in grid columns, out of 12).
+ * Cards not listed here default to 4 columns.
+ */
+export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
+  // Compact cards (3-4 columns) - simple metrics and status
+  cluster_health: 4,
+  resource_usage: 4,
+  app_status: 4,
+  compute_overview: 4,
+  storage_overview: 4,
+  network_overview: 4,
+  gpu_overview: 4,
+  active_alerts: 4,
+  security_issues: 4,
+  upgrade_status: 4,
+
+  // Medium cards (5-6 columns) - lists and tables
+  event_stream: 6,
+  pod_issues: 6,
+  deployment_status: 6,
+  deployment_issues: 6,
+  deployment_progress: 5,
+  top_pods: 6,
+  service_status: 6,
+  operator_status: 6,
+  operator_subscriptions: 6,
+  crd_health: 5,
+  helm_release_status: 6,
+  alert_rules: 6,
+  namespace_overview: 6,
+  namespace_events: 6,
+  namespace_quotas: 5,
+  namespace_rbac: 6,
+  gitops_drift: 6,
+  argocd_applications: 6,
+  argocd_sync_status: 6,
+  kustomization_status: 6,
+  pvc_status: 6,
+  gpu_status: 6,
+  gpu_inventory: 6,
+  gpu_workloads: 6,
+  opa_policies: 6,
+  kyverno_policies: 6,
+  klaude_issues: 6,
+  klaude_kubeconfig_audit: 6,
+  klaude_health_check: 6,
+  user_management: 6,
+
+  // Wide cards (7-8 columns) - charts and trends
+  pod_health_trend: 8,
+  events_timeline: 8,
+  cluster_metrics: 8,
+  resource_trend: 8,
+  resource_capacity: 8,
+  gpu_utilization: 8,
+  gpu_usage_trend: 8,
+  helm_history: 8,
+  helm_values_diff: 8,
+  chart_versions: 6,
+  cluster_focus: 8,
+  cluster_costs: 8,
+  cluster_network: 8,
+  argocd_health: 6,
+  opencost_overview: 8,
+  kubecost_overview: 8,
+  overlay_comparison: 8,
+
+  // Full width cards (12 columns) - complex visualizations
+  cluster_comparison: 12,
+  cluster_resource_tree: 12,
+}
+
+// Default width for cards not in the map
+const DEFAULT_CARD_WIDTH = 4
+
+/**
+ * Get the default width for a card type.
+ * Returns the configured default or 4 columns if not specified.
+ */
+export function getDefaultCardWidth(cardType: string): number {
+  return CARD_DEFAULT_WIDTHS[cardType] ?? DEFAULT_CARD_WIDTH
+}
+
+/**
  * Get a card component by type.
  * Returns undefined if the card type is not registered.
  */

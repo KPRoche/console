@@ -3,6 +3,7 @@ import { Box, CheckCircle, AlertTriangle, Clock, Filter, ChevronDown, Server } f
 import {
   AreaChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -401,6 +402,17 @@ export function PodHealthTrend() {
                 strokeWidth={2}
                 fill="url(#gradientHealthy)"
                 name="Healthy"
+              />
+              {/* Overlay line to make issues more visible */}
+              <Line
+                type="basis"
+                dataKey="issues"
+                stroke="#f97316"
+                strokeWidth={2}
+                strokeDasharray="5 3"
+                dot={false}
+                name="Issues (trend)"
+                legendType="none"
               />
             </AreaChart>
           </ResponsiveContainer>

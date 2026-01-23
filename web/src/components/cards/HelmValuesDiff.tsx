@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { FileJson, ChevronRight, Plus, Edit, Search } from 'lucide-react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { FileJson, ChevronRight, Plus, Edit, Search, RotateCcw } from 'lucide-react'
 import { useClusters, useHelmReleases, useHelmValues } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { Skeleton } from '../ui/Skeleton'
@@ -44,14 +44,57 @@ export function HelmValuesDiff({ config }: HelmValuesDiffProps) {
   const [selectedCluster, setSelectedCluster] = useState<string>(config?.cluster || '')
   const [selectedRelease, setSelectedRelease] = useState<string>(config?.release || '')
   const [localSearch, setLocalSearch] = useState('')
+
+  // Track local selection state for global filter sync
+  const savedLocalCluster = useRef<string>('')
+  const savedLocalRelease = useRef<string>('')
+  const wasGlobalFilterActive = useRef(false)
+
   const {
     selectedClusters: globalSelectedClusters,
     isAllClustersSelected,
     customFilter,
   } = useGlobalFilters()
 
+  // Sync local selection with global filter changes
+  useEffect(() => {
+    const isGlobalFilterActive = !isAllClustersSelected && globalSelectedClusters.length > 0
+
+    if (isGlobalFilterActive && !wasGlobalFilterActive.current) {
+      // Global filter just became active - save current local selection
+      savedLocalCluster.current = selectedCluster
+      savedLocalRelease.current = selectedRelease
+      // Auto-select first cluster from global filter if current selection is not in filter
+      if (selectedCluster && !globalSelectedClusters.includes(selectedCluster)) {
+        setSelectedCluster(globalSelectedClusters[0] || '')
+        setSelectedRelease('')
+      }
+    } else if (!isGlobalFilterActive && wasGlobalFilterActive.current) {
+      // Global filter just cleared - restore previous local selection
+      if (savedLocalCluster.current) {
+        setSelectedCluster(savedLocalCluster.current)
+        setSelectedRelease(savedLocalRelease.current)
+        savedLocalCluster.current = ''
+        savedLocalRelease.current = ''
+      }
+    }
+
+    wasGlobalFilterActive.current = isGlobalFilterActive
+    // Note: selectedCluster/selectedRelease deliberately excluded to avoid infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalSelectedClusters, isAllClustersSelected])
+
   // Fetch ALL Helm releases from all clusters once (not per-cluster)
   const { releases: allHelmReleases, isLoading: releasesLoading } = useHelmReleases()
+
+  // Look up namespace from the selected release (required for helm commands)
+  const selectedReleaseNamespace = useMemo(() => {
+    if (!selectedCluster || !selectedRelease) return undefined
+    const release = allHelmReleases.find(
+      r => r.cluster === selectedCluster && r.name === selectedRelease
+    )
+    return release?.namespace
+  }, [allHelmReleases, selectedCluster, selectedRelease])
 
   // Fetch values for selected release (hook handles caching)
   const {
@@ -66,7 +109,7 @@ export function HelmValuesDiff({ config }: HelmValuesDiffProps) {
   } = useHelmValues(
     selectedCluster || undefined,
     selectedRelease || undefined,
-    undefined
+    selectedReleaseNamespace
   )
 
   // Only show skeleton when no cached data exists
@@ -200,8 +243,13 @@ export function HelmValuesDiff({ config }: HelmValuesDiffProps) {
         <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
           Select a cluster and release to compare values
         </div>
-      ) : valuesLoading && values === null ? (
-        <div className="flex-1 flex items-center justify-center">
+      ) : (valuesLoading || valuesRefreshing) && values === null ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-amber-400">
+            <RotateCcw className="w-4 h-4 animate-spin" />
+            <span>Loading values for {selectedRelease}...</span>
+          </div>
+          <Skeleton variant="rounded" height={50} className="w-full" />
           <Skeleton variant="rounded" height={50} className="w-full" />
         </div>
       ) : (

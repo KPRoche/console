@@ -175,7 +175,7 @@ func (s *Server) Start() error {
 	})
 
 	addr := fmt.Sprintf("127.0.0.1:%d", s.config.Port)
-	log.Printf("KKC Agent starting on %s", addr)
+	log.Printf("KKC Agent v%s starting on %s", Version, addr)
 	log.Printf("Health: http://%s/health", addr)
 	log.Printf("WebSocket: ws://%s/ws", addr)
 

@@ -124,6 +124,20 @@ func (h *Hub) Broadcast(userID uuid.UUID, msg Message) {
 	h.broadcast <- broadcastMessage{userID: userID, data: data}
 }
 
+// GetActiveUsersCount returns the number of unique users with active connections
+func (h *Hub) GetActiveUsersCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.userIndex)
+}
+
+// GetTotalConnectionsCount returns the total number of active WebSocket connections
+func (h *Hub) GetTotalConnectionsCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 // BroadcastAll sends a message to all connected clients
 func (h *Hub) BroadcastAll(msg Message) {
 	data, err := json.Marshal(msg)

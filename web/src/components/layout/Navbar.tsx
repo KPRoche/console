@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Search, Server, Box, Activity, Command, Sun, Moon, Monitor, Coins, Globe, Filter, Check, AlertTriangle, Plus, Folder, X, Trash2, Wifi, WifiOff } from 'lucide-react'
+import { Search, Server, Box, Activity, Command, Sun, Moon, Monitor, Coins, Globe, Filter, Check, AlertTriangle, Plus, Folder, X, Trash2, Wifi, WifiOff, Users } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
 import { useTheme } from '../../hooks/useTheme'
 import { useTokenUsage } from '../../hooks/useTokenUsage'
 import { useLocalAgent } from '../../hooks/useLocalAgent'
+import { useActiveUsers } from '../../hooks/useActiveUsers'
 import { useDemoMode } from '../../hooks/useDemoMode'
+import { useMissions } from '../../hooks/useMissions'
 import { useGlobalFilters, SEVERITY_LEVELS, SEVERITY_CONFIG, STATUS_LEVELS, STATUS_CONFIG } from '../../hooks/useGlobalFilters'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { languages } from '../../lib/i18n'
@@ -47,6 +49,8 @@ export function Navbar() {
   const { usage, alertLevel, percentage, remaining } = useTokenUsage()
   const { status: agentStatus, health: agentHealth, connectionEvents, isConnected, isDegraded, dataErrorCount, lastDataError } = useLocalAgent()
   const { isDemoMode, toggleDemoMode } = useDemoMode()
+  const { activeUsers, showBadge: showActiveUsersBadge } = useActiveUsers()
+  const { isSidebarOpen: isMissionSidebarOpen, isSidebarMinimized: isMissionSidebarMinimized, isFullScreen: isMissionFullScreen } = useMissions()
   const {
     selectedClusters,
     toggleCluster,
@@ -132,10 +136,10 @@ export function Navbar() {
   // Animate token icon when usage increases significantly
   useEffect(() => {
     const increase = usage.used - previousTokensRef.current
-    // Trigger animation if tokens increased by more than 500
-    if (increase > 500) {
+    // Trigger animation if tokens increased by more than 100 (lowered for better visibility)
+    if (increase > 100) {
       setTokenAnimating(true)
-      const timer = setTimeout(() => setTokenAnimating(false), 1000)
+      const timer = setTimeout(() => setTokenAnimating(false), 2000)
       return () => clearTimeout(timer)
     }
     previousTokensRef.current = usage.used
@@ -207,7 +211,12 @@ export function Navbar() {
   }
 
   return (
-    <nav data-tour="navbar" className="fixed top-0 left-0 right-0 h-16 glass z-50 px-6 flex items-center justify-between">
+    <nav data-tour="navbar" className={cn(
+      "fixed top-0 left-0 right-0 h-16 glass z-50 px-6 flex items-center justify-between transition-[padding] duration-300",
+      // Add right padding when mission sidebar is open to prevent content overlap
+      isMissionSidebarOpen && !isMissionSidebarMinimized && !isMissionFullScreen && 'pr-[25rem]',
+      isMissionSidebarOpen && isMissionSidebarMinimized && !isMissionFullScreen && 'pr-16'
+    )}>
       {/* Logo */}
       <div className="flex items-center gap-3">
         <img
@@ -838,7 +847,7 @@ export function Navbar() {
             }`}
             title={`Token usage: ${percentage.toFixed(0)}%`}
           >
-            <Coins className={cn("w-4 h-4 transition-transform", tokenAnimating && "animate-bounce text-yellow-400")} />
+            <Coins className={cn("w-4 h-4 transition-transform", tokenAnimating && "animate-bounce text-yellow-400 scale-125")} />
             <span className="text-xs font-medium hidden sm:inline">{percentage.toFixed(0)}%</span>
             <div className="w-12 h-1.5 bg-secondary rounded-full overflow-hidden hidden sm:block">
               <div
@@ -935,6 +944,17 @@ export function Navbar() {
 
         {/* Tour trigger */}
         <TourTrigger />
+
+        {/* Active Users Badge */}
+        {showActiveUsersBadge && (
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20"
+            title={`${activeUsers} user${activeUsers !== 1 ? 's' : ''} online`}
+          >
+            <Users className="w-4 h-4" />
+            <span className="text-xs font-medium">{activeUsers} online</span>
+          </div>
+        )}
 
         {/* Feature Request (includes notifications) */}
         <FeatureRequestButton />

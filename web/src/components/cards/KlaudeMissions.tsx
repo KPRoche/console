@@ -1,11 +1,84 @@
-import { useMemo } from 'react'
-import { Bot, Stethoscope, FileSearch, AlertCircle, Play, CheckCircle, Clock, ChevronRight } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { Bot, Stethoscope, FileSearch, AlertCircle, Play, CheckCircle, Clock, ChevronRight, Key, Settings } from 'lucide-react'
 import { useMissions } from '../../hooks/useMissions'
 import { useClusters, usePodIssues, useDeploymentIssues } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { cn } from '../../lib/cn'
 import { RefreshButton } from '../ui/RefreshIndicator'
+import { useNavigate } from 'react-router-dom'
+
+const ANTHROPIC_KEY_STORAGE = 'kubestellar-anthropic-key'
+
+// Hook to check and prompt for API key
+function useApiKeyCheck() {
+  const [showKeyPrompt, setShowKeyPrompt] = useState(false)
+  const navigate = useNavigate()
+
+  const hasApiKey = useCallback(() => {
+    const key = localStorage.getItem(ANTHROPIC_KEY_STORAGE)
+    return !!key && key.trim().length > 0
+  }, [])
+
+  const checkKeyAndRun = useCallback((onSuccess: () => void) => {
+    if (hasApiKey()) {
+      onSuccess()
+    } else {
+      setShowKeyPrompt(true)
+    }
+  }, [hasApiKey])
+
+  const goToSettings = useCallback(() => {
+    setShowKeyPrompt(false)
+    navigate('/settings')
+  }, [navigate])
+
+  const dismissPrompt = useCallback(() => {
+    setShowKeyPrompt(false)
+  }, [])
+
+  return { showKeyPrompt, checkKeyAndRun, goToSettings, dismissPrompt, hasApiKey }
+}
+
+// Reusable API Key Prompt Modal
+function ApiKeyPromptModal({ isOpen, onDismiss, onGoToSettings }: {
+  isOpen: boolean
+  onDismiss: () => void
+  onGoToSettings: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-lg">
+      <div className="bg-card border border-border rounded-lg p-4 m-4 shadow-xl max-w-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="p-1.5 rounded bg-orange-500/20">
+            <Key className="w-4 h-4 text-orange-400" />
+          </div>
+          <h3 className="text-sm font-medium text-foreground">API Key Required</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Configure your Anthropic API key in Settings to use AI-powered diagnostics and repair features.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onGoToSettings}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500 text-white text-xs font-medium hover:bg-purple-600 transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Go to Settings
+          </button>
+          <button
+            onClick={onDismiss}
+            className="px-3 py-2 rounded-lg bg-secondary text-muted-foreground text-xs hover:bg-secondary/80 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Klaude Mission Cards - Quick actions for AI-powered cluster management
 
@@ -20,6 +93,7 @@ export function KlaudeIssuesCard(_props: KlaudeMissionCardProps) {
   const { issues: allPodIssues, isRefreshing: podRefreshing, refetch: refetchPods } = usePodIssues()
   const { issues: allDeploymentIssues, isRefreshing: depRefreshing, refetch: refetchDeps } = useDeploymentIssues()
   const { selectedClusters, isAllClustersSelected, customFilter } = useGlobalFilters()
+  const { showKeyPrompt, checkKeyAndRun, goToSettings, dismissPrompt } = useApiKeyCheck()
 
   const isRefreshing = clustersRefreshing || podRefreshing || depRefreshing
   const refetch = () => {
@@ -81,7 +155,7 @@ export function KlaudeIssuesCard(_props: KlaudeMissionCardProps) {
   // Check if there's already a running repair mission
   const runningRepairMission = missions.find(m => m.type === 'repair' && m.status === 'running')
 
-  const handleStartRepair = () => {
+  const doStartRepair = () => {
     const issuesSummary = [
       ...podIssues.slice(0, 5).map(p => `- Pod ${p.name} (${p.namespace}): ${p.status}`),
       ...deploymentIssues.slice(0, 5).map(d => `- Deployment ${d.name} (${d.namespace}): ${d.readyReplicas}/${d.replicas} ready`),
@@ -110,8 +184,17 @@ Please:
     })
   }
 
+  const handleStartRepair = () => checkKeyAndRun(doStartRepair)
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      {/* API Key Prompt Modal */}
+      <ApiKeyPromptModal
+        isOpen={showKeyPrompt}
+        onDismiss={dismissPrompt}
+        onGoToSettings={goToSettings}
+      />
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-purple-400" />
@@ -224,6 +307,7 @@ export function KlaudeKubeconfigAuditCard(_props: KlaudeMissionCardProps) {
   const { clusters: allClusters, isLoading, isRefreshing, refetch, isFailed, consecutiveFailures, lastRefresh } = useClusters()
   const { selectedClusters, isAllClustersSelected, customFilter } = useGlobalFilters()
   const { drillToCluster } = useDrillDownActions()
+  const { showKeyPrompt, checkKeyAndRun, goToSettings, dismissPrompt } = useApiKeyCheck()
 
   // Filter clusters by global filter
   const clusters = useMemo(() => {
@@ -250,7 +334,7 @@ export function KlaudeKubeconfigAuditCard(_props: KlaudeMissionCardProps) {
 
   const runningAuditMission = missions.find(m => m.title.includes('Kubeconfig') && m.status === 'running')
 
-  const handleStartAudit = () => {
+  const doStartAudit = () => {
     startMission({
       title: 'Kubeconfig Audit',
       description: 'Analyzing kubeconfig for stale or problematic clusters',
@@ -281,8 +365,17 @@ Please:
     })
   }
 
+  const handleStartAudit = () => checkKeyAndRun(doStartAudit)
+
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      {/* API Key Prompt Modal */}
+      <ApiKeyPromptModal
+        isOpen={showKeyPrompt}
+        onDismiss={dismissPrompt}
+        onGoToSettings={goToSettings}
+      />
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <FileSearch className="w-5 h-5 text-cyan-400" />
@@ -383,6 +476,7 @@ export function KlaudeHealthCheckCard(_props: KlaudeMissionCardProps) {
   const { issues: allDeploymentIssues } = useDeploymentIssues()
   const { selectedClusters, isAllClustersSelected, customFilter } = useGlobalFilters()
   const { drillToCluster, drillToPod } = useDrillDownActions()
+  const { showKeyPrompt, checkKeyAndRun, goToSettings, dismissPrompt } = useApiKeyCheck()
 
   // Filter clusters by global filter
   const clusters = useMemo(() => {
@@ -433,7 +527,7 @@ export function KlaudeHealthCheckCard(_props: KlaudeMissionCardProps) {
 
   const runningHealthMission = missions.find(m => m.type === 'troubleshoot' && m.status === 'running')
 
-  const handleStartHealthCheck = () => {
+  const doStartHealthCheck = () => {
     startMission({
       title: 'Cluster Health Check',
       description: 'Comprehensive health analysis across all clusters',
@@ -476,13 +570,22 @@ Please provide:
     })
   }
 
+  const handleStartHealthCheck = () => checkKeyAndRun(doStartHealthCheck)
+
   // Calculate health score (0-100)
   const healthScore = clusters.length > 0
     ? Math.round((healthyClusters / clusters.length) * 100)
     : 0
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      {/* API Key Prompt Modal */}
+      <ApiKeyPromptModal
+        isOpen={showKeyPrompt}
+        onDismiss={dismissPrompt}
+        onGoToSettings={goToSettings}
+      />
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Stethoscope className="w-5 h-5 text-green-400" />

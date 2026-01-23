@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api } from '../lib/api'
+import { api, BackendUnavailableError } from '../lib/api'
 
 // Check if user is in demo mode (demo-token)
 function isDemoUser(): boolean {
@@ -147,7 +147,7 @@ const DEMO_FEATURE_REQUESTS: FeatureRequest[] = [
   },
 ]
 
-const DEMO_NOTIFICATIONS: Notification[] = [
+const INITIAL_DEMO_NOTIFICATIONS: Notification[] = [
   {
     id: 'demo-notif-1',
     user_id: 'demo-user',
@@ -171,6 +171,23 @@ const DEMO_NOTIFICATIONS: Notification[] = [
     action_url: 'https://github.com/kubestellar/console/pull/72',
   },
 ]
+
+// Mutable demo notifications state (persists across hook instances in demo mode)
+let demoNotificationsState: Notification[] | null = null
+
+function getDemoNotifications(): Notification[] {
+  if (demoNotificationsState === null) {
+    // Initialize from the initial demo data (deep copy to avoid mutation of original)
+    demoNotificationsState = INITIAL_DEMO_NOTIFICATIONS.map(n => ({ ...n }))
+  }
+  return demoNotificationsState
+}
+
+// @ts-ignore Reserved for future use
+function _updateDemoNotifications(updater: (prev: Notification[]) => Notification[]): Notification[] {
+  demoNotificationsState = updater(getDemoNotifications())
+  return demoNotificationsState
+}
 
 // Sort requests: user's issues first by date (desc), then others by date (desc)
 function sortRequests(requests: FeatureRequest[], currentGitHubLogin: string): FeatureRequest[] {
@@ -225,8 +242,15 @@ export function useFeatureRequests(currentUserId?: string) {
       setRequests(sorted)
       setError(null)
     } catch (err) {
-      console.error('Failed to load feature requests:', err)
-      setError('Failed to load requests')
+      // Don't log or set error for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        if (err instanceof Error && err.message) {
+          console.warn('Failed to load feature requests:', err.message)
+        }
+        setError('Failed to load requests')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -344,31 +368,81 @@ export function useNotifications() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const pollingRef = useRef<number | null>(null)
 
-  const loadNotifications = useCallback(async () => {
-    // In demo mode, use mock data
+  // Get unread count for a specific feature request
+  const getUnreadCountForRequest = useCallback((featureRequestId: string): number => {
+    return notifications.filter(n =>
+      n.feature_request_id === featureRequestId && !n.read
+    ).length
+  }, [notifications])
+
+  // Mark all notifications for a specific feature request as read
+  const markRequestNotificationsAsRead = useCallback(async (featureRequestId: string) => {
+    // Get unread notifications for this request
+    const unreadForRequest = notifications.filter(n =>
+      n.feature_request_id === featureRequestId && !n.read
+    )
+
+    if (unreadForRequest.length === 0) return
+
+    // In demo mode, just update local state
     if (isDemoUser()) {
-      setNotifications(DEMO_NOTIFICATIONS)
+      setNotifications(prev =>
+        prev.map(n => n.feature_request_id === featureRequestId ? { ...n, read: true } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - unreadForRequest.length))
+      return
+    }
+
+    // Mark each notification as read
+    try {
+      await Promise.all(unreadForRequest.map(n =>
+        api.post(`/api/notifications/${n.id}/read`)
+      ))
+      setNotifications(prev =>
+        prev.map(n => n.feature_request_id === featureRequestId ? { ...n, read: true } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - unreadForRequest.length))
+    } catch (err) {
+      console.error('Failed to mark request notifications as read:', err)
+      throw err
+    }
+  }, [notifications])
+
+  const loadNotifications = useCallback(async () => {
+    // In demo mode, use mutable demo data
+    if (isDemoUser()) {
+      setNotifications([...getDemoNotifications()])
       return
     }
     try {
       const { data } = await api.get<Notification[]>('/api/notifications')
       setNotifications(data || [])
     } catch (err) {
-      console.error('Failed to load notifications:', err)
+      // Don't log for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure && err instanceof Error && err.message) {
+        console.warn('Failed to load notifications:', err.message)
+      }
     }
   }, [])
 
   const loadUnreadCount = useCallback(async () => {
-    // In demo mode, calculate from mock data
+    // In demo mode, calculate from mutable demo data
     if (isDemoUser()) {
-      setUnreadCount(DEMO_NOTIFICATIONS.filter(n => !n.read).length)
+      setUnreadCount(getDemoNotifications().filter(n => !n.read).length)
       return
     }
     try {
       const { data } = await api.get<{ count: number }>('/api/notifications/unread-count')
       setUnreadCount(data.count)
     } catch (err) {
-      console.error('Failed to load unread count:', err)
+      // Don't log for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure && err instanceof Error && err.message) {
+        console.warn('Failed to load unread count:', err.message)
+      }
     }
   }, [])
 
@@ -453,6 +527,8 @@ export function useNotifications() {
     markAsRead,
     markAllAsRead,
     refresh,
+    getUnreadCountForRequest,
+    markRequestNotificationsAsRead,
   }
 }
 

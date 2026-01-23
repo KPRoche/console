@@ -21,7 +21,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { api } from '../../lib/api'
+import { api, BackendUnavailableError } from '../../lib/api'
 import { useDashboards } from '../../hooks/useDashboards'
 import { useClusters } from '../../hooks/useMCP'
 import { useCardHistory } from '../../hooks/useCardHistory'
@@ -361,7 +361,12 @@ export function Dashboard() {
         dashboardCache = { dashboard: null, cards, timestamp: Date.now() }
       }
     } catch (error) {
-      console.error('Failed to load dashboard:', error)
+      // Don't log expected failures (backend unavailable or timeout)
+      const isExpectedFailure = error instanceof BackendUnavailableError ||
+        (error instanceof Error && error.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        console.error('Failed to load dashboard:', error)
+      }
       // Preserve local-only cards even on error, only add demo cards if needed
       setLocalCards((prevCards) => {
         const localOnlyCards = prevCards.filter(c => isLocalOnlyCard(c.id))
@@ -539,18 +544,28 @@ export function Dashboard() {
   }, [localCards, dashboard, recordCardConfigured])
 
   const handleAddRecommendedCard = useCallback((cardType: string, config?: Record<string, unknown>, title?: string) => {
-    const size = getDefaultCardSize(cardType)
-    const newCard: Card = {
-      id: `rec-${Date.now()}`,
-      card_type: cardType,
-      config: config || {},
-      position: { x: 0, y: 0, ...size },
-      title,
-    }
-    // Record in history
-    recordCardAdded(newCard.id, cardType, title, config, dashboard?.id, dashboard?.name)
-    // Add card at the TOP of the dashboard
-    setLocalCards((prev) => [newCard, ...prev])
+    setLocalCards((prev) => {
+      // Check if a card with the same type already exists
+      const existingIndex = prev.findIndex((c) => c.card_type === cardType)
+      if (existingIndex !== -1) {
+        // Move existing card to first position
+        const existingCard = prev[existingIndex]
+        const remaining = prev.filter((_, idx) => idx !== existingIndex)
+        return [existingCard, ...remaining]
+      }
+      // No existing card - create new one
+      const size = getDefaultCardSize(cardType)
+      const newCard: Card = {
+        id: `rec-${Date.now()}`,
+        card_type: cardType,
+        config: config || {},
+        position: { x: 0, y: 0, ...size },
+        title,
+      }
+      // Record in history
+      recordCardAdded(newCard.id, cardType, title, config, dashboard?.id, dashboard?.name)
+      return [newCard, ...prev]
+    })
   }, [dashboard, recordCardAdded])
 
   // Create a new card from AI configuration

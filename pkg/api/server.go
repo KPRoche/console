@@ -218,6 +218,14 @@ func (s *Server) setupRoutes() {
 	api.Get("/me", user.GetCurrentUser)
 	api.Put("/me", user.UpdateCurrentUser)
 
+	// Active users endpoint (WebSocket connection count)
+	api.Get("/active-users", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"activeUsers":      s.hub.GetActiveUsersCount(),
+			"totalConnections": s.hub.GetTotalConnectionsCount(),
+		})
+	})
+
 	// Onboarding routes
 	onboarding := handlers.NewOnboardingHandler(s.store)
 	api.Get("/onboarding/questions", onboarding.GetQuestions)

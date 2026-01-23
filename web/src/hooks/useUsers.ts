@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../lib/api'
+import { api, BackendUnavailableError } from '../lib/api'
 import type {
   ConsoleUser,
   K8sServiceAccount,
@@ -36,8 +36,15 @@ export function useConsoleUsers() {
       const { data } = await api.get<ConsoleUser[]>('/api/users')
       setUsers(data || [])
     } catch (err) {
-      setError('Failed to load users')
-      console.error('Failed to load users:', err)
+      // Don't log or set error for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        setError('Failed to load users')
+        if (err instanceof Error && err.message) {
+          console.warn('Failed to load users:', err.message)
+        }
+      }
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -106,8 +113,15 @@ export function useUserManagementSummary() {
       const { data } = await api.get<UserManagementSummary>('/api/users/summary')
       setSummary(data)
     } catch (err) {
-      setError('Failed to load summary')
-      console.error('Failed to load user summary:', err)
+      // Don't log or set error for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        setError('Failed to load summary')
+        if (err instanceof Error && err.message) {
+          console.warn('Failed to load user summary:', err.message)
+        }
+      }
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -170,8 +184,15 @@ export function useK8sServiceAccounts(cluster?: string, namespace?: string) {
       const { data } = await api.get<K8sServiceAccount[]>(`/api/rbac/service-accounts?${params}`)
       setServiceAccounts(data || [])
     } catch (err) {
-      setError('Failed to load service accounts')
-      console.error('Failed to load service accounts:', err)
+      // Don't log or set error for expected failures (backend unavailable or timeout)
+      const isExpectedFailure = err instanceof BackendUnavailableError ||
+        (err instanceof Error && err.message.includes('Request timeout'))
+      if (!isExpectedFailure) {
+        setError('Failed to load service accounts')
+        if (err instanceof Error && err.message) {
+          console.warn('Failed to load service accounts:', err.message)
+        }
+      }
     } finally {
       setIsLoading(false)
     }

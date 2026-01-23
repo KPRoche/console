@@ -268,6 +268,12 @@ const CARD_CONFIG_FIELDS: Record<string, Array<{ key: string; label: string; typ
   upgrade_status: [
     { key: 'cluster', label: 'Cluster', type: 'cluster' },
   ],
+  // Default fields for cards not specifically listed above
+  default: [
+    { key: 'cluster', label: 'Filter by Cluster', type: 'cluster' },
+    { key: 'namespace', label: 'Filter by Namespace', type: 'text' },
+    { key: 'maxItems', label: 'Max Items to Display', type: 'number' },
+  ],
 }
 
 export function ConfigureCardModal({ isOpen, card, onClose, onSave, onCreateCard }: ConfigureCardModalProps) {
@@ -286,8 +292,8 @@ export function ConfigureCardModal({ isOpen, card, onClose, onSave, onCreateCard
     if (card) {
       setConfig(card.config || {})
       setTitle(card.title || '')
-      // Initialize behaviors from config or defaults
-      const cardBehaviors = CARD_BEHAVIORS[card.card_type] || []
+      // Initialize behaviors from config or defaults (use default behaviors for unknown card types)
+      const cardBehaviors = CARD_BEHAVIORS[card.card_type] || CARD_BEHAVIORS.default || []
       const initialBehaviors: Record<string, boolean> = {}
       cardBehaviors.forEach((b) => {
         initialBehaviors[b.key] = (card.config?.[b.key] as boolean) ?? b.default
@@ -313,8 +319,8 @@ export function ConfigureCardModal({ isOpen, card, onClose, onSave, onCreateCard
 
   if (!isOpen || !card) return null
 
-  const fields = CARD_CONFIG_FIELDS[card.card_type] || []
-  const cardBehaviors = CARD_BEHAVIORS[card.card_type] || []
+  const fields = CARD_CONFIG_FIELDS[card.card_type] || CARD_CONFIG_FIELDS.default || []
+  const cardBehaviors = CARD_BEHAVIORS[card.card_type] || CARD_BEHAVIORS.default || []
 
   const handleSave = () => {
     const finalConfig = { ...config, ...behaviors }
