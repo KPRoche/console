@@ -451,17 +451,46 @@ export function FeatureRequestModal({ isOpen, onClose }: FeatureRequestModalProp
                                   </button>
                                 )}
                               </div>
-                              <p className={`text-sm font-medium text-foreground mt-1 truncate ${shouldBlur ? 'blur-sm select-none' : ''}`}>
-                                {request.title}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${statusInfo.bgColor} ${statusInfo.color}`}>
-                                  {statusInfo.label}
-                                </span>
-                                <span className={`text-xs text-muted-foreground ${shouldBlur ? 'blur-sm select-none' : ''}`}>
-                                  {STATUS_DESCRIPTIONS[request.status]}
-                                </span>
-                              </div>
+                              {/* For untriaged items not owned by user, show minimal info */}
+                              {request.status === 'needs_triage' && !isOwnedByUser ? (
+                                <>
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${statusInfo.bgColor} ${statusInfo.color}`}>
+                                      {statusInfo.label}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground italic">
+                                      Awaiting maintainer attention
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <p className={`text-sm font-medium text-foreground mt-1 truncate ${shouldBlur ? 'blur-sm select-none' : ''}`}>
+                                    {request.title}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${statusInfo.bgColor} ${statusInfo.color}`}>
+                                      {statusInfo.label}
+                                    </span>
+                                    <span className={`text-xs text-muted-foreground ${shouldBlur ? 'blur-sm select-none' : ''}`}>
+                                      {STATUS_DESCRIPTIONS[request.status]}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                              {/* Show PR link during AI processing (feasibility_study) */}
+                              {request.status === 'feasibility_study' && request.pr_url && (
+                                <a
+                                  href={request.pr_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs flex items-center gap-1 mt-1.5 text-purple-400 hover:text-purple-300"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <GitPullRequest className="w-3 h-3" />
+                                  View AI Progress - PR #{request.pr_number}
+                                </a>
+                              )}
                               {/* Show PR link if fix is ready or complete */}
                               {(request.status === 'fix_ready' || request.status === 'fix_complete') && request.pr_url && (
                                 <a
@@ -489,8 +518,29 @@ export function FeatureRequestModal({ isOpen, onClose }: FeatureRequestModalProp
                                   <p className="line-clamp-3">{request.latest_comment}</p>
                                 </div>
                               )}
-                              {/* Show preview link if available */}
-                              {request.netlify_preview_url && (
+                              {/* Show preview link if available - prominent for fix_ready */}
+                              {request.netlify_preview_url && request.status === 'fix_ready' && (
+                                <div className="mt-2 p-2 bg-green-500/10 border border-green-500/30 rounded">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <Eye className="w-4 h-4 text-green-400" />
+                                      <span className="text-xs text-green-400 font-medium">Preview Available</span>
+                                    </div>
+                                    <a
+                                      href={request.netlify_preview_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-2 py-1 text-xs rounded bg-green-500 hover:bg-green-600 text-white transition-colors flex items-center gap-1"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      Try It
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Simple preview link for other statuses */}
+                              {request.netlify_preview_url && request.status !== 'fix_ready' && (
                                 <a
                                   href={request.netlify_preview_url}
                                   target="_blank"
