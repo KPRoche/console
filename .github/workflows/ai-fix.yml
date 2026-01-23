@@ -70,37 +70,70 @@ jobs:
           gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-fix-requested" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$REPO" --add-label "ai-processing"
 
-      - name: Trigger Copilot to fix issue
+      - name: Assign Copilot to issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_BODY: ${{ steps.issue_details.outputs.body }}
         run: |
-          ISSUE_URL="https://github.com/${{ github.repository }}/issues/${{ steps.issue.outputs.number }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${{ github.event.repository.name }}"
+          ISSUE_NUM="${{ steps.issue.outputs.number }}"
 
-          gh issue comment ${{ steps.issue.outputs.number }} --repo ${{ github.repository }} --body "@copilot Please fix this issue and create a pull request.
+          # Get issue node ID
+          ISSUE_ID=$(gh api graphql -f query="
+            query {
+              repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME\") {
+                issue(number: $ISSUE_NUM) {
+                  id
+                }
+              }
+            }" --jq '.data.repository.issue.id')
 
-          **Issue Link:** $ISSUE_URL
+          echo "Issue ID: $ISSUE_ID"
 
-          **Issue:** ${{ steps.issue_details.outputs.title }}
+          # Get Copilot agent ID from suggested actors
+          COPILOT_ID=$(gh api graphql -f query="
+            query {
+              repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME\") {
+                issue(number: $ISSUE_NUM) {
+                  suggestedActors(first: 10) {
+                    nodes {
+                      ... on Bot {
+                        login
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }" --jq '.data.repository.issue.suggestedActors.nodes[] | select(.login == "copilot-swe-agent") | .id')
 
-          **Description:**
-          $ISSUE_BODY
+          echo "Copilot ID: $COPILOT_ID"
 
-          **Instructions:**
-          1. Read the issue link above for full context
-          2. Analyze the codebase to understand the problem
-          3. Create a fix branch \`ai-fix/issue-${{ steps.issue.outputs.number }}\`
-          4. Implement minimal, focused changes
-          5. Open a pull request with the fix
-          6. Follow existing code patterns
+          if [ -z "$COPILOT_ID" ]; then
+            echo "::warning::Copilot agent not found in suggested actors. Copilot may not be enabled for this repository."
+            exit 0
+          fi
 
-          **Project structure:**
-          - \`/web\`: React 18 + TypeScript + Vite frontend
-          - \`/pkg\`: Go backend with Fiber framework
-          - \`/pkg/api\`: API handlers
-          - \`/pkg/store\`: SQLite data store
+          # Assign Copilot to the issue
+          gh api graphql -f query="
+            mutation {
+              addAssigneesToAssignable(input: {
+                assignableId: \"$ISSUE_ID\",
+                assigneeIds: [\"$COPILOT_ID\"]
+              }) {
+                assignable {
+                  ... on Issue {
+                    assignees(first: 5) {
+                      nodes {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }"
 
-          /copilot fix this issue and create a PR"
+          echo "Copilot assigned to issue #$ISSUE_NUM"
 
       - name: Update labels - copilot triggered
         env:
