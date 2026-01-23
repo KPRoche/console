@@ -1,4 +1,5 @@
 name: AI Fix with Copilot
+# Automates AI-assisted issue resolution via GitHub Copilot
 
 on:
   issues:
