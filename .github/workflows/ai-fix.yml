@@ -3,6 +3,8 @@ name: AI Fix with Copilot
 on:
   issues:
     types: [labeled]
+  pull_request:
+    types: [opened, ready_for_review, closed]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -148,3 +150,75 @@ jobs:
           # Update status: remove processing, add awaiting copilot
           gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-processing" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$REPO" --add-label "ai-awaiting-copilot"
+
+  # Update issue labels when Copilot's PR changes state
+  update-issue-on-pr:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == 'copilot-swe-agent[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract linked issue number
+        id: issue
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Extract issue number from "Fixes owner/repo#123" or "Fixes #123"
+          ISSUE_NUM=$(echo "$PR_BODY" | grep -oP '(?:Fixes|Closes|Resolves)\s+(?:\S+)?#\K\d+' | head -1)
+          echo "number=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "Found linked issue: #$ISSUE_NUM"
+
+      - name: Update labels on PR opened (draft created)
+        if: github.event.action == 'opened' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          ISSUE="${{ steps.issue.outputs.number }}"
+
+          # Create label if it doesn't exist
+          gh label create "ai-pr-draft" --repo "$REPO" --color "1d76db" --description "Copilot has created a draft PR" 2>/dev/null || true
+
+          # Update status
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-awaiting-copilot" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --add-label "ai-pr-draft"
+
+          echo "Updated issue #$ISSUE: ai-pr-draft"
+
+      - name: Update labels on PR ready for review
+        if: github.event.action == 'ready_for_review' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          ISSUE="${{ steps.issue.outputs.number }}"
+
+          # Create label if it doesn't exist
+          gh label create "ai-pr-ready" --repo "$REPO" --color "0e8a16" --description "Copilot PR is ready for review" 2>/dev/null || true
+
+          # Update status
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-pr-draft" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-awaiting-copilot" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --add-label "ai-pr-ready"
+
+          echo "Updated issue #$ISSUE: ai-pr-ready"
+
+      - name: Update labels on PR merged
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          ISSUE="${{ steps.issue.outputs.number }}"
+
+          # Create label if it doesn't exist
+          gh label create "ai-fix-merged" --repo "$REPO" --color "6f42c1" --description "AI fix has been merged" 2>/dev/null || true
+
+          # Update status - remove all ai- labels and add merged
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-pr-ready" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-pr-draft" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "ai-awaiting-copilot" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --add-label "ai-fix-merged"
+
+          echo "Updated issue #$ISSUE: ai-fix-merged"
