@@ -633,7 +633,7 @@ export function Security() {
       case 'issues':
         return { value: stats.total, sublabel: 'total issues', onClick: () => setActiveTab('issues'), isClickable: hasDataToShow }
       case 'critical':
-        return { value: 0, sublabel: 'critical issues' }
+        return { value: stats.high, sublabel: 'critical issues', onClick: () => { setSeverityFilter('high'); setActiveTab('issues') }, isClickable: stats.high > 0 }
       case 'high':
         return { value: stats.high, sublabel: 'high severity', onClick: () => { setSeverityFilter('high'); setActiveTab('issues') }, isClickable: stats.high > 0 }
       case 'medium':
