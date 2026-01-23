@@ -22,8 +22,10 @@ interface FeatureRequestModalProps {
 type TabType = 'submit' | 'updates'
 
 // Format relative time
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string | undefined): string {
+  if (!dateString) return ''
   const date = new Date(dateString)
+  if (isNaN(date.getTime())) return ''
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)

@@ -226,13 +226,13 @@ func (h *FeedbackHandler) ListAllFeatureRequests(c *fiber.Ctx) error {
 				if status == "needs_triage" {
 					status = "triage_accepted"
 				}
-			case "copilot/working", "feasibility-study":
+			case "copilot/working", "feasibility-study", "ai-processing", "ai-awaiting-fix":
 				status = "feasibility_study"
-			case "fix-ready", "copilot/fix-ready":
+			case "fix-ready", "copilot/fix-ready", "ai-pr-ready", "ai-pr-draft":
 				status = "fix_ready"
-			case "fix-complete":
+			case "fix-complete", "ai-processing-complete":
 				status = "fix_complete"
-			case "unable-to-fix", "needs-human-review":
+			case "unable-to-fix", "needs-human-review", "ai-needs-human":
 				status = "unable_to_fix"
 			case "bug":
 				requestType = "bug"
