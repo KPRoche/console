@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lightbulb, Clock, X, ChevronDown, Zap, AlertTriangle, Shield, Server, Scale, Activity, Wrench, Stethoscope } from 'lucide-react'
 import { useMissionSuggestions, MissionSuggestion, MissionType } from '../../hooks/useMissionSuggestions'
@@ -50,48 +50,67 @@ export function MissionSuggestions() {
   const { startMission } = useMissions()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Force dependency on snoozedMissions for reactivity
   void snoozedMissions
 
-  const handleAction = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
-    e.stopPropagation()
-    setProcessingId(suggestion.id)
-    // Close dropdown immediately before action
-    setExpandedId(null)
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!expandedId) return
 
-    if (suggestion.action.type === 'navigate') {
-      navigate(suggestion.action.target)
-    } else if (suggestion.action.type === 'klaude') {
-      // Start a Klaude mission with the suggestion
-      startMission({
-        title: suggestion.title,
-        description: suggestion.description,
-        type: suggestion.type === 'security' ? 'analyze' : 'troubleshoot',
-        initialPrompt: suggestion.action.target,
-        context: suggestion.context,
-      })
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setExpandedId(null)
+      }
     }
 
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [expandedId])
+
+  const handleAction = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    // Close dropdown first
+    setExpandedId(null)
     setProcessingId(null)
+
+    // Execute action after dropdown closes
+    setTimeout(() => {
+      if (suggestion.action.type === 'navigate') {
+        navigate(suggestion.action.target)
+      } else if (suggestion.action.type === 'klaude') {
+        startMission({
+          title: suggestion.title,
+          description: suggestion.description,
+          type: suggestion.type === 'security' ? 'analyze' : 'troubleshoot',
+          initialPrompt: suggestion.action.target,
+          context: suggestion.context,
+        })
+      }
+    }, 0)
   }
 
   const handleRepair = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
     e.stopPropagation()
-    setProcessingId(suggestion.id)
-    // Close dropdown immediately before action
+    e.preventDefault()
+
+    // Close dropdown first
     setExpandedId(null)
-
-    // Start a Klaude Repair mission
-    startMission({
-      title: `Repair: ${suggestion.title}`,
-      description: `Auto-repair: ${suggestion.description}`,
-      type: 'repair',
-      initialPrompt: `Automatically fix the following issue: ${suggestion.action.target}. Apply safe remediation steps.`,
-      context: suggestion.context,
-    })
-
     setProcessingId(null)
+
+    // Start mission after dropdown closes
+    setTimeout(() => {
+      startMission({
+        title: `Repair: ${suggestion.title}`,
+        description: `Auto-repair: ${suggestion.description}`,
+        type: 'repair',
+        initialPrompt: `Automatically fix the following issue: ${suggestion.action.target}. Apply safe remediation steps.`,
+        context: suggestion.context,
+      })
+    }, 0)
   }
 
   const handleSnooze = (e: React.MouseEvent, suggestion: MissionSuggestion) => {
@@ -109,7 +128,7 @@ export function MissionSuggestions() {
   if (!hasSuggestions) return null
 
   return (
-    <div data-tour="mission-suggestions" className="mb-4">
+    <div ref={containerRef} data-tour="mission-suggestions" className="mb-4">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 text-muted-foreground mr-1">
           <Lightbulb className="w-4 h-4 text-purple-400" />
