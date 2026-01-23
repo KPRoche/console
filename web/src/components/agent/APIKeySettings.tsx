@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { X, Key, Check, AlertCircle, Loader2, Trash2, Eye, EyeOff, ExternalLink, Copy, Plug } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { AgentIcon } from './AgentIcon'
@@ -143,11 +143,33 @@ export function APIKeySettings({ isOpen, onClose }: APIKeySettingsProps) {
     setShowKey(false)
   }
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Close on click outside
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+      onClose()
+    }
+  }
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div ref={dialogRef} className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">

@@ -29,7 +29,7 @@ const PRIORITY_STYLES = {
 export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
   const { recommendations, hasRecommendations, highPriorityCount } = useCardRecommendations(currentCardTypes)
   // Subscribe to snoozedRecommendations to trigger re-render when snooze state changes
-  const { snoozeRecommendation, isSnoozed, snoozedRecommendations } = useSnoozedRecommendations()
+  const { snoozeRecommendation, dismissRecommendation, isSnoozed, isDismissed, snoozedRecommendations } = useSnoozedRecommendations()
   const [expandedRec, setExpandedRec] = useState<string | null>(null)
   const [addingCard, setAddingCard] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -72,6 +72,7 @@ export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
     onAddCard(rec.cardType, rec.config)
     setAddingCard(null)
     setExpandedRec(null)
+    dismissRecommendation(rec.id) // Permanently hide tile after adding card
   }
 
   const handleSnooze = (e: React.MouseEvent, rec: CardRecommendation) => {
@@ -85,8 +86,8 @@ export function CardRecommendations({ currentCardTypes, onAddCard }: Props) {
     setExpandedRec(null)
   }
 
-  // Filter out snoozed recommendations
-  const visibleRecommendations = recommendations.filter(rec => !isSnoozed(rec.id))
+  // Filter out snoozed and dismissed recommendations
+  const visibleRecommendations = recommendations.filter(rec => !isSnoozed(rec.id) && !isDismissed(rec.id))
 
   if (!hasRecommendations || visibleRecommendations.length === 0) return null
 

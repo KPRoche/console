@@ -9,6 +9,7 @@ export interface SnoozedRecommendation {
 
 // Simple in-memory store - in production this would sync with backend
 let snoozedRecs: SnoozedRecommendation[] = []
+let dismissedRecIds: Set<string> = new Set()
 let listeners: Set<() => void> = new Set()
 
 function notifyListeners() {
@@ -58,12 +59,23 @@ export function useSnoozedRecommendations() {
     return snoozedRecs.some(r => r.recommendation.id === recId)
   }, [])
 
+  const dismissRecommendation = useCallback((recId: string) => {
+    dismissedRecIds.add(recId)
+    notifyListeners()
+  }, [])
+
+  const isDismissed = useCallback((recId: string) => {
+    return dismissedRecIds.has(recId)
+  }, [])
+
   return {
     snoozedRecommendations: recs,
     snoozeRecommendation,
     unsnooozeRecommendation,
     dismissSnoozedRecommendation,
+    dismissRecommendation,
     isSnoozed,
+    isDismissed,
   }
 }
 

@@ -88,9 +88,10 @@ export function MissionSuggestions() {
     e.stopPropagation()
     e.preventDefault()
 
-    // Close dropdown first
+    // Close dropdown and dismiss the suggestion permanently
     setExpandedId(null)
     setProcessingId(null)
+    dismissMission(suggestion.id) // Permanently remove tile after starting action
 
     // Execute action after dropdown closes
     setTimeout(() => {
@@ -112,9 +113,10 @@ export function MissionSuggestions() {
     e.stopPropagation()
     e.preventDefault()
 
-    // Close dropdown first
+    // Close dropdown and dismiss the suggestion permanently
     setExpandedId(null)
     setProcessingId(null)
+    dismissMission(suggestion.id) // Permanently remove tile after starting repair
 
     // Start mission after dropdown closes
     setTimeout(() => {
