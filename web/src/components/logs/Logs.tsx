@@ -299,8 +299,8 @@ export function Logs() {
   // Recent events (last hour)
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
   const recentCount = filteredEvents.filter(e => {
-    if (!e.lastTimestamp) return false
-    const eventTime = new Date(e.lastTimestamp)
+    if (!e.lastSeen) return false
+    const eventTime = new Date(e.lastSeen)
     return eventTime >= oneHourAgo
   }).length
 

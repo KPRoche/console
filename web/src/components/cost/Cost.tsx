@@ -20,7 +20,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useClusters } from '../../hooks/useMCP'
+import { useClusters, useGPUNodes } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDashboardReset } from '../../hooks/useDashboardReset'
@@ -163,6 +163,7 @@ function loadCostCards(): CostCard[] {
 export function Cost() {
   const location = useLocation()
   const { clusters, isLoading, refetch, lastUpdated, isRefreshing } = useClusters()
+  const { nodes: gpuNodes } = useGPUNodes()
   const { selectedClusters: globalSelectedClusters, isAllClustersSelected } = useGlobalFilters()
   const { showCards, expandCards } = useShowCards('kubestellar-cost')
 
@@ -281,34 +282,55 @@ export function Cost() {
 
   // Calculate basic stats
   const totalCPU = reachableClusters.reduce((sum, c) => sum + (c.cpuCores || 0), 0)
-  const totalMemoryGB = reachableClusters.reduce((sum, c) => sum + (c.memoryGB || 0), 0)
+  const totalNodes = reachableClusters.reduce((sum, c) => sum + (c.nodeCount || 0), 0)
+  // Use estimated memory per node (32GB) to match ClusterCosts card calculation
+  const estimatedMemoryGB = totalNodes * 32
   const totalStorageGB = reachableClusters.reduce((sum, c) => sum + (c.storageGB || 0), 0)
 
+  // Count GPUs from GPU nodes
+  const gpuByCluster = useMemo(() => {
+    const map: Record<string, number> = {}
+    gpuNodes.forEach(node => {
+      const clusterKey = node.cluster.split('/')[0]
+      map[clusterKey] = (map[clusterKey] || 0) + node.gpuCount
+    })
+    return map
+  }, [gpuNodes])
+  const totalGPUs = reachableClusters.reduce((sum, c) => sum + (gpuByCluster[c.name] || 0), 0)
+
   // Stats value getter for the configurable StatsOverview component
-  // Cost calculations are estimates based on typical cloud pricing
+  // Cost calculations use hourly rates (same as ClusterCosts card) to match displayed values
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
-    const cpuCostPerCore = 30 // ~$30/month per core
-    const memoryCostPerGB = 5 // ~$5/month per GB
-    const storageCostPerGB = 0.10 // ~$0.10/month per GB
-    const estimatedTotalCost = (totalCPU * cpuCostPerCore) + (totalMemoryGB * memoryCostPerGB) + (totalStorageGB * storageCostPerGB)
+    // Hourly rates (matches ClusterCosts card "estimate" pricing)
+    const cpuCostPerHour = 0.035
+    const memoryCostPerGBHour = 0.0045
+    const gpuCostPerHour = 2.50
+    const storageCostPerGBMonth = 0.10
+
+    // Calculate monthly costs (hourly * 24 * 30)
+    const cpuMonthly = totalCPU * cpuCostPerHour * 24 * 30
+    const memoryMonthly = estimatedMemoryGB * memoryCostPerGBHour * 24 * 30
+    const gpuMonthly = totalGPUs * gpuCostPerHour * 24 * 30
+    const storageMonthly = totalStorageGB * storageCostPerGBMonth
+    const totalMonthly = cpuMonthly + memoryMonthly + gpuMonthly + storageMonthly
 
     switch (blockId) {
       case 'total_cost':
-        return { value: `$${estimatedTotalCost.toLocaleString()}`, sublabel: 'est. monthly' }
+        return { value: `$${Math.round(totalMonthly).toLocaleString()}`, sublabel: 'est. monthly' }
       case 'cpu_cost':
-        return { value: `$${(totalCPU * cpuCostPerCore).toLocaleString()}`, sublabel: `${totalCPU} cores` }
+        return { value: `$${Math.round(cpuMonthly).toLocaleString()}`, sublabel: `${totalCPU} cores` }
       case 'memory_cost':
-        return { value: `$${(totalMemoryGB * memoryCostPerGB).toLocaleString()}`, sublabel: `${Math.round(totalMemoryGB)} GB` }
+        return { value: `$${Math.round(memoryMonthly).toLocaleString()}`, sublabel: `${estimatedMemoryGB} GB` }
       case 'storage_cost':
-        return { value: `$${Math.round(totalStorageGB * storageCostPerGB).toLocaleString()}`, sublabel: totalStorageGB >= 1024 ? `${(totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(totalStorageGB)} GB` }
+        return { value: `$${Math.round(storageMonthly).toLocaleString()}`, sublabel: totalStorageGB >= 1024 ? `${(totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(totalStorageGB)} GB` }
       case 'network_cost':
         return { value: '$0', sublabel: 'not tracked' }
       case 'gpu_cost':
-        return { value: '$0', sublabel: 'not tracked' }
+        return { value: `$${Math.round(gpuMonthly).toLocaleString()}`, sublabel: `${totalGPUs} GPUs` }
       default:
         return { value: 0 }
     }
-  }, [totalCPU, totalMemoryGB, totalStorageGB])
+  }, [totalCPU, estimatedMemoryGB, totalStorageGB, totalGPUs])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {
