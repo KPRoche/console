@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react'
+import { useState, useEffect, useCallback, memo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Rocket, RefreshCw, Hourglass, GripVertical, ChevronDown, ChevronRight, Plus, LayoutGrid } from 'lucide-react'
 import {
@@ -285,10 +285,27 @@ export function Deployments() {
     isAllClustersSelected || (d.cluster && globalSelectedClusters.includes(d.cluster))
   )
 
-  // Calculate stats
-  const totalDeployments = filteredDeployments.length
-  const healthyDeployments = filteredDeployments.filter(d => d.readyReplicas === d.replicas && d.replicas > 0).length
-  const issueCount = deploymentIssues.length
+  // Calculate current stats
+  const currentTotalDeployments = filteredDeployments.length
+  const currentHealthyDeployments = filteredDeployments.filter(d => d.readyReplicas === d.replicas && d.replicas > 0).length
+  const currentIssueCount = deploymentIssues.length
+
+  // Cache stats to prevent showing 0 during refresh
+  const cachedStats = useRef({ total: 0, healthy: 0, issues: 0 })
+  useEffect(() => {
+    if (currentTotalDeployments > 0) {
+      cachedStats.current = {
+        total: currentTotalDeployments,
+        healthy: currentHealthyDeployments,
+        issues: currentIssueCount,
+      }
+    }
+  }, [currentTotalDeployments, currentHealthyDeployments, currentIssueCount])
+
+  // Use cached values if current values are 0 (during refresh)
+  const totalDeployments = currentTotalDeployments > 0 ? currentTotalDeployments : cachedStats.current.total
+  const healthyDeployments = currentTotalDeployments > 0 ? currentHealthyDeployments : cachedStats.current.healthy
+  const issueCount = currentTotalDeployments > 0 ? currentIssueCount : cachedStats.current.issues
 
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
@@ -298,7 +315,7 @@ export function Deployments() {
       case 'healthy':
         return { value: healthyDeployments, sublabel: 'healthy' }
       case 'warning':
-        return { value: totalDeployments - healthyDeployments - issueCount, sublabel: 'degraded' }
+        return { value: Math.max(0, totalDeployments - healthyDeployments - issueCount), sublabel: 'degraded' }
       case 'critical':
         return { value: issueCount, sublabel: 'with issues' }
       default:

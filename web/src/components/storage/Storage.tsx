@@ -526,7 +526,9 @@ export function Storage() {
           isClickable: hasDataToShow && (stats?.pendingPVCs || 0) > 0
         }
       case 'storage_classes':
-        return { value: '-', sublabel: 'storage classes', isClickable: false }
+        // Count unique storage classes from PVCs (shows storage classes in use)
+        const uniqueStorageClasses = new Set(filteredPVCs.map(p => p.storageClass).filter(Boolean))
+        return { value: uniqueStorageClasses.size, sublabel: 'classes in use', isClickable: false }
       default:
         return { value: '-', sublabel: '' }
     }

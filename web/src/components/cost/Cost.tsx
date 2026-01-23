@@ -280,12 +280,27 @@ export function Cost() {
   )
   const reachableClusters = filteredClusters.filter(c => c.reachable !== false)
 
-  // Calculate basic stats
-  const totalCPU = reachableClusters.reduce((sum, c) => sum + (c.cpuCores || 0), 0)
-  const totalNodes = reachableClusters.reduce((sum, c) => sum + (c.nodeCount || 0), 0)
-  // Use estimated memory per node (32GB) to match ClusterCosts card calculation
-  const estimatedMemoryGB = totalNodes * 32
-  const totalStorageGB = reachableClusters.reduce((sum, c) => sum + (c.storageGB || 0), 0)
+  // Cloud provider pricing (same as ClusterCosts card for consistency)
+  type CloudProvider = 'estimate' | 'aws' | 'gcp' | 'azure' | 'oci' | 'openshift'
+  const CLOUD_PRICING: Record<CloudProvider, { cpu: number; memory: number; gpu: number }> = {
+    estimate: { cpu: 0.05, memory: 0.01, gpu: 2.50 },
+    aws: { cpu: 0.048, memory: 0.012, gpu: 3.06 },
+    gcp: { cpu: 0.0475, memory: 0.0064, gpu: 2.48 },
+    azure: { cpu: 0.05, memory: 0.011, gpu: 2.07 },
+    oci: { cpu: 0.025, memory: 0.0015, gpu: 2.95 },
+    openshift: { cpu: 0.048, memory: 0.012, gpu: 3.00 },
+  }
+
+  // Detect cloud provider from cluster name (matches ClusterCosts logic)
+  const detectClusterProvider = (name: string, context?: string): CloudProvider => {
+    const searchStr = `${name} ${context || ''}`.toLowerCase()
+    if (searchStr.includes('openshift') || searchStr.includes('ocp') || searchStr.includes('rosa') || searchStr.includes('aro')) return 'openshift'
+    if (searchStr.includes('eks') || searchStr.includes('aws') || searchStr.includes('amazon')) return 'aws'
+    if (searchStr.includes('gke') || searchStr.includes('gcp') || searchStr.includes('google')) return 'gcp'
+    if (searchStr.includes('aks') || searchStr.includes('azure') || searchStr.includes('microsoft')) return 'azure'
+    if (searchStr.includes('oke') || searchStr.includes('oci') || searchStr.includes('oracle') || name.toLowerCase() === 'prow') return 'oci'
+    return 'estimate'
+  }
 
   // Count GPUs from GPU nodes
   const gpuByCluster = useMemo(() => {
@@ -296,41 +311,74 @@ export function Cost() {
     })
     return map
   }, [gpuNodes])
-  const totalGPUs = reachableClusters.reduce((sum, c) => sum + (gpuByCluster[c.name] || 0), 0)
+
+  // Calculate per-cluster costs (matches ClusterCosts card exactly)
+  const costStats = useMemo(() => {
+    let totalCPU = 0
+    let totalMemoryGB = 0
+    let totalGPUs = 0
+    let totalMonthly = 0
+    let cpuMonthly = 0
+    let memoryMonthly = 0
+    let gpuMonthly = 0
+
+    reachableClusters.forEach(cluster => {
+      const cpus = cluster.cpuCores || 0
+      const memory = 32 * (cluster.nodeCount || 0) // Estimate 32GB per node (matches ClusterCosts)
+      const gpus = gpuByCluster[cluster.name] || 0
+
+      // Get per-cluster pricing based on detected provider
+      const provider = detectClusterProvider(cluster.name, cluster.context)
+      const pricing = CLOUD_PRICING[provider]
+
+      const clusterHourly = (cpus * pricing.cpu) + (memory * pricing.memory) + (gpus * pricing.gpu)
+      const clusterMonthly = clusterHourly * 24 * 30
+
+      totalCPU += cpus
+      totalMemoryGB += memory
+      totalGPUs += gpus
+      totalMonthly += clusterMonthly
+      cpuMonthly += cpus * pricing.cpu * 24 * 30
+      memoryMonthly += memory * pricing.memory * 24 * 30
+      gpuMonthly += gpus * pricing.gpu * 24 * 30
+    })
+
+    const totalStorageGB = reachableClusters.reduce((sum, c) => sum + (c.storageGB || 0), 0)
+    const storageCostPerGBMonth = 0.10
+    const storageMonthly = totalStorageGB * storageCostPerGBMonth
+
+    return {
+      totalCPU,
+      totalMemoryGB,
+      totalGPUs,
+      totalStorageGB,
+      totalMonthly: totalMonthly + storageMonthly,
+      cpuMonthly,
+      memoryMonthly,
+      gpuMonthly,
+      storageMonthly,
+    }
+  }, [reachableClusters, gpuByCluster])
 
   // Stats value getter for the configurable StatsOverview component
-  // Cost calculations use hourly rates (same as ClusterCosts card) to match displayed values
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
-    // Hourly rates (matches ClusterCosts card "estimate" pricing)
-    const cpuCostPerHour = 0.035
-    const memoryCostPerGBHour = 0.0045
-    const gpuCostPerHour = 2.50
-    const storageCostPerGBMonth = 0.10
-
-    // Calculate monthly costs (hourly * 24 * 30)
-    const cpuMonthly = totalCPU * cpuCostPerHour * 24 * 30
-    const memoryMonthly = estimatedMemoryGB * memoryCostPerGBHour * 24 * 30
-    const gpuMonthly = totalGPUs * gpuCostPerHour * 24 * 30
-    const storageMonthly = totalStorageGB * storageCostPerGBMonth
-    const totalMonthly = cpuMonthly + memoryMonthly + gpuMonthly + storageMonthly
-
     switch (blockId) {
       case 'total_cost':
-        return { value: `$${Math.round(totalMonthly).toLocaleString()}`, sublabel: 'est. monthly' }
+        return { value: `$${Math.round(costStats.totalMonthly).toLocaleString()}`, sublabel: 'est. monthly' }
       case 'cpu_cost':
-        return { value: `$${Math.round(cpuMonthly).toLocaleString()}`, sublabel: `${totalCPU} cores` }
+        return { value: `$${Math.round(costStats.cpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalCPU} cores` }
       case 'memory_cost':
-        return { value: `$${Math.round(memoryMonthly).toLocaleString()}`, sublabel: `${estimatedMemoryGB} GB` }
+        return { value: `$${Math.round(costStats.memoryMonthly).toLocaleString()}`, sublabel: `${costStats.totalMemoryGB} GB` }
       case 'storage_cost':
-        return { value: `$${Math.round(storageMonthly).toLocaleString()}`, sublabel: totalStorageGB >= 1024 ? `${(totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(totalStorageGB)} GB` }
+        return { value: `$${Math.round(costStats.storageMonthly).toLocaleString()}`, sublabel: costStats.totalStorageGB >= 1024 ? `${(costStats.totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(costStats.totalStorageGB)} GB` }
       case 'network_cost':
         return { value: '$0', sublabel: 'not tracked' }
       case 'gpu_cost':
-        return { value: `$${Math.round(gpuMonthly).toLocaleString()}`, sublabel: `${totalGPUs} GPUs` }
+        return { value: `$${Math.round(costStats.gpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalGPUs} GPUs` }
       default:
         return { value: 0 }
     }
-  }, [totalCPU, estimatedMemoryGB, totalStorageGB, totalGPUs])
+  }, [costStats])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {

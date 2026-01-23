@@ -130,7 +130,7 @@ export const NETWORK_STAT_BLOCKS: StatBlockConfig[] = [
  * Default stat blocks for the Security dashboard
  */
 export const SECURITY_STAT_BLOCKS: StatBlockConfig[] = [
-  { id: 'issues', name: 'Issues', icon: 'ShieldAlert', visible: true, color: 'red' },
+  { id: 'issues', name: 'Issues', icon: 'ShieldAlert', visible: true, color: 'purple' },
   { id: 'critical', name: 'Critical', icon: 'AlertCircle', visible: true, color: 'red' },
   { id: 'high', name: 'High', icon: 'AlertTriangle', visible: true, color: 'red' },
   { id: 'medium', name: 'Medium', icon: 'AlertTriangle', visible: true, color: 'yellow' },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from 'react'
+import { useState, useEffect, useCallback, memo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ScrollText, RefreshCw, Hourglass, GripVertical, ChevronDown, ChevronRight, Plus, LayoutGrid } from 'lucide-react'
 import {
@@ -290,19 +290,41 @@ export function Logs() {
   )
 
   // Calculate event stats
-  const totalEvents = filteredEvents.length
-  const warningCount = filteredWarningEvents.length
-  const normalCount = filteredEvents.filter(e => e.type === 'Normal').length
-  const errorCount = filteredEvents.filter(e =>
+  const currentTotalEvents = filteredEvents.length
+  const currentWarningCount = filteredWarningEvents.length
+  const currentNormalCount = filteredEvents.filter(e => e.type === 'Normal').length
+  const currentErrorCount = filteredEvents.filter(e =>
     e.type === 'Warning' && (e.reason?.toLowerCase().includes('error') || e.reason?.toLowerCase().includes('failed'))
   ).length
   // Recent events (last hour)
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-  const recentCount = filteredEvents.filter(e => {
+  const currentRecentCount = filteredEvents.filter(e => {
     if (!e.lastSeen) return false
     const eventTime = new Date(e.lastSeen)
     return eventTime >= oneHourAgo
   }).length
+
+  // Cache stats to prevent showing 0 during refresh
+  const cachedStats = useRef({ total: 0, warnings: 0, normal: 0, errors: 0, recent: 0 })
+  useEffect(() => {
+    // Update cache when we have actual data
+    if (currentTotalEvents > 0 || currentWarningCount > 0) {
+      cachedStats.current = {
+        total: currentTotalEvents,
+        warnings: currentWarningCount,
+        normal: currentNormalCount,
+        errors: currentErrorCount,
+        recent: currentRecentCount,
+      }
+    }
+  }, [currentTotalEvents, currentWarningCount, currentNormalCount, currentErrorCount, currentRecentCount])
+
+  // Use cached values if current values are 0 (during refresh)
+  const totalEvents = currentTotalEvents > 0 ? currentTotalEvents : cachedStats.current.total
+  const warningCount = currentWarningCount > 0 || currentTotalEvents > 0 ? currentWarningCount : cachedStats.current.warnings
+  const normalCount = currentNormalCount > 0 || currentTotalEvents > 0 ? currentNormalCount : cachedStats.current.normal
+  const errorCount = currentErrorCount >= 0 && currentTotalEvents > 0 ? currentErrorCount : cachedStats.current.errors
+  const recentCount = currentRecentCount >= 0 && currentTotalEvents > 0 ? currentRecentCount : cachedStats.current.recent
 
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {

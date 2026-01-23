@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, memo } from 'react'
+import { useState, useMemo, useCallback, useEffect, memo, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -505,6 +505,15 @@ export function GitOps() {
     checking: apps.filter(a => a.syncStatus === 'checking').length,
   }), [apps])
 
+  // Cache helm releases count to prevent showing 0 during refresh
+  const cachedHelmCount = useRef(0)
+  useEffect(() => {
+    if (helmReleases.length > 0) {
+      cachedHelmCount.current = helmReleases.length
+    }
+  }, [helmReleases.length])
+  const helmCount = helmReleases.length > 0 ? helmReleases.length : cachedHelmCount.current
+
   const syncStatusColor = (status: string) => {
     switch (status) {
       case 'synced': return 'text-green-400 bg-green-500/20'
@@ -537,7 +546,7 @@ export function GitOps() {
       case 'total':
         return { value: stats.total, sublabel: 'apps configured' }
       case 'helm':
-        return { value: helmReleases.length, sublabel: 'helm releases' }
+        return { value: helmCount, sublabel: 'helm releases' }
       case 'kustomize':
         return { value: 0, sublabel: 'kustomize apps' }
       case 'operators':
@@ -553,7 +562,7 @@ export function GitOps() {
       default:
         return { value: 0 }
     }
-  }, [stats, setStatusFilter, helmReleases.length])
+  }, [stats, setStatusFilter, helmCount])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {
