@@ -71,6 +71,8 @@ import { OPAPolicies } from './OPAPolicies'
 import { KyvernoPolicies } from './KyvernoPolicies'
 // Weather card
 import { Weather } from './Weather'
+// Match Game card
+import { MatchGame } from './MatchGame'
 // Stock Market Ticker card
 import { StockMarketTicker } from './StockMarketTicker'
 
@@ -160,6 +162,8 @@ export const CARD_COMPONENTS: Record<string, CardComponent> = {
   kyverno_policies: KyvernoPolicies,
   // Weather card
   weather: Weather,
+  // Match Game card
+  match_game: MatchGame,
   // Stock Market Ticker card
   stock_market_ticker: StockMarketTicker,
 
@@ -247,6 +251,8 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   user_management: 6,
   // Weather card
   weather: 6,
+  // Match Game card
+  match_game: 6,
   // Stock Market Ticker
   stock_market_ticker: 6,
 
