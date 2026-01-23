@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lightbulb, Clock, X, ChevronDown, Zap, AlertTriangle, Shield, Server, Scale, Activity, Wrench } from 'lucide-react'
+import { Lightbulb, Clock, X, ChevronDown, Zap, AlertTriangle, Shield, Server, Scale, Activity, Wrench, Stethoscope } from 'lucide-react'
 import { useMissionSuggestions, MissionSuggestion, MissionType } from '../../hooks/useMissionSuggestions'
 import { useSnoozedMissions, formatTimeRemaining } from '../../hooks/useSnoozedMissions'
 import { useMissions } from '../../hooks/useMissions'
@@ -172,7 +172,7 @@ export function MissionSuggestions() {
                       <button
                         onClick={() => handleAction(suggestion)}
                         disabled={isProcessing}
-                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                        className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
                           suggestion.priority === 'critical'
                             ? 'bg-red-500 hover:bg-red-600 text-white'
                             : suggestion.priority === 'high'
@@ -180,6 +180,7 @@ export function MissionSuggestions() {
                             : 'bg-purple-500 hover:bg-purple-600 text-white'
                         } disabled:opacity-50`}
                       >
+                        <Stethoscope className="w-3 h-3" />
                         {suggestion.action.label}
                       </button>
                       <button
