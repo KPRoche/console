@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { DollarSign, TrendingDown, AlertTriangle, ExternalLink, AlertCircle, PieChart } from 'lucide-react'
+import { DollarSign, TrendingDown, AlertTriangle, ExternalLink, AlertCircle, PieChart, ChevronRight } from 'lucide-react'
 import { RefreshButton } from '../ui/RefreshIndicator'
+import { useDrillDownActions } from '../../hooks/useDrillDown'
 
 interface KubecostOverviewProps {
   config?: {
@@ -36,6 +37,7 @@ const DEMO_RECOMMENDATIONS = [
 
 export function KubecostOverview({ config: _config }: KubecostOverviewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { drillToCost } = useDrillDownActions()
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -132,13 +134,25 @@ export function KubecostOverview({ config: _config }: KubecostOverviewProps) {
         </div>
         <div className="space-y-2">
           {DEMO_RECOMMENDATIONS.map((rec, i) => (
-            <div key={i} className="p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+            <div
+              key={i}
+              onClick={() => drillToCost('all', {
+                type: rec.type,
+                description: rec.description,
+                potentialSavings: rec.savings,
+                source: 'kubecost',
+              })}
+              className="p-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-xs text-foreground">{rec.description}</span>
+                  <span className="text-xs text-foreground group-hover:text-emerald-400">{rec.description}</span>
                 </div>
-                <span className="text-xs text-green-400 font-medium">-${rec.savings}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-green-400 font-medium">-${rec.savings}</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </div>
             </div>
           ))}
