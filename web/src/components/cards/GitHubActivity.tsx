@@ -607,10 +607,10 @@ export function GitHubActivity({ config }: { config?: GitHubActivityConfig }) {
   if (error) {
     return (
       <div className="h-full flex flex-col p-2">
-        {/* Header with settings even in error state */}
+        {/* Header with settings */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-muted-foreground">
-            {currentRepo || 'GitHub Activity'}
+            GitHub Activity
           </span>
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -618,17 +618,48 @@ export function GitHubActivity({ config }: { config?: GitHubActivityConfig }) {
               'p-1.5 rounded transition-colors',
               showSettings ? 'bg-primary/20 text-primary' : 'hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
             )}
-            title="Configure repositories"
+            title="Add repositories"
           >
-            <Settings className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Settings Panel - always accessible */}
+        {/* Always show saved repos list so user can switch */}
+        <div className="mb-3">
+          <span className="text-xs text-muted-foreground block mb-2">Your repositories:</span>
+          <div className="flex flex-wrap gap-1">
+            {savedRepos.map(repo => (
+              <span
+                key={repo}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border cursor-pointer transition-colors',
+                  repo === currentRepo
+                    ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                    : 'bg-secondary/50 border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
+                )}
+                onClick={() => handleSelectRepo(repo)}
+                title={repo === currentRepo ? 'Currently selected (stale)' : `Switch to ${repo}`}
+              >
+                {repo === currentRepo && <AlertCircle className="w-3 h-3" />}
+                {repo}
+                {savedRepos.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleRemoveRepo(repo) }}
+                    className="hover:text-red-400 ml-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Settings Panel for adding repos */}
         {showSettings && (
-          <div className="mb-4 p-3 rounded-lg bg-secondary/30 border border-border/50">
+          <div className="mb-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Configure Repository</span>
+              <span className="text-sm font-medium">Add Repository</span>
               <button
                 onClick={() => setShowSettings(false)}
                 className="p-1 rounded hover:bg-secondary text-muted-foreground"
@@ -656,75 +687,37 @@ export function GitHubActivity({ config }: { config?: GitHubActivityConfig }) {
               </button>
             </div>
 
-            {/* Saved repos */}
-            {savedRepos.length > 0 && (
-              <div className="mb-3">
-                <span className="text-xs text-muted-foreground block mb-2">Your saved repositories:</span>
+            {/* Preset repos */}
+            {PRESET_REPOS.filter(r => !savedRepos.includes(r)).length > 0 && (
+              <div>
+                <span className="text-xs text-muted-foreground block mb-2">Popular repositories:</span>
                 <div className="flex flex-wrap gap-1">
-                  {savedRepos.map(repo => (
-                    <span
+                  {PRESET_REPOS.filter(r => !savedRepos.includes(r)).slice(0, 4).map(repo => (
+                    <button
                       key={repo}
-                      className={cn(
-                        'inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border cursor-pointer',
-                        repo === currentRepo
-                          ? 'bg-primary/20 border-primary/50 text-primary'
-                          : 'bg-secondary/50 border-border text-muted-foreground hover:bg-secondary'
-                      )}
-                      onClick={() => handleSelectRepo(repo)}
+                      onClick={() => handleAddPreset(repo)}
+                      className="px-2 py-1 text-xs rounded-full bg-secondary/50 border border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                     >
-                      {repo}
-                      {savedRepos.length > 1 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemoveRepo(repo) }}
-                          className="hover:text-red-400"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </span>
+                      + {repo}
+                    </button>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Preset repos */}
-            <div>
-              <span className="text-xs text-muted-foreground block mb-2">Popular repositories:</span>
-              <div className="flex flex-wrap gap-1">
-                {PRESET_REPOS.filter(r => !savedRepos.includes(r)).slice(0, 4).map(repo => (
-                  <button
-                    key={repo}
-                    onClick={() => handleAddPreset(repo)}
-                    className="px-2 py-1 text-xs rounded-full bg-secondary/50 border border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
-                    + {repo}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* Error message */}
+        {/* Error message - compact */}
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <AlertCircle className="w-8 h-8 text-red-400 mb-2" />
-          <p className="text-sm text-muted-foreground mb-2">{error}</p>
-          <div className="flex gap-2">
-            <button
-              onClick={refetch}
-              className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
-            >
-              Try again
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="px-3 py-1.5 text-xs bg-secondary text-foreground rounded hover:bg-secondary/80"
-            >
-              Configure repo
-            </button>
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            GitHub API may be rate-limited. Add a token for higher limits.
+          <p className="text-xs text-muted-foreground mb-2">{error}</p>
+          <button
+            onClick={refetch}
+            className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          >
+            Try again
+          </button>
+          <p className="mt-2 text-xs text-muted-foreground/70">
+            Rate-limited? Add a GitHub token in settings.
           </p>
         </div>
       </div>
