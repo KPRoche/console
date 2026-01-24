@@ -1,13 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Activity, AlertTriangle, Info, AlertCircle, Clock, Search, ChevronRight } from 'lucide-react'
 import { useClusters, useWarningEvents, useNamespaces } from '../../hooks/useMCP'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
-import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { Skeleton } from '../ui/Skeleton'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { CardControls, SortDirection } from '../ui/CardControls'
 import { Pagination, usePagination } from '../ui/Pagination'
 import { RefreshButton } from '../ui/RefreshIndicator'
+import { useCascadingSelection } from '../../lib/cards'
 
 interface NamespaceEventsProps {
   config?: {
@@ -26,40 +26,38 @@ const SORT_OPTIONS = [
 ]
 
 export function NamespaceEvents({ config }: NamespaceEventsProps) {
-  const { clusters: allClusters, isLoading: clustersLoading, isRefreshing: clustersRefreshing, refetch: refetchClusters, isFailed, consecutiveFailures, lastRefresh } = useClusters()
+  const { isLoading: clustersLoading, isRefreshing: clustersRefreshing, refetch: refetchClusters, isFailed, consecutiveFailures, lastRefresh } = useClusters()
   const { events: allEvents, isLoading: eventsLoading, isRefreshing: eventsRefreshing, refetch: refetchEvents } = useWarningEvents()
   const isRefreshing = clustersRefreshing || eventsRefreshing
   const { drillToEvents } = useDrillDownActions()
-  const [selectedCluster, setSelectedCluster] = useState<string>(config?.cluster || '')
-  const [selectedNamespace, setSelectedNamespace] = useState<string>(config?.namespace || '')
+
+  // Use cascading selection hook for cluster -> namespace
+  const {
+    selectedFirst: selectedCluster,
+    setSelectedFirst: setSelectedCluster,
+    selectedSecond: selectedNamespace,
+    setSelectedSecond: setSelectedNamespace,
+    availableFirstLevel: clusters,
+  } = useCascadingSelection({
+    storageKey: 'namespace-events',
+  })
+
+  // Apply config overrides (e.g., from drill-down navigation)
+  useEffect(() => {
+    if (config?.cluster && config.cluster !== selectedCluster) {
+      setSelectedCluster(config.cluster)
+    }
+    if (config?.namespace && config.namespace !== selectedNamespace) {
+      setSelectedNamespace(config.namespace)
+    }
+    // Only run on mount - config changes shouldn't override user selections
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const [sortBy, setSortBy] = useState<SortByOption>('time')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [limit, setLimit] = useState<number | 'unlimited'>(5)
   const [localSearch, setLocalSearch] = useState('')
-  const {
-    selectedClusters: globalSelectedClusters,
-    isAllClustersSelected,
-    customFilter,
-  } = useGlobalFilters()
-
-  // Apply global filters
-  const clusters = useMemo(() => {
-    let result = allClusters
-
-    if (!isAllClustersSelected) {
-      result = result.filter(c => globalSelectedClusters.includes(c.name))
-    }
-
-    if (customFilter.trim()) {
-      const query = customFilter.toLowerCase()
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(query) ||
-        c.context?.toLowerCase().includes(query)
-      )
-    }
-
-    return result
-  }, [allClusters, globalSelectedClusters, isAllClustersSelected, customFilter])
 
   // Fetch namespaces for the selected cluster
   const { namespaces } = useNamespaces(selectedCluster || undefined)
@@ -203,10 +201,7 @@ export function NamespaceEvents({ config }: NamespaceEventsProps) {
       <div className="flex gap-2 mb-4">
         <select
           value={selectedCluster}
-          onChange={(e) => {
-            setSelectedCluster(e.target.value)
-            setSelectedNamespace('')
-          }}
+          onChange={(e) => setSelectedCluster(e.target.value)}
           className="flex-1 px-3 py-1.5 rounded-lg bg-secondary border border-border text-sm text-foreground"
         >
           <option value="">All clusters</option>

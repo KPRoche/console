@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { TimeSeriesChart, MultiSeriesChart } from '../charts'
 import { useClusters } from '../../hooks/useMCP'
-import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { Server, Clock, Filter, ChevronDown, Layers, TrendingUp } from 'lucide-react'
 import { RefreshButton } from '../ui/RefreshIndicator'
+import { useChartFilters } from '../../lib/cards'
 
 type TimeRange = '15m' | '1h' | '6h' | '24h'
 
@@ -47,14 +47,22 @@ const STORAGE_KEY = 'cluster-metrics-history'
 const MAX_AGE_MS = 30 * 60 * 1000 // 30 minutes TTL
 
 export function ClusterMetrics() {
-  const { clusters: rawClusters, isLoading, isRefreshing, refetch, isFailed, consecutiveFailures, lastRefresh } = useClusters()
-  const { selectedClusters, isAllClustersSelected } = useGlobalFilters()
+  const { isLoading, isRefreshing, refetch, isFailed, consecutiveFailures, lastRefresh } = useClusters()
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('cpu')
   const [timeRange, setTimeRange] = useState<TimeRange>('1h')
   const [chartMode, setChartMode] = useState<ChartMode>('total')
-  const [localClusterFilter, setLocalClusterFilter] = useState<string[]>([])
-  const [showClusterFilter, setShowClusterFilter] = useState(false)
-  const clusterFilterRef = useRef<HTMLDivElement>(null)
+
+  // Use shared chart filters hook for cluster filtering
+  const {
+    localClusterFilter,
+    toggleClusterFilter,
+    clearClusterFilter,
+    availableClusters: availableClustersForFilter,
+    filteredClusters: clusters,
+    showClusterFilter,
+    setShowClusterFilter,
+    clusterFilterRef,
+  } = useChartFilters({ storageKey: 'cluster-metrics' })
 
   // Load history from localStorage
   const loadSavedHistory = useCallback((): MetricPoint[] => {
@@ -88,41 +96,6 @@ export function ClusterMetrics() {
       }
     }
   }, [history])
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (clusterFilterRef.current && !clusterFilterRef.current.contains(event.target as Node)) {
-        setShowClusterFilter(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  // Get reachable clusters
-  const reachableClusters = useMemo(() => {
-    return rawClusters.filter(c => c.reachable !== false)
-  }, [rawClusters])
-
-  // Filter clusters based on global selection AND local filter AND exclude offline/unreachable clusters
-  const clusters = useMemo(() => {
-    let filtered = reachableClusters
-    if (!isAllClustersSelected) {
-      filtered = filtered.filter(c => selectedClusters.includes(c.name))
-    }
-    // Apply local cluster filter if any selected
-    if (localClusterFilter.length > 0) {
-      filtered = filtered.filter(c => localClusterFilter.includes(c.name))
-    }
-    return filtered
-  }, [reachableClusters, selectedClusters, isAllClustersSelected, localClusterFilter])
-
-  // Get available clusters for local filter (respects global filter)
-  const availableClustersForFilter = useMemo(() => {
-    if (isAllClustersSelected) return reachableClusters
-    return reachableClusters.filter(c => selectedClusters.includes(c.name))
-  }, [reachableClusters, selectedClusters, isAllClustersSelected])
 
   // Calculate real current values from cluster data
   const realValues = useMemo(() => {
@@ -253,15 +226,6 @@ export function ClusterMetrics() {
   // Use real current value if available, otherwise use last chart value
   const currentValue = hasRealData ? realValues[selectedMetric] : (data[data.length - 1]?.value || 0)
 
-  const toggleClusterFilter = (clusterName: string) => {
-    setLocalClusterFilter(prev => {
-      if (prev.includes(clusterName)) {
-        return prev.filter(c => c !== clusterName)
-      }
-      return [...prev, clusterName]
-    })
-  }
-
   return (
     <div className="h-full flex flex-col">
       {/* Header with metric selector */}
@@ -348,7 +312,7 @@ export function ClusterMetrics() {
               <div className="absolute top-full left-0 mt-1 w-48 max-h-48 overflow-y-auto rounded-lg bg-card border border-border shadow-lg z-50">
                 <div className="p-1">
                   <button
-                    onClick={() => setLocalClusterFilter([])}
+                    onClick={clearClusterFilter}
                     className={`w-full px-2 py-1.5 text-xs text-left rounded transition-colors ${
                       localClusterFilter.length === 0 ? 'bg-purple-500/20 text-purple-400' : 'hover:bg-secondary text-foreground'
                     }`}
