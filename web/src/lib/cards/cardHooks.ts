@@ -1,0 +1,517 @@
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useGlobalFilters } from '../../hooks/useGlobalFilters'
+import { useClusters } from '../../hooks/useMCP'
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type SortDirection = 'asc' | 'desc'
+
+export interface SortOption<T> {
+  value: T
+  label: string
+}
+
+export interface FilterConfig<T> {
+  /** Fields to search when using text filter */
+  searchFields: (keyof T)[]
+  /** Field that contains the cluster name (for cluster filtering) */
+  clusterField?: keyof T
+  /** Field that contains the status (for status filtering) */
+  statusField?: keyof T
+  /** Additional filter predicate */
+  customPredicate?: (item: T, query: string) => boolean
+}
+
+export interface SortConfig<T, S extends string = string> {
+  /** Default sort field */
+  defaultField: S
+  /** Default sort direction */
+  defaultDirection: SortDirection
+  /** Compare function for each sortable field */
+  comparators: Record<S, (a: T, b: T) => number>
+}
+
+export interface CardDataConfig<T, S extends string = string> {
+  filter: FilterConfig<T>
+  sort: SortConfig<T, S>
+  /** Default items per page */
+  defaultLimit?: number | 'unlimited'
+}
+
+// ============================================================================
+// useCardFilters - Generic filtering hook
+// ============================================================================
+
+export interface UseCardFiltersResult<T> {
+  /** Filtered items */
+  filtered: T[]
+  /** Local search query */
+  search: string
+  /** Set local search query */
+  setSearch: (s: string) => void
+  /** Local cluster filter (additional to global) */
+  localClusterFilter: string[]
+  /** Toggle cluster in local filter */
+  toggleClusterFilter: (cluster: string) => void
+  /** Clear local cluster filter */
+  clearClusterFilter: () => void
+  /** Available clusters for filtering (respects global filter) */
+  availableClusters: { name: string }[]
+  /** Whether cluster filter dropdown is showing */
+  showClusterFilter: boolean
+  /** Set cluster filter dropdown visibility */
+  setShowClusterFilter: (show: boolean) => void
+  /** Ref for cluster filter dropdown (for click outside handling) */
+  clusterFilterRef: React.RefObject<HTMLDivElement>
+}
+
+export function useCardFilters<T>(
+  items: T[],
+  config: FilterConfig<T>
+): UseCardFiltersResult<T> {
+  const { searchFields, clusterField, statusField, customPredicate } = config
+  const {
+    filterByCluster,
+    filterByStatus,
+    customFilter: globalCustomFilter,
+    selectedClusters,
+    isAllClustersSelected,
+  } = useGlobalFilters()
+  const { clusters } = useClusters()
+
+  // Local state
+  const [search, setSearch] = useState('')
+  const [localClusterFilter, setLocalClusterFilter] = useState<string[]>([])
+  const [showClusterFilter, setShowClusterFilter] = useState(false)
+  const clusterFilterRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (clusterFilterRef.current && !clusterFilterRef.current.contains(event.target as Node)) {
+        setShowClusterFilter(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Available clusters for local filter (respects global filter)
+  const availableClusters = useMemo(() => {
+    const reachable = clusters.filter(c => c.reachable !== false)
+    if (isAllClustersSelected) return reachable
+    return reachable.filter(c => selectedClusters.includes(c.name))
+  }, [clusters, selectedClusters, isAllClustersSelected])
+
+  const toggleClusterFilter = useCallback((clusterName: string) => {
+    setLocalClusterFilter(prev => {
+      if (prev.includes(clusterName)) {
+        return prev.filter(c => c !== clusterName)
+      }
+      return [...prev, clusterName]
+    })
+  }, [])
+
+  const clearClusterFilter = useCallback(() => {
+    setLocalClusterFilter([])
+  }, [])
+
+  // Apply all filters
+  const filtered = useMemo(() => {
+    let result = items
+
+    // Apply global cluster filter (if clusterField specified)
+    if (clusterField) {
+      result = filterByCluster(result as Array<{ cluster?: string }>) as T[]
+    }
+
+    // Apply global status filter (if statusField specified)
+    if (statusField) {
+      result = filterByStatus(result as Array<{ status?: string }>) as T[]
+    }
+
+    // Apply local cluster filter (on top of global)
+    if (localClusterFilter.length > 0 && clusterField) {
+      result = result.filter(item => {
+        const cluster = item[clusterField]
+        return cluster && localClusterFilter.includes(String(cluster))
+      })
+    }
+
+    // Apply global custom text filter
+    if (globalCustomFilter.trim()) {
+      const query = globalCustomFilter.toLowerCase()
+      result = result.filter(item => {
+        // Check searchFields
+        for (const field of searchFields) {
+          const value = item[field]
+          if (value && String(value).toLowerCase().includes(query)) {
+            return true
+          }
+        }
+        // Check custom predicate
+        if (customPredicate && customPredicate(item, query)) {
+          return true
+        }
+        return false
+      })
+    }
+
+    // Apply local search filter
+    if (search.trim()) {
+      const query = search.toLowerCase()
+      result = result.filter(item => {
+        // Check searchFields
+        for (const field of searchFields) {
+          const value = item[field]
+          if (value && String(value).toLowerCase().includes(query)) {
+            return true
+          }
+        }
+        // Check custom predicate
+        if (customPredicate && customPredicate(item, query)) {
+          return true
+        }
+        return false
+      })
+    }
+
+    return result
+  }, [
+    items,
+    filterByCluster,
+    filterByStatus,
+    globalCustomFilter,
+    search,
+    localClusterFilter,
+    searchFields,
+    clusterField,
+    statusField,
+    customPredicate,
+  ])
+
+  return {
+    filtered,
+    search,
+    setSearch,
+    localClusterFilter,
+    toggleClusterFilter,
+    clearClusterFilter,
+    availableClusters,
+    showClusterFilter,
+    setShowClusterFilter,
+    clusterFilterRef,
+  }
+}
+
+// ============================================================================
+// useCardSort - Generic sorting hook
+// ============================================================================
+
+export interface UseCardSortResult<T, S extends string> {
+  /** Sorted items */
+  sorted: T[]
+  /** Current sort field */
+  sortBy: S
+  /** Set sort field */
+  setSortBy: (field: S) => void
+  /** Current sort direction */
+  sortDirection: SortDirection
+  /** Set sort direction */
+  setSortDirection: (dir: SortDirection) => void
+  /** Toggle sort direction */
+  toggleSortDirection: () => void
+}
+
+export function useCardSort<T, S extends string>(
+  items: T[],
+  config: SortConfig<T, S>
+): UseCardSortResult<T, S> {
+  const { defaultField, defaultDirection, comparators } = config
+  const [sortBy, setSortBy] = useState<S>(defaultField)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(defaultDirection)
+
+  const toggleSortDirection = useCallback(() => {
+    setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))
+  }, [])
+
+  const sorted = useMemo(() => {
+    const comparator = comparators[sortBy]
+    if (!comparator) return items
+
+    const sortedItems = [...items].sort((a, b) => {
+      const result = comparator(a, b)
+      return sortDirection === 'asc' ? result : -result
+    })
+
+    return sortedItems
+  }, [items, sortBy, sortDirection, comparators])
+
+  return {
+    sorted,
+    sortBy,
+    setSortBy,
+    sortDirection,
+    setSortDirection,
+    toggleSortDirection,
+  }
+}
+
+// ============================================================================
+// useCardData - Combined filter + sort + pagination
+// ============================================================================
+
+export interface UseCardDataResult<T, S extends string> {
+  /** Final processed items (filtered, sorted, paginated) */
+  items: T[]
+  /** Total items before pagination */
+  totalItems: number
+  /** Current page */
+  currentPage: number
+  /** Total pages */
+  totalPages: number
+  /** Items per page */
+  itemsPerPage: number | 'unlimited'
+  /** Go to specific page */
+  goToPage: (page: number) => void
+  /** Whether pagination is needed */
+  needsPagination: boolean
+  /** Set items per page */
+  setItemsPerPage: (limit: number | 'unlimited') => void
+  /** All filter controls */
+  filters: Omit<UseCardFiltersResult<T>, 'filtered'>
+  /** All sort controls */
+  sorting: Omit<UseCardSortResult<T, S>, 'sorted'>
+}
+
+export function useCardData<T, S extends string = string>(
+  items: T[],
+  config: CardDataConfig<T, S>
+): UseCardDataResult<T, S> {
+  const { filter: filterConfig, sort: sortConfig, defaultLimit = 5 } = config
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'unlimited'>(defaultLimit)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Apply filters
+  const filterResult = useCardFilters(items, filterConfig)
+  const { filtered } = filterResult
+
+  // Apply sorting
+  const sortResult = useCardSort(filtered, sortConfig)
+  const { sorted } = sortResult
+
+  // Calculate pagination
+  const effectivePerPage = itemsPerPage === 'unlimited' ? sorted.length : itemsPerPage
+  const totalPages = Math.ceil(sorted.length / effectivePerPage) || 1
+  const needsPagination = itemsPerPage !== 'unlimited' && sorted.length > effectivePerPage
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterResult.search, filterResult.localClusterFilter, sortResult.sortBy])
+
+  // Ensure current page is valid
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages))
+    }
+  }, [currentPage, totalPages])
+
+  // Paginate
+  const paginatedItems = useMemo(() => {
+    if (itemsPerPage === 'unlimited') return sorted
+    const start = (currentPage - 1) * effectivePerPage
+    return sorted.slice(start, start + effectivePerPage)
+  }, [sorted, currentPage, effectivePerPage, itemsPerPage])
+
+  const goToPage = useCallback((page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }, [totalPages])
+
+  // Extract filter controls (without 'filtered')
+  const { filtered: _filtered, ...filters } = filterResult
+  // Extract sort controls (without 'sorted')
+  const { sorted: _sorted, ...sorting } = sortResult
+
+  return {
+    items: paginatedItems,
+    totalItems: sorted.length,
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    goToPage,
+    needsPagination,
+    setItemsPerPage,
+    filters,
+    sorting,
+  }
+}
+
+// ============================================================================
+// Common comparators for reuse
+// ============================================================================
+
+// ============================================================================
+// useCardCollapse - Manage card collapsed state with persistence
+// ============================================================================
+
+const COLLAPSED_STORAGE_KEY = 'kubestellar-collapsed-cards'
+
+/**
+ * Get all collapsed card IDs from localStorage
+ */
+function getCollapsedCards(): Set<string> {
+  try {
+    const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY)
+    return stored ? new Set(JSON.parse(stored)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+/**
+ * Save collapsed card IDs to localStorage
+ */
+function saveCollapsedCards(collapsed: Set<string>) {
+  localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify([...collapsed]))
+}
+
+export interface UseCardCollapseResult {
+  /** Whether the card is collapsed */
+  isCollapsed: boolean
+  /** Toggle collapsed state */
+  toggleCollapsed: () => void
+  /** Set collapsed state explicitly */
+  setCollapsed: (collapsed: boolean) => void
+  /** Expand the card (shorthand for setCollapsed(false)) */
+  expand: () => void
+  /** Collapse the card (shorthand for setCollapsed(true)) */
+  collapse: () => void
+}
+
+/**
+ * Hook to manage card collapse state with localStorage persistence.
+ * Each card remembers its collapsed state across page reloads.
+ *
+ * @param cardId - Unique identifier for the card
+ * @param defaultCollapsed - Default collapsed state (defaults to false = expanded)
+ */
+export function useCardCollapse(
+  cardId: string,
+  defaultCollapsed: boolean = false
+): UseCardCollapseResult {
+  const [isCollapsed, setIsCollapsedState] = useState(() => {
+    const collapsed = getCollapsedCards()
+    return collapsed.has(cardId) || defaultCollapsed
+  })
+
+  const setCollapsed = useCallback((collapsed: boolean) => {
+    setIsCollapsedState(collapsed)
+    const collapsedCards = getCollapsedCards()
+    if (collapsed) {
+      collapsedCards.add(cardId)
+    } else {
+      collapsedCards.delete(cardId)
+    }
+    saveCollapsedCards(collapsedCards)
+  }, [cardId])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(!isCollapsed)
+  }, [isCollapsed, setCollapsed])
+
+  const expand = useCallback(() => setCollapsed(false), [setCollapsed])
+  const collapse = useCallback(() => setCollapsed(true), [setCollapsed])
+
+  return {
+    isCollapsed,
+    toggleCollapsed,
+    setCollapsed,
+    expand,
+    collapse,
+  }
+}
+
+/**
+ * Hook to manage collapse state for multiple cards at once.
+ * Useful for "collapse all" / "expand all" functionality.
+ */
+export function useCardCollapseAll(cardIds: string[]) {
+  const [collapsedSet, setCollapsedSet] = useState<Set<string>>(() => getCollapsedCards())
+
+  const collapseAll = useCallback(() => {
+    const newSet = new Set([...collapsedSet, ...cardIds])
+    setCollapsedSet(newSet)
+    saveCollapsedCards(newSet)
+  }, [cardIds, collapsedSet])
+
+  const expandAll = useCallback(() => {
+    const newSet = new Set([...collapsedSet].filter(id => !cardIds.includes(id)))
+    setCollapsedSet(newSet)
+    saveCollapsedCards(newSet)
+  }, [cardIds, collapsedSet])
+
+  const isCardCollapsed = useCallback((cardId: string) => {
+    return collapsedSet.has(cardId)
+  }, [collapsedSet])
+
+  const toggleCard = useCallback((cardId: string) => {
+    const newSet = new Set(collapsedSet)
+    if (newSet.has(cardId)) {
+      newSet.delete(cardId)
+    } else {
+      newSet.add(cardId)
+    }
+    setCollapsedSet(newSet)
+    saveCollapsedCards(newSet)
+  }, [collapsedSet])
+
+  const allCollapsed = cardIds.every(id => collapsedSet.has(id))
+  const allExpanded = cardIds.every(id => !collapsedSet.has(id))
+
+  return {
+    collapseAll,
+    expandAll,
+    isCardCollapsed,
+    toggleCard,
+    allCollapsed,
+    allExpanded,
+    collapsedCount: cardIds.filter(id => collapsedSet.has(id)).length,
+  }
+}
+
+// ============================================================================
+// Common comparators for reuse
+// ============================================================================
+
+export const commonComparators = {
+  /** Compare strings alphabetically */
+  string: <T>(field: keyof T) => (a: T, b: T) => {
+    const aVal = String(a[field] || '')
+    const bVal = String(b[field] || '')
+    return aVal.localeCompare(bVal)
+  },
+
+  /** Compare numbers */
+  number: <T>(field: keyof T) => (a: T, b: T) => {
+    const aVal = Number(a[field]) || 0
+    const bVal = Number(b[field]) || 0
+    return aVal - bVal
+  },
+
+  /** Compare by status order (for priority sorting) */
+  statusOrder: <T>(field: keyof T, order: Record<string, number>) => (a: T, b: T) => {
+    const aStatus = String(a[field] || '')
+    const bStatus = String(b[field] || '')
+    return (order[aStatus] ?? 999) - (order[bStatus] ?? 999)
+  },
+
+  /** Compare dates (ISO strings or Date objects) */
+  date: <T>(field: keyof T) => (a: T, b: T) => {
+    const aDate = new Date(a[field] as string | Date).getTime()
+    const bDate = new Date(b[field] as string | Date).getTime()
+    return aDate - bDate
+  },
+}

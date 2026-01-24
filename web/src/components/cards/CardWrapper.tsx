@@ -1,7 +1,8 @@
 import { ReactNode, useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Maximize2, MoreVertical, Clock, X, Settings, Replace, Trash2, MessageCircle, RefreshCw, MoveHorizontal, ChevronRight } from 'lucide-react'
+import { Maximize2, Minimize2, MoreVertical, Clock, X, Settings, Replace, Trash2, MessageCircle, RefreshCw, MoveHorizontal, ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { useCardCollapse } from '../../lib/cards'
 import { useSnoozedCards } from '../../hooks/useSnoozedCards'
 import { useDemoMode } from '../../hooks/useDemoMode'
 import { ChatMessage } from './CardChat'
@@ -54,6 +55,10 @@ interface CardWrapperProps {
   consecutiveFailures?: number
   /** Current card width in grid columns (1-12) */
   cardWidth?: number
+  /** Whether the card is collapsed (showing only header) */
+  isCollapsed?: boolean
+  /** Callback when collapsed state changes */
+  onCollapsedChange?: (collapsed: boolean) => void
   onSwap?: (newType: string) => void
   onSwapCancel?: () => void
   onConfigure?: () => void
@@ -157,6 +162,8 @@ export function CardWrapper({
   isFailed,
   consecutiveFailures,
   cardWidth,
+  isCollapsed: externalCollapsed,
+  onCollapsedChange,
   onSwap,
   onSwapCancel,
   onConfigure,
@@ -169,6 +176,22 @@ export function CardWrapper({
   children,
 }: CardWrapperProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // Use the shared collapse hook with localStorage persistence
+  // cardId is required for persistence; fall back to cardType if not provided
+  const collapseKey = cardId || `${cardType}-default`
+  const { isCollapsed: hookCollapsed, setCollapsed: hookSetCollapsed } = useCardCollapse(collapseKey)
+
+  // Allow external control to override hook state
+  const isCollapsed = externalCollapsed ?? hookCollapsed
+  const setCollapsed = useCallback((collapsed: boolean) => {
+    if (onCollapsedChange) {
+      onCollapsedChange(collapsed)
+    }
+    // Always update the hook state for persistence
+    hookSetCollapsed(collapsed)
+  }, [onCollapsedChange, hookSetCollapsed])
+
   const [showSummary, setShowSummary] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showResizeMenu, setShowResizeMenu] = useState(false)
@@ -292,8 +315,9 @@ export function CardWrapper({
       <div
         data-tour="card"
         className={cn(
-          'glass rounded-xl h-full overflow-hidden card-hover',
-          'flex flex-col',
+          'glass rounded-xl overflow-hidden card-hover',
+          'flex flex-col transition-all duration-200',
+          isCollapsed ? 'h-auto' : 'h-full',
           (isDemoMode || isDemoData) && '!border-2 !border-yellow-500/50'
         )}
         onMouseEnter={() => setShowSummary(true)}
@@ -334,6 +358,14 @@ export function CardWrapper({
             )}
           </div>
           <div className="flex items-center gap-1">
+            {/* Collapse/expand button */}
+            <button
+              onClick={() => setCollapsed(!isCollapsed)}
+              className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
+              title={isCollapsed ? 'Expand card' : 'Collapse card'}
+            >
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
             {/* Manual refresh button */}
             {onRefresh && (
               <button
@@ -463,11 +495,13 @@ export function CardWrapper({
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-4 overflow-auto min-h-0 flex flex-col">{children}</div>
+        {/* Content - hidden when collapsed */}
+        {!isCollapsed && (
+          <div className="flex-1 p-4 overflow-auto min-h-0 flex flex-col">{children}</div>
+        )}
 
-        {/* Pending swap notification */}
-        {pendingSwap && (
+        {/* Pending swap notification - hidden when collapsed */}
+        {!isCollapsed && pendingSwap && (
           <div className="px-4 py-3 bg-purple-500/10 border-t border-purple-500/20">
             <div className="flex items-center gap-2 text-sm">
               <span title="Card swap pending"><Clock className="w-4 h-4 text-purple-400 animate-pulse" /></span>
