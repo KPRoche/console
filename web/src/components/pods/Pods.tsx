@@ -346,18 +346,26 @@ export function Pods() {
         drillToPod(filteredPodIssues[0].cluster || '', filteredPodIssues[0].namespace, filteredPodIssues[0].name)
       }
     }
+    const drillToPending = () => {
+      const pending = filteredPodIssues.find(p => p.reason === 'Pending' || p.status === 'Pending')
+      if (pending) drillToPod(pending.cluster || '', pending.namespace, pending.name)
+    }
+    const drillToHighRestarts = () => {
+      const highRestart = filteredPodIssues.find(p => (p.restarts || 0) > 5)
+      if (highRestart) drillToPod(highRestart.cluster || '', highRestart.namespace, highRestart.name)
+    }
 
     switch (blockId) {
       case 'total_pods':
-        return { value: stats.totalPods, sublabel: 'total pods' }
+        return { value: stats.totalPods, sublabel: 'total pods', onClick: drillToFirstIssue, isClickable: filteredPodIssues.length > 0 }
       case 'healthy':
         return { value: stats.healthy, sublabel: 'healthy pods' }
       case 'issues':
         return { value: stats.issues, sublabel: 'pod issues', onClick: drillToFirstIssue, isClickable: stats.issues > 0 }
       case 'pending':
-        return { value: stats.pending, sublabel: 'pending pods' }
+        return { value: stats.pending, sublabel: 'pending pods', onClick: drillToPending, isClickable: stats.pending > 0 }
       case 'restarts':
-        return { value: stats.restarts, sublabel: 'high restart pods' }
+        return { value: stats.restarts, sublabel: 'high restart pods', onClick: drillToHighRestarts, isClickable: stats.restarts > 0 }
       case 'clusters':
         return { value: stats.clusters, sublabel: 'clusters' }
       default:

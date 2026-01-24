@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useAlerts, useAlertRules } from '../../hooks/useAlerts'
 import { useClusters } from '../../hooks/useMCP'
+import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { CardWrapper } from '../cards/CardWrapper'
 import { AddCardModal } from '../dashboard/AddCardModal'
 import { TemplatesModal } from '../dashboard/TemplatesModal'
@@ -138,6 +139,7 @@ export function Alerts() {
   const { stats, evaluateConditions } = useAlerts()
   const { rules } = useAlertRules()
   const { isRefreshing, refetch } = useClusters()
+  const { drillToAlert } = useDrillDownActions()
 
   // Reset hook for dashboard
   const { reset, isCustomized } = useDashboardReset({
@@ -225,21 +227,28 @@ export function Alerts() {
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
     const disabledRulesCount = rules.filter(r => !r.enabled).length
+    const drillToFiringAlert = () => {
+      drillToAlert('all', undefined, 'Active Alerts', { status: 'firing', count: stats.firing })
+    }
+    const drillToResolvedAlert = () => {
+      drillToAlert('all', undefined, 'Resolved Alerts', { status: 'resolved', count: stats.resolved })
+    }
+
     switch (blockId) {
       case 'firing':
-        return { value: stats.firing, sublabel: 'active alerts', isClickable: false }
+        return { value: stats.firing, sublabel: 'active alerts', onClick: drillToFiringAlert, isClickable: stats.firing > 0 }
       case 'pending':
-        return { value: 0, sublabel: 'pending' }
+        return { value: 0, sublabel: 'pending', isClickable: false }
       case 'resolved':
-        return { value: stats.resolved, sublabel: 'resolved' }
+        return { value: stats.resolved, sublabel: 'resolved', onClick: drillToResolvedAlert, isClickable: stats.resolved > 0 }
       case 'rules_enabled':
-        return { value: enabledRulesCount, sublabel: 'rules enabled' }
+        return { value: enabledRulesCount, sublabel: 'rules enabled', isClickable: false }
       case 'rules_disabled':
-        return { value: disabledRulesCount, sublabel: 'rules disabled' }
+        return { value: disabledRulesCount, sublabel: 'rules disabled', isClickable: false }
       default:
         return { value: 0 }
     }
-  }, [stats, enabledRulesCount, rules])
+  }, [stats, enabledRulesCount, rules, drillToAlert])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {

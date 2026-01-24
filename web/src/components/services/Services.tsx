@@ -24,6 +24,7 @@ import { useClusters, useServices } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDashboardReset } from '../../hooks/useDashboardReset'
+import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
@@ -156,6 +157,7 @@ export function Services() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { clusters, isLoading, isRefreshing, lastUpdated, refetch } = useClusters()
   const { services } = useServices()
+  const { drillToService } = useDrillDownActions()
   const { selectedClusters: globalSelectedClusters, isAllClustersSelected } = useGlobalFilters()
 
   // Card state
@@ -294,27 +296,46 @@ export function Services() {
 
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
+    const drillToFirstService = () => {
+      if (filteredServices.length > 0 && filteredServices[0]) {
+        const svc = filteredServices[0]
+        drillToService(svc.cluster || '', svc.namespace, svc.name)
+      }
+    }
+    const drillToLoadBalancer = () => {
+      const lb = filteredServices.find(s => s.type === 'LoadBalancer')
+      if (lb) drillToService(lb.cluster || '', lb.namespace, lb.name)
+    }
+    const drillToNodePort = () => {
+      const np = filteredServices.find(s => s.type === 'NodePort')
+      if (np) drillToService(np.cluster || '', np.namespace, np.name)
+    }
+    const drillToClusterIP = () => {
+      const cip = filteredServices.find(s => s.type === 'ClusterIP')
+      if (cip) drillToService(cip.cluster || '', cip.namespace, cip.name)
+    }
+
     switch (blockId) {
       case 'clusters':
         return { value: reachableClusters.length, sublabel: 'clusters' }
       case 'healthy':
         return { value: reachableClusters.length, sublabel: 'with services' }
       case 'services':
-        return { value: totalServices, sublabel: 'total services' }
+        return { value: totalServices, sublabel: 'total services', onClick: drillToFirstService, isClickable: totalServices > 0 }
       case 'loadbalancers':
-        return { value: loadBalancers, sublabel: 'load balancers' }
+        return { value: loadBalancers, sublabel: 'load balancers', onClick: drillToLoadBalancer, isClickable: loadBalancers > 0 }
       case 'nodeport':
-        return { value: nodePortServices, sublabel: 'NodePort' }
+        return { value: nodePortServices, sublabel: 'NodePort', onClick: drillToNodePort, isClickable: nodePortServices > 0 }
       case 'clusterip':
-        return { value: clusterIPServices, sublabel: 'ClusterIP' }
+        return { value: clusterIPServices, sublabel: 'ClusterIP', onClick: drillToClusterIP, isClickable: clusterIPServices > 0 }
       case 'ingresses':
-        return { value: 0, sublabel: 'ingresses' } // TODO: add ingress data
+        return { value: 0, sublabel: 'ingresses', isClickable: false } // TODO: add ingress data
       case 'endpoints':
-        return { value: totalServices, sublabel: 'endpoints' }
+        return { value: totalServices, sublabel: 'endpoints', onClick: drillToFirstService, isClickable: totalServices > 0 }
       default:
         return { value: 0 }
     }
-  }, [reachableClusters.length, totalServices, loadBalancers, nodePortServices, clusterIPServices])
+  }, [reachableClusters.length, totalServices, loadBalancers, nodePortServices, clusterIPServices, filteredServices, drillToService])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {

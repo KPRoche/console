@@ -24,6 +24,7 @@ import { useClusters, useGPUNodes } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDashboardReset } from '../../hooks/useDashboardReset'
+import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
 import { AddCardModal } from '../dashboard/AddCardModal'
@@ -164,6 +165,7 @@ export function Cost() {
   const location = useLocation()
   const { clusters, isLoading, refetch, lastUpdated, isRefreshing } = useClusters()
   const { nodes: gpuNodes } = useGPUNodes()
+  const { drillToCost } = useDrillDownActions()
   const { selectedClusters: globalSelectedClusters, isAllClustersSelected } = useGlobalFilters()
   const { showCards, expandCards } = useShowCards('kubestellar-cost')
 
@@ -391,23 +393,27 @@ export function Cost() {
 
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
+    const drillToCostType = (type: string) => {
+      drillToCost('all', { costType: type, totalMonthly: costStats.totalMonthly })
+    }
+
     switch (blockId) {
       case 'total_cost':
-        return { value: `$${Math.round(costStats.totalMonthly).toLocaleString()}`, sublabel: 'est. monthly' }
+        return { value: `$${Math.round(costStats.totalMonthly).toLocaleString()}`, sublabel: 'est. monthly', onClick: () => drillToCostType('total'), isClickable: costStats.totalMonthly > 0 }
       case 'cpu_cost':
-        return { value: `$${Math.round(costStats.cpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalCPU} cores` }
+        return { value: `$${Math.round(costStats.cpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalCPU} cores`, onClick: () => drillToCostType('cpu'), isClickable: costStats.cpuMonthly > 0 }
       case 'memory_cost':
-        return { value: `$${Math.round(costStats.memoryMonthly).toLocaleString()}`, sublabel: `${costStats.totalMemoryGB} GB` }
+        return { value: `$${Math.round(costStats.memoryMonthly).toLocaleString()}`, sublabel: `${costStats.totalMemoryGB} GB`, onClick: () => drillToCostType('memory'), isClickable: costStats.memoryMonthly > 0 }
       case 'storage_cost':
-        return { value: `$${Math.round(costStats.storageMonthly).toLocaleString()}`, sublabel: costStats.totalStorageGB >= 1024 ? `${(costStats.totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(costStats.totalStorageGB)} GB` }
+        return { value: `$${Math.round(costStats.storageMonthly).toLocaleString()}`, sublabel: costStats.totalStorageGB >= 1024 ? `${(costStats.totalStorageGB / 1024).toFixed(1)} TB` : `${Math.round(costStats.totalStorageGB)} GB`, onClick: () => drillToCostType('storage'), isClickable: costStats.storageMonthly > 0 }
       case 'network_cost':
-        return { value: '$0', sublabel: 'not tracked' }
+        return { value: '$0', sublabel: 'not tracked', isClickable: false }
       case 'gpu_cost':
-        return { value: `$${Math.round(costStats.gpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalGPUs} GPUs` }
+        return { value: `$${Math.round(costStats.gpuMonthly).toLocaleString()}`, sublabel: `${costStats.totalGPUs} GPUs`, onClick: () => drillToCostType('gpu'), isClickable: costStats.gpuMonthly > 0 }
       default:
         return { value: 0 }
     }
-  }, [costStats])
+  }, [costStats, drillToCost])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {

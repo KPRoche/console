@@ -24,6 +24,7 @@ import { useDeployments, useDeploymentIssues, usePodIssues, useClusters } from '
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useShowCards } from '../../hooks/useShowCards'
 import { useDashboardReset } from '../../hooks/useDashboardReset'
+import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
@@ -158,6 +159,7 @@ export function Deployments() {
   const { issues: deploymentIssues, refetch: refetchIssues } = useDeploymentIssues()
   const { issues: podIssues } = usePodIssues()
   const { clusters: _clusters } = useClusters()
+  const { drillToDeployment, drillToPod } = useDrillDownActions()
   const { selectedClusters: globalSelectedClusters, isAllClustersSelected } = useGlobalFilters()
 
   // Card state
@@ -310,25 +312,48 @@ export function Deployments() {
 
   // Stats value getter for the configurable StatsOverview component
   const getStatValue = useCallback((blockId: string): StatBlockValue => {
+    // Drill to first healthy deployment
+    const drillToFirstHealthy = () => {
+      const healthy = filteredDeployments.find(d => d.readyReplicas === d.replicas && d.replicas > 0)
+      if (healthy) drillToDeployment(healthy.cluster || '', healthy.namespace, healthy.name)
+    }
+    // Drill to first deployment with issues
+    const drillToFirstIssue = () => {
+      if (deploymentIssues.length > 0 && deploymentIssues[0]) {
+        drillToDeployment(deploymentIssues[0].cluster || '', deploymentIssues[0].namespace, deploymentIssues[0].name)
+      }
+    }
+    // Drill to first degraded deployment
+    const drillToDegraded = () => {
+      const degraded = filteredDeployments.find(d => d.readyReplicas !== d.replicas && d.readyReplicas > 0)
+      if (degraded) drillToDeployment(degraded.cluster || '', degraded.namespace, degraded.name)
+    }
+    // Drill to first pod issue
+    const drillToFirstPodIssue = () => {
+      if (podIssues.length > 0 && podIssues[0]) {
+        drillToPod(podIssues[0].cluster || '', podIssues[0].namespace, podIssues[0].name)
+      }
+    }
+
     switch (blockId) {
       case 'namespaces':
-        return { value: totalDeployments, sublabel: 'total deployments' }
+        return { value: totalDeployments, sublabel: 'total deployments', onClick: drillToFirstHealthy, isClickable: totalDeployments > 0 }
       case 'healthy':
-        return { value: healthyDeployments, sublabel: 'healthy' }
+        return { value: healthyDeployments, sublabel: 'healthy', onClick: drillToFirstHealthy, isClickable: healthyDeployments > 0 }
       case 'warning':
-        return { value: Math.max(0, totalDeployments - healthyDeployments - issueCount), sublabel: 'degraded' }
+        return { value: Math.max(0, totalDeployments - healthyDeployments - issueCount), sublabel: 'degraded', onClick: drillToDegraded, isClickable: totalDeployments - healthyDeployments - issueCount > 0 }
       case 'critical':
-        return { value: issueCount, sublabel: 'with issues' }
+        return { value: issueCount, sublabel: 'with issues', onClick: drillToFirstIssue, isClickable: issueCount > 0 }
       case 'deployments':
-        return { value: totalDeployments, sublabel: 'deployments' }
+        return { value: totalDeployments, sublabel: 'deployments', onClick: drillToFirstHealthy, isClickable: totalDeployments > 0 }
       case 'pod_issues':
-        return { value: podIssues.length, sublabel: 'pod issues' }
+        return { value: podIssues.length, sublabel: 'pod issues', onClick: drillToFirstPodIssue, isClickable: podIssues.length > 0 }
       case 'deployment_issues':
-        return { value: issueCount, sublabel: 'deploy issues' }
+        return { value: issueCount, sublabel: 'deploy issues', onClick: drillToFirstIssue, isClickable: issueCount > 0 }
       default:
         return { value: 0 }
     }
-  }, [totalDeployments, healthyDeployments, issueCount, podIssues.length])
+  }, [totalDeployments, healthyDeployments, issueCount, podIssues, filteredDeployments, deploymentIssues, drillToDeployment, drillToPod])
 
   // Transform card for ConfigureCardModal
   const configureCard = configuringCard ? {
