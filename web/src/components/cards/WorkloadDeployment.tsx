@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import {
   Box,
   CheckCircle2,
@@ -11,10 +13,12 @@ import {
   Database,
   Gauge,
   Plus,
-  ArrowUpRight
+  ArrowUpRight,
+  GripVertical
 } from 'lucide-react'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { RefreshButton } from '../ui/RefreshIndicator'
+import { cn } from '../../lib/cn'
 
 // Workload types
 type WorkloadType = 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob'
@@ -28,7 +32,7 @@ interface ClusterDeployment {
   lastUpdated: string
 }
 
-interface Workload {
+export interface Workload {
   name: string
   namespace: string
   type: WorkloadType
@@ -189,6 +193,146 @@ const statusColors: Record<WorkloadStatus, string> = {
   Unknown: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
 }
 
+// Draggable workload item component
+interface DraggableWorkloadItemProps {
+  workload: Workload
+  isSelected: boolean
+  onSelect: () => void
+}
+
+function DraggableWorkloadItem({ workload, isSelected, onSelect }: DraggableWorkloadItemProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `workload-${workload.namespace}-${workload.name}`,
+    data: {
+      type: 'workload',
+      workload: {
+        name: workload.name,
+        namespace: workload.namespace,
+        type: workload.type,
+        currentClusters: workload.targetClusters,
+      },
+    },
+  })
+
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+        zIndex: isDragging ? 1000 : undefined,
+      }
+    : undefined
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'p-3 transition-colors',
+        isDragging
+          ? 'bg-blue-100 dark:bg-blue-900/40 shadow-lg rounded-lg opacity-90'
+          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+        isSelected && !isDragging && 'bg-blue-50 dark:bg-blue-900/20'
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
+          {/* Drag handle */}
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+            title="Drag to deploy to cluster"
+          >
+            <GripVertical className="h-4 w-4 text-gray-400" />
+          </div>
+          <TypeIcon type={workload.type} />
+          <div className="min-w-0" onClick={onSelect}>
+            <div className="flex items-center gap-2 cursor-pointer">
+              <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                {workload.name}
+              </span>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[workload.status]}`}>
+                {workload.status}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+              <span className="truncate">{workload.namespace}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span>{workload.type}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs shrink-0">
+          <StatusIcon status={workload.status} />
+          <span className="text-gray-600 dark:text-gray-400">
+            {workload.readyReplicas}/{workload.replicas}
+          </span>
+        </div>
+      </div>
+
+      {/* Image */}
+      <div className="mt-1.5 ml-10 text-xs text-gray-500 dark:text-gray-400 truncate font-mono">
+        {workload.image}
+      </div>
+
+      {/* Cluster deployments */}
+      <div className="mt-2 ml-10 flex flex-wrap gap-1">
+        {workload.deployments.map((d) => (
+          <div
+            key={d.cluster}
+            className="flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded"
+          >
+            <StatusIcon status={d.status} />
+            <ClusterBadge cluster={d.cluster} size="sm" />
+            <span className="text-gray-500 dark:text-gray-400">
+              {d.readyReplicas}/{d.replicas}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Expanded details */}
+      {isSelected && !isDragging && (
+        <div className="mt-3 pt-3 ml-10 border-t border-gray-200 dark:border-gray-600 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Target Clusters</span>
+            <div className="flex gap-1">
+              {workload.targetClusters.map((c) => (
+                <ClusterBadge key={c} cluster={c} size="sm" />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Labels</span>
+            <div className="flex gap-1 flex-wrap justify-end">
+              {Object.entries(workload.labels).map(([k, v]) => (
+                <span
+                  key={k}
+                  className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono"
+                >
+                  {k}={v}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
+              <ArrowUpRight className="h-3 w-3" />
+              Scale
+            </button>
+            <button className="flex items-center gap-1 text-xs px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded transition-colors">
+              <Plus className="h-3 w-3" />
+              Deploy to Cluster
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 italic">
+            Tip: Drag workload to deploy to additional clusters
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface WorkloadDeploymentProps {
   config?: Record<string, unknown>
   onRefresh?: () => void
@@ -226,7 +370,7 @@ export function WorkloadDeployment({ onRefresh, isRefreshing = false }: Workload
       {/* Demo badge */}
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-3 py-1 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
         <AlertTriangle className="h-3 w-3" />
-        Demo data - Connect clusters to see real workloads
+        Demo data - Drag workloads to deploy to clusters
       </div>
 
       {/* Header */}
@@ -314,98 +458,14 @@ export function WorkloadDeployment({ onRefresh, isRefreshing = false }: Workload
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-700">
             {filteredWorkloads.map((workload) => (
-              <div
+              <DraggableWorkloadItem
                 key={`${workload.namespace}/${workload.name}`}
-                className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${
-                  selectedWorkload?.name === workload.name ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
-                onClick={() => setSelectedWorkload(selectedWorkload?.name === workload.name ? null : workload)}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <TypeIcon type={workload.type} />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                          {workload.name}
-                        </span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[workload.status]}`}>
-                          {workload.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                        <span className="truncate">{workload.namespace}</span>
-                        <span className="text-gray-300 dark:text-gray-600">|</span>
-                        <span>{workload.type}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs shrink-0">
-                    <StatusIcon status={workload.status} />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {workload.readyReplicas}/{workload.replicas}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Image */}
-                <div className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 truncate font-mono">
-                  {workload.image}
-                </div>
-
-                {/* Cluster deployments */}
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {workload.deployments.map((d) => (
-                    <div
-                      key={d.cluster}
-                      className="flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded"
-                    >
-                      <StatusIcon status={d.status} />
-                      <ClusterBadge cluster={d.cluster} size="sm" />
-                      <span className="text-gray-500 dark:text-gray-400">
-                        {d.readyReplicas}/{d.replicas}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Expanded details */}
-                {selectedWorkload?.name === workload.name && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Target Clusters</span>
-                      <div className="flex gap-1">
-                        {workload.targetClusters.map((c) => (
-                          <ClusterBadge key={c} cluster={c} size="sm" />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Labels</span>
-                      <div className="flex gap-1 flex-wrap justify-end">
-                        {Object.entries(workload.labels).map(([k, v]) => (
-                          <span
-                            key={k}
-                            className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono"
-                          >
-                            {k}={v}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <button className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
-                        <ArrowUpRight className="h-3 w-3" />
-                        Scale
-                      </button>
-                      <button className="flex items-center gap-1 text-xs px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded transition-colors">
-                        <Plus className="h-3 w-3" />
-                        Deploy to Cluster
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                workload={workload}
+                isSelected={selectedWorkload?.name === workload.name}
+                onSelect={() =>
+                  setSelectedWorkload(selectedWorkload?.name === workload.name ? null : workload)
+                }
+              />
             ))}
           </div>
         )}
@@ -413,3 +473,6 @@ export function WorkloadDeployment({ onRefresh, isRefreshing = false }: Workload
     </div>
   )
 }
+
+// Export types for use in other components
+export type { WorkloadType, WorkloadStatus, ClusterDeployment }

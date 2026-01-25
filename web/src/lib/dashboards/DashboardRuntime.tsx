@@ -32,11 +32,13 @@
  * ```
  */
 
-import { ReactNode, useCallback, useMemo } from 'react'
+import { ReactNode, useCallback, useMemo, useState } from 'react'
 import {
   DndContext,
   closestCenter,
   DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { DashboardDefinition, NewCardInput } from './types'
@@ -56,6 +58,7 @@ import { AddCardModal } from '../../components/dashboard/AddCardModal'
 import { TemplatesModal } from '../../components/dashboard/TemplatesModal'
 import { ConfigureCardModal } from '../../components/dashboard/ConfigureCardModal'
 import { FloatingDashboardActions } from '../../components/dashboard/FloatingDashboardActions'
+import { ClusterDropZone } from '../../components/cards/ClusterDropZone'
 
 // ============================================================================
 // Dashboard Registry
@@ -174,6 +177,47 @@ export function DashboardRuntime({
     setAutoRefresh,
   } = dashboard
 
+  // Workload drag-drop state for deploying to clusters
+  const [draggedWorkload, setDraggedWorkload] = useState<{
+    name: string
+    namespace: string
+    type: string
+    currentClusters: string[]
+  } | null>(null)
+
+  // Extended drag handlers to support workload-to-cluster deployment
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    // First call the original handler for card ordering
+    dnd.handleDragStart(event)
+
+    // Check if this is a workload being dragged
+    const data = event.active.data.current
+    if (data?.type === 'workload' && data?.workload) {
+      setDraggedWorkload(data.workload)
+    }
+  }, [dnd])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    // First call the original handler for card ordering
+    dnd.handleDragEnd(event)
+
+    // Check if workload was dropped on a cluster
+    const activeData = event.active.data.current
+    const overData = event.over?.data.current
+
+    if (activeData?.type === 'workload' && overData?.type === 'cluster') {
+      const workload = activeData.workload
+      const cluster = overData.cluster
+
+      // Trigger deploy action (could be a toast notification or API call)
+      console.log(`Deploying ${workload.name} to ${cluster}`)
+      // TODO: Call deploy API here
+    }
+
+    // Clear dragged workload state
+    setDraggedWorkload(null)
+  }, [dnd])
+
   // Get stats value getter from registry or props
   const getStatValue = useMemo(() => {
     if (customGetStatValue) return customGetStatValue
@@ -282,8 +326,8 @@ export function DashboardRuntime({
             <DndContext
               sensors={dnd.sensors}
               collisionDetection={closestCenter}
-              onDragStart={dnd.handleDragStart}
-              onDragEnd={dnd.handleDragEnd}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
               <SortableContext items={cards.map(c => c.id)} strategy={rectSortingStrategy}>
                 <DashboardCardsGrid>
@@ -304,6 +348,11 @@ export function DashboardRuntime({
                   <DragPreviewCard card={cards.find(c => c.id === dnd.activeId)!} />
                 ) : null}
               </DragOverlay>
+              {/* Cluster drop zone for workload deployment */}
+              <ClusterDropZone
+                isDragging={draggedWorkload !== null}
+                draggedWorkload={draggedWorkload}
+              />
             </DndContext>
           )}
         </DashboardCardsSection>
