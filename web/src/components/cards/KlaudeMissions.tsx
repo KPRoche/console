@@ -709,27 +709,20 @@ export function KlaudeOfflineDetectionCard(_props: KlaudeMissionCardProps) {
   const { isLoading, isRefreshing, refetch, isFailed, consecutiveFailures, lastRefresh } = useClusters()
   const { nodes: gpuNodes, isLoading: gpuLoading } = useGPUNodes()
   const { selectedClusters, isAllClustersSelected, customFilter } = useGlobalFilters()
-  const { drillToCluster } = useDrillDownActions()
+  const { drillToCluster, drillToNode } = useDrillDownActions()
   const { showKeyPrompt, checkKeyAndRun, goToSettings, dismissPrompt } = useApiKeyCheck()
 
   // Get all nodes from direct API fetch
   const [allNodes, setAllNodes] = useState<Array<{ name: string; cluster?: string; status: string; roles: string[]; unschedulable?: boolean }>>([])
   const [nodesLoading, setNodesLoading] = useState(true)
 
-  // Fetch nodes on mount and when clusters change
+  // Fetch nodes from local agent (no auth required)
   useEffect(() => {
     const fetchNodes = async () => {
       setNodesLoading(true)
       try {
-        const token = localStorage.getItem('token')
-        if (!token || token === 'demo-token') {
-          setAllNodes([])
-          return
-        }
-
-        const response = await fetch('/api/mcp/nodes', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        // Use local agent directly - works without auth
+        const response = await fetch('http://127.0.0.1:8585/nodes')
 
         if (response.ok) {
           const data = await response.json()
@@ -770,10 +763,20 @@ export function KlaudeOfflineDetectionCard(_props: KlaudeMissionCardProps) {
   }, [allNodes, selectedClusters, isAllClustersSelected, customFilter])
 
   // Detect any node that is not fully Ready (NotReady, Unknown, SchedulingDisabled, Cordoned, etc.)
+  // Deduplicate by node name, preferring short cluster names
   const offlineNodes = useMemo(() => {
-    return nodes.filter(n =>
+    const unhealthy = nodes.filter(n =>
       n.status !== 'Ready' || n.unschedulable === true
     )
+    // Deduplicate by node name, keep entry with shortest cluster name
+    const byName = new Map<string, typeof unhealthy[0]>()
+    unhealthy.forEach(n => {
+      const existing = byName.get(n.name)
+      if (!existing || (n.cluster?.length || 999) < (existing.cluster?.length || 999)) {
+        byName.set(n.name, n)
+      }
+    })
+    return Array.from(byName.values())
   }, [nodes])
 
   // Detect GPU issues from GPU nodes data
@@ -813,7 +816,7 @@ export function KlaudeOfflineDetectionCard(_props: KlaudeMissionCardProps) {
 
   const doStartAnalysis = () => {
     const nodesSummary = offlineNodes.map(n =>
-      `- Node ${n.name} (${n.cluster || 'unknown'}): Status=${n.status}`
+      `- Node ${n.name} (${n.cluster || 'unknown'}): Status=${n.unschedulable ? 'Cordoned' : n.status}`
     ).join('\n')
 
     const gpuSummary = gpuIssues.map(g =>
@@ -923,12 +926,19 @@ Please:
           <div
             key={`node-${i}`}
             className="p-2 rounded bg-red-500/10 text-xs cursor-pointer hover:bg-red-500/20 transition-colors group flex items-center justify-between"
-            onClick={() => node.cluster && drillToCluster(node.cluster)}
-            title={`Click to view cluster ${node.cluster}`}
+            onClick={() => node.cluster && drillToNode(node.cluster, node.name, {
+              status: node.unschedulable ? 'Cordoned' : node.status,
+              unschedulable: node.unschedulable,
+              roles: node.roles,
+              issue: node.unschedulable ? 'Node is cordoned and not accepting new workloads' : `Node status: ${node.status}`
+            })}
+            title={`Click to diagnose ${node.name}`}
           >
             <div className="min-w-0">
               <div className="font-medium text-foreground truncate">{node.name}</div>
-              <div className="text-red-400">{node.status} • {node.cluster || 'unknown'}</div>
+              <div className="text-red-400">
+                {node.unschedulable ? 'Cordoned' : node.status} • {node.cluster || 'unknown'}
+              </div>
             </div>
             <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
           </div>
