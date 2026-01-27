@@ -145,17 +145,33 @@ jobs:
                   } catch (e) { /* ignore */ }
                 }
 
-                // 6. Check for build failures
+                // 6. Check for build failures (check both check_runs AND status contexts)
                 const { data: checkRuns } = await github.rest.checks.listForRef({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   ref: headSha
                 });
 
-                const netlifyFailed = checkRuns.check_runs.find(cr =>
-                  cr.name && cr.name.toLowerCase().includes('netlify') &&
+                const { data: statusData } = await github.rest.repos.getCombinedStatusForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: headSha
+                });
+
+                // Check check_runs for failures
+                const netlifyCheckFailed = checkRuns.check_runs.find(cr =>
+                  cr.name && (cr.name.toLowerCase().includes('netlify') || cr.name.toLowerCase().includes('kubestellar')) &&
                   cr.conclusion === 'failure'
                 );
+
+                // Check status contexts for failures (Netlify uses this)
+                const netlifyStatusFailed = statusData.statuses.find(s =>
+                  s.context && s.context.toLowerCase().includes('netlify') &&
+                  s.state === 'failure'
+                );
+
+                const netlifyFailed = netlifyCheckFailed || netlifyStatusFailed;
+                const buildUrl = netlifyCheckFailed?.details_url || netlifyStatusFailed?.target_url || 'See PR checks';
 
                 if (netlifyFailed) {
                   core.info(`  Build: FAILED`);
@@ -179,7 +195,7 @@ jobs:
                       c.body.includes('Build Failed') && c.body.includes('@Copilot')
                     ).length;
 
-                    let msg = `## Build Failed (${headSha.substring(0,7)})\n\n@Copilot The build failed. Fix the error.\n\n**Logs:** ${netlifyFailed.details_url || 'See PR checks'}`;
+                    let msg = `## Build Failed (${headSha.substring(0,7)})\n\n@Copilot The build failed. Fix the error.\n\n**Logs:** ${buildUrl}`;
 
                     if (failureCount >= 3) {
                       msg += `\n\n**Attempt #${failureCount + 1}** - Review build logs carefully.`;
@@ -211,12 +227,17 @@ jobs:
                     }
                   }
                 } else {
-                  const netlifySuccess = checkRuns.check_runs.find(cr =>
-                    cr.name && cr.name.toLowerCase().includes('netlify') &&
+                  // Check both check_runs and status contexts for success
+                  const netlifyCheckSuccess = checkRuns.check_runs.find(cr =>
+                    cr.name && (cr.name.toLowerCase().includes('netlify') || cr.name.toLowerCase().includes('kubestellar')) &&
                     cr.conclusion === 'success'
                   );
+                  const netlifyStatusSuccess = statusData.statuses.find(s =>
+                    s.context && s.context.toLowerCase().includes('netlify') &&
+                    s.state === 'success'
+                  );
 
-                  if (netlifySuccess) {
+                  if (netlifyCheckSuccess || netlifyStatusSuccess) {
                     core.info(`  Build: PASSED`);
                   } else {
                     core.info(`  Build: pending or not started`);
