@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Terminal, Stethoscope, Wrench, CheckCircle, Copy, ExternalLink } from 'lucide-react'
-import { useDrillDownActions } from '../../../hooks/useDrillDown'
+import { useDrillDownActions, useDrillDown } from '../../../hooks/useDrillDown'
 import { useMissions } from '../../../hooks/useMissions'
 
 interface Props {
@@ -16,10 +16,12 @@ export function NodeDrillDown({ data }: Props) {
   const roles = data.roles as string[] | undefined
 
   const { drillToEvents } = useDrillDownActions()
+  const { close: closeDialog } = useDrillDown()
   const { startMission } = useMissions()
   const [copied, setCopied] = useState<string | null>(null)
 
   const isOffline = status === 'Cordoned' || status === 'NotReady' || unschedulable
+  const clusterShort = cluster.split('/').pop() || cluster
 
   const copyCommand = (cmd: string, label: string) => {
     navigator.clipboard.writeText(cmd)
@@ -28,15 +30,16 @@ export function NodeDrillDown({ data }: Props) {
   }
 
   const startDiagnosis = () => {
+    closeDialog() // Close dialog so mission sidebar is visible
     startMission({
       title: `Diagnose Node: ${nodeName}`,
-      description: `Analyzing offline node ${nodeName} in cluster ${cluster}`,
+      description: `Analyzing offline node ${nodeName} in cluster ${clusterShort}`,
       type: 'troubleshoot',
       initialPrompt: `I need help diagnosing an offline/unhealthy Kubernetes node.
 
 **Node Details:**
 - Name: ${nodeName}
-- Cluster: ${cluster}
+- Cluster: ${clusterShort}
 - Status: ${status || 'Unknown'}
 - Cordoned/Unschedulable: ${unschedulable ? 'Yes' : 'No'}
 - Roles: ${roles?.join(', ') || 'worker'}
@@ -49,11 +52,9 @@ Please help me:
 4. **Prevent** - How can I prevent this from happening again?
 
 Start by checking node events and conditions.`,
-      context: { cluster, node: nodeName, status, unschedulable }
+      context: { cluster: clusterShort, node: nodeName, status, unschedulable }
     })
   }
-
-  const clusterShort = cluster.split('/').pop() || cluster
 
   return (
     <div className="space-y-6">
@@ -185,14 +186,16 @@ Start by checking node events and conditions.`,
             {/* AI-Assisted Actions */}
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => startMission({
-                  title: `Investigate: ${nodeName}`,
-                  description: `Investigating why node ${nodeName} was cordoned`,
-                  type: 'troubleshoot',
-                  initialPrompt: `I need to investigate why this Kubernetes node was cordoned.
+                onClick={() => {
+                  closeDialog()
+                  startMission({
+                    title: `Investigate: ${nodeName}`,
+                    description: `Investigating why node ${nodeName} was cordoned`,
+                    type: 'troubleshoot',
+                    initialPrompt: `I need to investigate why this Kubernetes node was cordoned.
 
 **Node:** ${nodeName}
-**Cluster:** ${cluster}
+**Cluster:** ${clusterShort}
 **Status:** Cordoned (unschedulable)
 
 Please help me:
@@ -202,22 +205,25 @@ Please help me:
 4. What kubectl commands should I run to investigate?
 
 Provide specific commands I can run to diagnose the issue.`,
-                  context: { cluster, node: nodeName }
-                })}
+                    context: { cluster: clusterShort, node: nodeName }
+                  })
+                }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 text-sm text-yellow-400 hover:bg-yellow-500/30 transition-colors"
               >
                 <Stethoscope className="w-4 h-4" />
                 Investigate Why Cordoned
               </button>
               <button
-                onClick={() => startMission({
-                  title: `Safe Uncordon: ${nodeName}`,
-                  description: `Guide me through safely uncordoning node ${nodeName}`,
-                  type: 'troubleshoot',
-                  initialPrompt: `I want to safely uncordon this Kubernetes node and restore it to service.
+                onClick={() => {
+                  closeDialog()
+                  startMission({
+                    title: `Safe Uncordon: ${nodeName}`,
+                    description: `Guide me through safely uncordoning node ${nodeName}`,
+                    type: 'troubleshoot',
+                    initialPrompt: `I want to safely uncordon this Kubernetes node and restore it to service.
 
 **Node:** ${nodeName}
-**Cluster:** ${cluster}
+**Cluster:** ${clusterShort}
 **Current Status:** Cordoned (unschedulable)
 
 Please guide me through:
@@ -228,8 +234,9 @@ Please guide me through:
 5. Rollback plan if issues occur
 
 Provide the specific kubectl commands for cluster context "${clusterShort}".`,
-                  context: { cluster, node: nodeName }
-                })}
+                    context: { cluster: clusterShort, node: nodeName }
+                  })
+                }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-sm text-green-400 hover:bg-green-500/30 transition-colors"
               >
                 <Wrench className="w-4 h-4" />
