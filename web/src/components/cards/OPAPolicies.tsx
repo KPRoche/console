@@ -19,17 +19,13 @@ interface Violation {
   severity: 'critical' | 'warning' | 'info'
 }
 
-// Demo violations data
-const DEMO_VIOLATIONS: Violation[] = [
-  { name: 'nginx-deployment', namespace: 'default', kind: 'Deployment', policy: 'require-labels', message: 'Missing required label: app.kubernetes.io/name', severity: 'warning' },
-  { name: 'redis-pod', namespace: 'cache', kind: 'Pod', policy: 'container-limits', message: 'Container "redis" does not have resource limits defined', severity: 'critical' },
-  { name: 'api-gateway', namespace: 'production', kind: 'Deployment', policy: 'container-limits', message: 'Container "gateway" memory limit exceeds maximum allowed', severity: 'warning' },
-  { name: 'worker-deployment', namespace: 'jobs', kind: 'Deployment', policy: 'container-limits', message: 'Container "worker" does not have CPU limits defined', severity: 'critical' },
-  { name: 'frontend-pod', namespace: 'web', kind: 'Pod', policy: 'allowed-repos', message: 'Image from unauthorized registry: docker.io', severity: 'warning' },
-  { name: 'debug-pod', namespace: 'default', kind: 'Pod', policy: 'no-privileged', message: 'Privileged container not allowed', severity: 'critical' },
-  { name: 'monitoring-sts', namespace: 'monitoring', kind: 'StatefulSet', policy: 'require-labels', message: 'Missing required label: team', severity: 'info' },
-  { name: 'batch-job', namespace: 'jobs', kind: 'Job', policy: 'container-limits', message: 'Container "processor" does not have memory requests defined', severity: 'warning' },
-]
+// Policy interface for real data
+interface Policy {
+  name: string
+  kind: string // ConstraintTemplate kind
+  violations: number
+  mode: 'warn' | 'enforce' | 'dryrun' | 'deny'
+}
 
 interface OPAPoliciesProps {
   config?: {
@@ -42,14 +38,17 @@ interface GatekeeperStatus {
   installed: boolean
   policyCount?: number
   violationCount?: number
-  mode?: 'dryrun' | 'warn' | 'enforce'
+  mode?: 'dryrun' | 'warn' | 'enforce' | 'deny'
   loading: boolean
   error?: string
+  policies?: Policy[]
+  violations?: Violation[]
 }
 
 // WebSocket for checking Gatekeeper status
 let gatekeeperWs: WebSocket | null = null
-let gatekeeperPendingRequests: Map<string, (result: GatekeeperStatus) => void> = new Map()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let gatekeeperPendingRequests: Map<string, (result: any) => void> = new Map()
 
 function ensureGatekeeperWs(): Promise<WebSocket> {
   // Don't try to connect if agent is unavailable
@@ -72,15 +71,13 @@ function ensureGatekeeperWs(): Promise<WebSocket> {
         const resolver = gatekeeperPendingRequests.get(msg.id)
         if (resolver) {
           gatekeeperPendingRequests.delete(msg.id)
-          if (msg.payload?.output) {
-            try {
-              const result = JSON.parse(msg.payload.output)
-              resolver(result)
-            } catch {
-              resolver({ cluster: '', installed: false, loading: false, error: 'Parse error' })
-            }
+          // Pass the raw output for kubectl commands
+          if (msg.payload?.output !== undefined) {
+            resolver({ output: msg.payload.output, error: msg.payload?.error })
+          } else if (msg.payload?.error) {
+            resolver({ output: null, error: msg.payload.error })
           } else {
-            resolver({ cluster: '', installed: false, loading: false, error: msg.payload?.error })
+            resolver({ output: null })
           }
         }
       } catch {
@@ -100,70 +97,155 @@ function ensureGatekeeperWs(): Promise<WebSocket> {
   })
 }
 
+// Send kubectl command and get response
+async function sendKubectlCommand(ws: WebSocket, clusterName: string, args: string[]): Promise<string | null> {
+  const requestId = `kubectl-${clusterName}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      gatekeeperPendingRequests.delete(requestId)
+      resolve(null)
+    }, 10000)
+
+    gatekeeperPendingRequests.set(requestId, (result: { output?: string; error?: string }) => {
+      clearTimeout(timeout)
+      if (result?.output) {
+        resolve(result.output)
+      } else {
+        resolve(null)
+      }
+    })
+
+    ws.send(JSON.stringify({
+      id: requestId,
+      type: 'kubectl',
+      payload: {
+        context: clusterName,
+        args
+      }
+    }))
+  })
+}
+
 async function checkGatekeeperStatus(clusterName: string): Promise<GatekeeperStatus> {
   try {
     const ws = await ensureGatekeeperWs()
-    const requestId = `gatekeeper-${clusterName}-${Date.now()}`
 
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        gatekeeperPendingRequests.delete(requestId)
-        resolve({ cluster: clusterName, installed: false, loading: false, error: 'Timeout' })
-      }, 15000)
+    // Step 1: Check if gatekeeper-system namespace exists
+    const nsCheck = await sendKubectlCommand(ws, clusterName, ['get', 'namespace', 'gatekeeper-system', '--ignore-not-found', '-o', 'name'])
 
-      gatekeeperPendingRequests.set(requestId, (result) => {
-        clearTimeout(timeout)
-        resolve({ ...result, cluster: clusterName })
-      })
+    if (!nsCheck || !nsCheck.includes('gatekeeper-system')) {
+      return { cluster: clusterName, installed: false, loading: false }
+    }
 
-      if (ws.readyState !== WebSocket.OPEN) {
-        gatekeeperPendingRequests.delete(requestId)
-        clearTimeout(timeout)
-        resolve({ cluster: clusterName, installed: false, loading: false, error: 'Not connected' })
-        return
-      }
+    // Step 2: Fetch all constraints with violation counts
+    // Use a custom-columns output to get name, enforcement action, and violations
+    const constraintsOutput = await sendKubectlCommand(ws, clusterName, [
+      'get', 'constraints', '-A',
+      '-o', 'custom-columns=NAME:.metadata.name,KIND:.kind,ENFORCEMENT:.spec.enforcementAction,VIOLATIONS:.status.totalViolations',
+      '--no-headers'
+    ])
 
-      // Check if gatekeeper-system namespace exists
-      ws.send(JSON.stringify({
-        id: requestId,
-        type: 'kubectl',
-        payload: {
-          context: clusterName,
-          args: ['get', 'namespace', 'gatekeeper-system', '-o', 'json']
+    const policies: Policy[] = []
+    let totalViolations = 0
+    let primaryMode: 'warn' | 'enforce' | 'dryrun' | 'deny' = 'warn'
+
+    if (constraintsOutput) {
+      const lines = constraintsOutput.trim().split('\n').filter(l => l.trim())
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/)
+        if (parts.length >= 4) {
+          const name = parts[0]
+          const kind = parts[1]
+          const enforcement = (parts[2] || 'warn').toLowerCase() as Policy['mode']
+          const violations = parseInt(parts[3], 10) || 0
+
+          policies.push({
+            name,
+            kind,
+            violations,
+            mode: enforcement === 'deny' ? 'enforce' : enforcement as Policy['mode']
+          })
+          totalViolations += violations
+
+          // Set primary mode based on first enforce/deny policy
+          if (enforcement === 'deny' || enforcement === 'enforce') {
+            primaryMode = 'enforce'
+          }
         }
-      }))
-    })
+      }
+    }
+
+    // Step 3: Fetch some sample violations for display
+    const violations: Violation[] = []
+    if (totalViolations > 0 && policies.length > 0) {
+      // Get violations from the first constraint with violations
+      const policyWithViolations = policies.find(p => p.violations > 0)
+      if (policyWithViolations) {
+        const violationsOutput = await sendKubectlCommand(ws, clusterName, [
+          'get', policyWithViolations.kind.toLowerCase(), policyWithViolations.name,
+          '-o', 'jsonpath={.status.violations[*]}'
+        ])
+
+        if (violationsOutput) {
+          try {
+            // Parse JSON violations array - the output is space-separated JSON objects
+            const violationData = JSON.parse(`[${violationsOutput.replace(/}\s*{/g, '},{')}]`)
+            for (const v of violationData.slice(0, 20)) { // Limit to 20 violations
+              violations.push({
+                name: v.name || 'Unknown',
+                namespace: v.namespace || 'default',
+                kind: v.kind || 'Resource',
+                policy: policyWithViolations.name,
+                message: v.message || 'Policy violation',
+                severity: policyWithViolations.mode === 'enforce' || policyWithViolations.mode === 'deny' ? 'critical' : 'warning'
+              })
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+
+    return {
+      cluster: clusterName,
+      installed: true,
+      loading: false,
+      policyCount: policies.length,
+      violationCount: totalViolations,
+      mode: primaryMode,
+      policies,
+      violations
+    }
   } catch {
     return { cluster: clusterName, installed: false, loading: false, error: 'Connection failed' }
   }
 }
 
-// Demo data for clusters without OPA
-const DEMO_POLICIES = [
-  { name: 'require-labels', kind: 'K8sRequiredLabels', violations: 3, mode: 'warn' as const },
-  { name: 'container-limits', kind: 'K8sContainerLimits', violations: 12, mode: 'enforce' as const },
-  { name: 'allowed-repos', kind: 'K8sAllowedRepos', violations: 0, mode: 'enforce' as const },
-  { name: 'no-privileged', kind: 'K8sPSPPrivilegedContainer', violations: 1, mode: 'dryrun' as const },
-]
 
 // Policy Detail Modal
 function PolicyDetailModal({
   isOpen,
   onClose,
   policy,
+  violations,
   onAddPolicy
 }: {
   isOpen: boolean
   onClose: () => void
-  policy: { name: string; kind: string; violations: number; mode: 'warn' | 'enforce' | 'dryrun' }
+  policy: Policy
+  violations: Violation[]
   onAddPolicy: () => void
 }) {
   // Get violations for this policy
-  const policyViolations = DEMO_VIOLATIONS.filter(v => v.policy === policy.name)
+  const policyViolations = violations.filter(v => v.policy === policy.name)
 
   const getModeColor = (mode: string) => {
     switch (mode) {
-      case 'enforce': return 'text-red-400 bg-red-500/20'
+      case 'enforce':
+      case 'deny':
+        return 'text-red-400 bg-red-500/20'
       case 'warn': return 'text-amber-400 bg-amber-500/20'
       default: return 'text-blue-400 bg-blue-500/20'
     }
@@ -398,7 +480,7 @@ export function OPAPolicies({ config: _config }: OPAPoliciesProps) {
   const [showViolationsModal, setShowViolationsModal] = useState(false)
   const [selectedClusterForViolations, setSelectedClusterForViolations] = useState<string>('')
   const [showPolicyModal, setShowPolicyModal] = useState(false)
-  const [selectedPolicy, setSelectedPolicy] = useState<typeof DEMO_POLICIES[0] | null>(null)
+  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null)
   const [localSearch, setLocalSearch] = useState('')
 
   // Use ref to avoid recreating checkAllClusters on every status change
@@ -429,28 +511,17 @@ export function OPAPolicies({ config: _config }: OPAPoliciesProps) {
     setIsRefreshing(true)
 
     // Start with existing statuses (stale-while-revalidate pattern)
-    // Use ref to avoid dependency on statuses state
     const newStatuses: Record<string, GatekeeperStatus> = { ...statusesRef.current }
 
-    for (const cluster of filteredClusters) {
-      // For vllm-d and platform-eval, we have real OPA - check it
-      // For others, show as not installed
-      if (cluster.name === 'vllm-d' || cluster.name === 'platform-eval') {
-        const status = await checkGatekeeperStatus(cluster.name)
-        newStatuses[cluster.name] = {
-          ...status,
-          installed: !status.error, // If no error getting namespace, it's installed
-          policyCount: 4,
-          violationCount: 16,
-          mode: 'warn',
-        }
-      } else {
-        newStatuses[cluster.name] = {
-          cluster: cluster.name,
-          installed: false,
-          loading: false,
-        }
-      }
+    // Check all clusters in parallel for better performance
+    const checkPromises = filteredClusters.map(async (cluster) => {
+      const status = await checkGatekeeperStatus(cluster.name)
+      return { name: cluster.name, status }
+    })
+
+    const results = await Promise.all(checkPromises)
+    for (const { name, status } of results) {
+      newStatuses[name] = status
     }
 
     setStatuses(newStatuses)
@@ -687,42 +758,48 @@ Let's start by discussing what kind of policy I need.`,
         </button>
       )}
 
-      {/* Demo policies preview */}
-      {installedCount > 0 && (
-        <div className="mt-3 pt-3 border-t border-border/50">
-          <p className="text-[10px] text-muted-foreground font-medium mb-2 flex items-center gap-1">
-            <Info className="w-3 h-3" />
-            Sample Policies
-          </p>
-          <div className="space-y-1">
-            {DEMO_POLICIES.slice(0, 3).map(policy => (
-              <button
-                key={policy.name}
-                onClick={() => {
-                  setSelectedPolicy(policy)
-                  setShowPolicyModal(true)
-                }}
-                className="w-full flex items-center justify-between text-xs p-1.5 -mx-1.5 rounded hover:bg-secondary/50 transition-colors group"
-              >
-                <span className="text-foreground truncate group-hover:text-purple-400">{policy.name}</span>
-                <div className="flex items-center gap-2">
-                  {policy.violations > 0 && (
-                    <span className="text-amber-400">{policy.violations}</span>
-                  )}
-                  <span className={`px-1 py-0.5 rounded text-[9px] ${
-                    policy.mode === 'enforce' ? 'bg-red-500/20 text-red-400' :
-                    policy.mode === 'warn' ? 'bg-amber-500/20 text-amber-400' :
-                    'bg-blue-500/20 text-blue-400'
-                  }`}>
-                    {policy.mode}
-                  </span>
-                  <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </button>
-            ))}
+      {/* Active policies preview - show real policies from first cluster with policies */}
+      {installedCount > 0 && (() => {
+        const clusterWithPolicies = Object.values(statuses).find(s => s.installed && s.policies && s.policies.length > 0)
+        const policies = clusterWithPolicies?.policies || []
+        if (policies.length === 0) return null
+
+        return (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground font-medium mb-2 flex items-center gap-1">
+              <Info className="w-3 h-3" />
+              Active Policies
+            </p>
+            <div className="space-y-1">
+              {policies.slice(0, 4).map(policy => (
+                <button
+                  key={policy.name}
+                  onClick={() => {
+                    setSelectedPolicy(policy)
+                    setShowPolicyModal(true)
+                  }}
+                  className="w-full flex items-center justify-between text-xs p-1.5 -mx-1.5 rounded hover:bg-secondary/50 transition-colors group"
+                >
+                  <span className="text-foreground truncate group-hover:text-purple-400">{policy.name}</span>
+                  <div className="flex items-center gap-2">
+                    {policy.violations > 0 && (
+                      <span className="text-amber-400">{policy.violations.toLocaleString()}</span>
+                    )}
+                    <span className={`px-1 py-0.5 rounded text-[9px] ${
+                      policy.mode === 'enforce' || policy.mode === 'deny' ? 'bg-red-500/20 text-red-400' :
+                      policy.mode === 'warn' ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-blue-500/20 text-blue-400'
+                    }`}>
+                      {policy.mode}
+                    </span>
+                    <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Footer links */}
       <div className="flex items-center justify-center gap-3 pt-2 mt-2 border-t border-border/50 text-[10px]">
@@ -750,7 +827,7 @@ Let's start by discussing what kind of policy I need.`,
         isOpen={showViolationsModal}
         onClose={() => setShowViolationsModal(false)}
         clusterName={selectedClusterForViolations}
-        violations={DEMO_VIOLATIONS}
+        violations={statuses[selectedClusterForViolations]?.violations || []}
         onAddPolicy={() => handleAddPolicy()}
       />
 
@@ -763,6 +840,7 @@ Let's start by discussing what kind of policy I need.`,
             setSelectedPolicy(null)
           }}
           policy={selectedPolicy}
+          violations={Object.values(statuses).flatMap(s => s.violations || [])}
           onAddPolicy={() => handleAddPolicy(selectedPolicy.name)}
         />
       )}
