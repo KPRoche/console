@@ -1,6 +1,11 @@
 name: Copilot PR Automation
 
 on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to process
+        required: true
   pull_request_target:
     types: [opened, synchronize, ready_for_review]
   check_run:
