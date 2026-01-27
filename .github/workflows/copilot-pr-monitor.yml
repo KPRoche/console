@@ -133,6 +133,7 @@ jobs:
 
                 // 5. ALWAYS mark ready if draft
                 if (pr.draft) {
+                  core.info(`  Draft: attempting to mark ready (node_id: ${pr.node_id})`);
                   try {
                     await github.graphql(`
                       mutation($prId: ID!) {
@@ -141,8 +142,12 @@ jobs:
                         }
                       }
                     `, { prId: pr.node_id });
-                    core.info(`  Draft: marked ready`);
-                  } catch (e) { /* ignore */ }
+                    core.info(`  Draft: marked ready successfully`);
+                  } catch (e) {
+                    core.warning(`  Draft: failed to mark ready - ${e.message}`);
+                  }
+                } else {
+                  core.info(`  Draft: already ready for review`);
                 }
 
                 // 6. Check for build failures (check both check_runs AND status contexts)
