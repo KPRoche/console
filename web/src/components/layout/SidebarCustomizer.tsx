@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus,
   Trash2,
@@ -13,6 +14,7 @@ import {
   LayoutDashboard,
   Square,
   Search,
+  FolderPlus,
 } from 'lucide-react'
 import {
   DndContext,
@@ -33,8 +35,10 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useSidebarConfig, SidebarItem } from '../../hooks/useSidebarConfig'
 import { useDashboards, Dashboard } from '../../hooks/useDashboards'
-import { DASHBOARD_TEMPLATES, TEMPLATE_CATEGORIES } from '../dashboard/templates'
+import { DASHBOARD_TEMPLATES, TEMPLATE_CATEGORIES, DashboardTemplate } from '../dashboard/templates'
+import { CreateDashboardModal } from '../dashboard/CreateDashboardModal'
 import { cn } from '../../lib/cn'
+import { suggestDashboardIcon, suggestIconSync } from '../../lib/iconSuggester'
 import { BaseModal } from '../../lib/modals'
 import * as Icons from 'lucide-react'
 
@@ -171,11 +175,13 @@ interface SidebarCustomizerProps {
 }
 
 export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
+  const navigate = useNavigate()
   const {
     config,
     addItem,
     addItems,
     removeItem,
+    updateItem,
     reorderItems,
     toggleClusterStatus,
     resetToDefault,
@@ -211,9 +217,10 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
     }
   }
 
-  const { getAllDashboardsWithCards } = useDashboards()
+  const { getAllDashboardsWithCards, createDashboard, dashboards } = useDashboards()
 
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false)
   const [generationResult, setGenerationResult] = useState<string | null>(null)
   const [newItemTarget, setNewItemTarget] = useState<'primary' | 'secondary'>('primary')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -308,6 +315,45 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
     setIsGenerating(false)
   }
 
+  // Handle creating a new custom dashboard
+  const handleCreateDashboard = (name: string, _template?: DashboardTemplate, description?: string) => {
+    // Generate a local ID so we don't depend on the backend API
+    const localId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const href = `/custom-dashboard/${localId}`
+
+    // Use keyword-based icon immediately, then upgrade via AI
+    const quickIcon = suggestIconSync(name)
+
+    // Add sidebar item, close modals, and navigate — all synchronous
+    addItem({
+      name: name,
+      icon: quickIcon,
+      href,
+      type: 'link',
+      description,
+    }, 'primary')
+
+    setIsCreateDashboardOpen(false)
+    onClose()
+    navigate(href)
+
+    // Try to persist to backend in the background (optional, may fail offline)
+    createDashboard(name).catch(() => {
+      // Dashboard works purely from localStorage — backend persistence is optional
+    })
+
+    // Ask AI agent for a better icon in the background
+    suggestDashboardIcon(name).then((aiIcon) => {
+      if (aiIcon && aiIcon !== quickIcon) {
+        const items = [...config.primaryNav, ...config.secondaryNav]
+        const item = items.find(i => i.href === href && i.isCustom)
+        if (item) {
+          updateItem(item.id, { icon: aiIcon })
+        }
+      }
+    })
+  }
+
   const renderIcon = (iconName: string, className?: string) => {
     const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[iconName]
     return IconComponent ? <IconComponent className={className} /> : null
@@ -335,6 +381,7 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
   )
 
   return (
+    <>
     <BaseModal isOpen={isOpen} onClose={onClose} size="lg">
       <BaseModal.Header
         title="Customize Sidebar"
@@ -346,13 +393,20 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
 
       <BaseModal.Content className="max-h-[60vh]">
           {/* Quick Actions */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"
             >
               <Plus className="w-4 h-4" />
               Add Item
+            </button>
+            <button
+              onClick={() => setIsCreateDashboardOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30"
+            >
+              <FolderPlus className="w-4 h-4" />
+              New Dashboard
             </button>
             <button
               onClick={resetToDefault}
@@ -791,5 +845,14 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
         )}
       </BaseModal.Footer>
     </BaseModal>
+
+    {/* Create Dashboard Modal */}
+    <CreateDashboardModal
+      isOpen={isCreateDashboardOpen}
+      onClose={() => setIsCreateDashboardOpen(false)}
+      onCreate={handleCreateDashboard}
+      existingNames={dashboards.map(d => d.name)}
+    />
+    </>
   )
 }
