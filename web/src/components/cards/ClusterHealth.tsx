@@ -77,7 +77,9 @@ function getClusterStateFromInfo(cluster: ClusterInfo): ClusterState {
   const isReachable = cluster.reachable !== false
 
   // A cluster is healthy if reachable and has nodes
-  const isHealthy = isReachable && (cluster.nodeCount !== undefined && cluster.nodeCount > 0 ? cluster.healthy : false)
+  // If nodeCount > 0, consider healthy unless explicitly set to false
+  const hasNodes = cluster.nodeCount !== undefined && cluster.nodeCount > 0
+  const isHealthy = isReachable && hasNodes && cluster.healthy !== false
 
   return getClusterState(isHealthy, isReachable, cluster.nodeCount, cluster.nodeCount)
 }
