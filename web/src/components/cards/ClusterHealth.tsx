@@ -80,12 +80,11 @@ function getClusterStateFromInfo(cluster: ClusterInfo): ClusterState {
   const isUnreachable = cluster.reachable === false || cluster.nodeCount === 0
   const isReachable = !isUnreachable
 
-  // Determine health status:
-  // - cluster.healthy === true: 50%+ nodes are Ready
-  // - cluster.healthy === false: less than 50% nodes Ready (degraded)
-  // - cluster.healthy === undefined: still checking, default to healthy if has nodes
+  // A cluster is healthy if we can connect and it has nodes
+  // The detailed healthy flag (50% nodes ready) can be inconsistent during refresh cycles
+  // For the status dot, we use: hasNodes = healthy
   const hasNodes = cluster.nodeCount !== undefined && cluster.nodeCount > 0
-  const isHealthy = isReachable && hasNodes && (cluster.healthy === true || cluster.healthy === undefined)
+  const isHealthy = isReachable && hasNodes
 
   return getClusterState(isHealthy, isReachable, cluster.nodeCount, cluster.nodeCount)
 }
