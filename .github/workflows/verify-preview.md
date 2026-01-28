@@ -9,6 +9,9 @@ on:
         description: PR number to test
         required: true
 
+sandbox:
+  agent: false
+
 safe-outputs:
   add-comment:
     max: 5

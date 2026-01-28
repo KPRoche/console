@@ -11,6 +11,9 @@ on:
   issue_comment:
     types: [created]
 
+sandbox:
+  agent: false
+
 safe-outputs:
   add-comment:
     max: 5
