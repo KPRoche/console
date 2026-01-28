@@ -12,13 +12,9 @@ export const isClusterUnreachable = (c: ClusterInfo): boolean => {
 }
 
 // Helper to determine if cluster health is still loading
-// Returns true for initial load (no data) or during refresh
+// Returns true only when actively refreshing - keeps left/right indicators in sync
 export const isClusterLoading = (c: ClusterInfo): boolean => {
-  // Initial load - no data yet
-  if (c.nodeCount === undefined && c.reachable === undefined) return true
-  // Manual refresh in progress
-  if (c.refreshing === true) return true
-  return false
+  return c.refreshing === true
 }
 
 // Helper to format labels/annotations for tooltip
