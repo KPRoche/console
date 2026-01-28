@@ -1338,15 +1338,24 @@ async function processClusterHealth(cluster: ClusterInfo): Promise<void> {
           refreshing: false,
         })
       } else {
-        // Cluster reported as unreachable - track failure start time
+        // Cluster reported as unreachable - check error type to decide handling
         recordClusterFailure(cluster.name)
 
-        // Only mark as unreachable after 5 minutes of consecutive failures
-        // This prevents transient network issues from immediately showing "-"
-        if (shouldMarkOffline(cluster.name)) {
+        // Connection refused/reset errors are definitive - mark offline immediately
+        // Timeout errors might be transient - use the 5-minute grace period
+        const errorMsg = health.errorMessage?.toLowerCase() || ''
+        const isDefinitiveError = errorMsg.includes('connection refused') ||
+          errorMsg.includes('connection reset') ||
+          errorMsg.includes('no such host') ||
+          errorMsg.includes('network is unreachable') ||
+          health.errorType === 'network'
+
+        if (isDefinitiveError || shouldMarkOffline(cluster.name)) {
+          // Definitive error or 5+ minutes of failures - mark as unreachable
           updateSingleClusterInCache(cluster.name, {
             healthy: false,
             reachable: false,
+            nodeCount: 0,
             errorType: health.errorType,
             errorMessage: health.errorMessage,
             refreshing: false,
