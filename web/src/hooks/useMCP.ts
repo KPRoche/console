@@ -1320,7 +1320,9 @@ async function processClusterHealth(cluster: ClusterInfo): Promise<void> {
       // Health data available - check if cluster is reachable
       // If we have node data, the cluster is definitely reachable (we connected successfully)
       const hasValidData = health.nodeCount !== undefined && health.nodeCount > 0
-      const isReachable = hasValidData || health.reachable !== false
+      // If we got a health response, the cluster is reachable (successful API call)
+      // Only treat as unreachable if explicitly marked with error info
+      const isReachable = hasValidData || !health.errorMessage
 
       if (isReachable) {
         // Cluster is reachable - clear failure tracking and update with fresh data
