@@ -1,11 +1,11 @@
-import { useMemo, useState, useRef, useCallback } from 'react'
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { Globe, Server, Cloud, ZoomIn, ZoomOut, Maximize2, Filter, X } from 'lucide-react'
 import { useClusters, type ClusterInfo } from '../../hooks/useMCP'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { Skeleton } from '../ui/Skeleton'
 import { detectCloudProvider, CloudProviderIcon, type CloudProvider } from '../ui/CloudProviderIcon'
-import WorldMapSvg from '../../assets/world-map.svg?raw'
+import WorldMapSvgUrl from '../../assets/world-map.svg'
 
 interface ClusterLocationsProps {
   config?: Record<string, unknown>
@@ -218,6 +218,37 @@ export function ClusterLocations({ config: _config }: ClusterLocationsProps) {
     isAllClustersSelected,
     customFilter,
   } = useGlobalFilters()
+
+  // Map SVG state
+  const [mapSvg, setMapSvg] = useState<string>('')
+  const [mapLoading, setMapLoading] = useState(true)
+  const [mapError, setMapError] = useState(false)
+
+  // Fetch SVG content
+  useEffect(() => {
+    const controller = new AbortController()
+    setMapLoading(true)
+    setMapError(false)
+    
+    fetch(WorldMapSvgUrl, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load map')
+        return res.text()
+      })
+      .then(svg => {
+        setMapSvg(svg)
+        setMapLoading(false)
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to load world map:', err)
+          setMapError(true)
+          setMapLoading(false)
+        }
+      })
+    
+    return () => controller.abort()
+  }, [])
 
   // Map controls state
   const [zoom, setZoom] = useState(1)
@@ -437,7 +468,21 @@ export function ClusterLocations({ config: _config }: ClusterLocationsProps) {
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
       >
-        {regionGroups.length === 0 ? (
+        {mapLoading ? (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <Globe className="w-8 h-8 mx-auto mb-2 opacity-50 animate-pulse" />
+              <p className="text-sm">Loading map...</p>
+            </div>
+          </div>
+        ) : mapError ? (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Failed to load map</p>
+            </div>
+          </div>
+        ) : regionGroups.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -455,7 +500,7 @@ export function ClusterLocations({ config: _config }: ClusterLocationsProps) {
             {/* SVG Map Background */}
             <div
               className="absolute inset-0 [&_svg]:w-full [&_svg]:h-full [&_rect]:fill-transparent [&_path]:fill-emerald-800/40 [&_path]:stroke-emerald-600/20 [&_path]:stroke-[0.3]"
-              dangerouslySetInnerHTML={{ __html: WorldMapSvg }}
+              dangerouslySetInnerHTML={{ __html: mapSvg }}
             />
 
             {/* Cluster Markers */}
