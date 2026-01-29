@@ -423,7 +423,7 @@ function ClusterStatusRow({ status }: ClusterStatusRowProps) {
       </div>
 
       {/* Replica progress bar */}
-      <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+      <div className="flex-1 h-0.5 rounded-full bg-gray-800 overflow-hidden">
         <div
           className={cn('h-full rounded-full transition-all duration-500', config.barColor)}
           style={{ width: `${status.status === 'pending' ? 0 : Math.max(replicaProgress, 10)}%` }}
