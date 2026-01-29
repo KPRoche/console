@@ -1,10 +1,11 @@
 name: Auto-QA Agent
-# Hourly quality checks with rotating daily focus areas.
+# Hourly quality checks with rotating focus areas.
 # Layer 1 (always): Build, lint, Go build, bundle size, npm audit
-# Layer 2 (daily rotation):
-#   Mon=Performance, Tue=Security, Wed=Navigation/A11y,
-#   Thu=Operator Usefulness, Fri=SRE/Multi-Cluster,
-#   Sat=Feature Recommendations, Sun=Resilience/Error Handling
+# Layer 2 (8-day rotation via day-of-year % 8):
+#   0=Performance, 1=Security, 2=Navigation/A11y,
+#   3=Operator Usefulness, 4=SRE/Multi-Cluster,
+#   5=Feature Recommendations, 6=Resilience/Error Handling,
+#   7=Inventory Consistency (cross-refs INVENTORY.md + consistency.md)
 #
 # Issues feed into the Copilot automation pipeline.
 
@@ -24,7 +25,7 @@ on:
         default: false
         type: boolean
       focus_override:
-        description: 'Override daily focus (performance|security|a11y|operator|sre|features|resilience|none)'
+        description: 'Override focus (performance|security|a11y|operator|sre|features|resilience|consistency|none)'
         required: false
         default: ''
         type: string
@@ -75,18 +76,20 @@ jobs:
             echo "area=$OVERRIDE" >> "$GITHUB_OUTPUT"
             echo "Focus override: $OVERRIDE"
           else
-            DOW=$(date -u +%u)  # 1=Mon ... 7=Sun
-            case $DOW in
-              1) FOCUS="performance" ;;
-              2) FOCUS="security" ;;
-              3) FOCUS="a11y" ;;
-              4) FOCUS="operator" ;;
-              5) FOCUS="sre" ;;
-              6) FOCUS="features" ;;
-              7) FOCUS="resilience" ;;
+            DOY=$(date -u +%j)  # Day of year (1-366)
+            SLOT=$(( DOY % 8 ))
+            case $SLOT in
+              0) FOCUS="performance" ;;
+              1) FOCUS="security" ;;
+              2) FOCUS="a11y" ;;
+              3) FOCUS="operator" ;;
+              4) FOCUS="sre" ;;
+              5) FOCUS="features" ;;
+              6) FOCUS="resilience" ;;
+              7) FOCUS="consistency" ;;
             esac
             echo "area=$FOCUS" >> "$GITHUB_OUTPUT"
-            echo "Day $DOW focus: $FOCUS"
+            echo "Day-of-year $DOY slot $SLOT focus: $FOCUS"
           fi
 
       # ── Layer 1: Baseline Quality Checks ──────────────────────────
@@ -586,6 +589,206 @@ jobs:
             echo "No missing loading/error states detected"
           fi
 
+      # === INVENTORY CONSISTENCY (8th rotation) ===
+      - name: "Focus: Missing component files"
+        id: focus_missing_files
+        if: steps.focus.outputs.area == 'consistency'
+        working-directory: web
+        continue-on-error: true
+        run: |
+          echo "Cross-referencing INVENTORY.md component files against source..."
+          ISSUES=""
+
+          # Extract component file paths from INVENTORY.md
+          if [ -f "../INVENTORY.md" ]; then
+            # Dashboard components section — extract .tsx/.ts paths
+            PATHS=$(grep -oE 'web/src/[^ ]+\.(tsx|ts)' ../INVENTORY.md | sed 's|^web/||' || true)
+
+            MISSING=""
+            FOUND=0
+            TOTAL=0
+            for p in $PATHS; do
+              TOTAL=$((TOTAL + 1))
+              if [ ! -f "$p" ]; then
+                MISSING="${MISSING}  - \`${p}\` — listed in INVENTORY.md but file not found\n"
+              else
+                FOUND=$((FOUND + 1))
+              fi
+            done
+
+            if [ -n "$MISSING" ]; then
+              ISSUES="${ISSUES}### Component files listed in INVENTORY.md but missing from source\n${MISSING}\n"
+            fi
+            ISSUES="${ISSUES}### Summary: ${FOUND}/${TOTAL} listed component files exist\n\n"
+          else
+            ISSUES="${ISSUES}### INVENTORY.md not found in repo root\n\n"
+          fi
+
+          # Check that page component files referenced exist
+          PAGES=$(grep -oE '[A-Z][A-Za-z]+\.tsx' ../INVENTORY.md 2>/dev/null | sort -u || true)
+          PAGE_MISSING=""
+          for page in $PAGES; do
+            MATCH=$(find src -name "$page" 2>/dev/null | head -1)
+            if [ -z "$MATCH" ]; then
+              PAGE_MISSING="${PAGE_MISSING}  - \`${page}\` — referenced in INVENTORY.md but not found in src/\n"
+            fi
+          done
+
+          if [ -n "$PAGE_MISSING" ]; then
+            ISSUES="${ISSUES}### Page components referenced but not found\n${PAGE_MISSING}\n"
+          fi
+
+          if [ -n "$ISSUES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            printf "%b" "$ISSUES" > /tmp/focus-missing-files.txt
+            echo "Consistency issues found"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "All INVENTORY.md references verified"
+          fi
+
+      - name: "Focus: Card type registry consistency"
+        id: focus_card_registry
+        if: steps.focus.outputs.area == 'consistency'
+        working-directory: web
+        continue-on-error: true
+        run: |
+          echo "Cross-referencing INVENTORY.md card types against source code..."
+          ISSUES=""
+
+          if [ -f "../INVENTORY.md" ]; then
+            # Extract card type identifiers from INVENTORY.md (backtick-wrapped values in Type column)
+            CARD_TYPES=$(grep -oE '`[a-z_]+`' ../INVENTORY.md | tr -d '`' | sort -u || true)
+
+            UNREGISTERED=""
+            for ct in $CARD_TYPES; do
+              # Skip non-card-type patterns (like field names)
+              case "$ct" in
+                total|score|healthy|warning|critical|*_util|firing|pending|resolved|bound|installed|*_cost) continue ;;
+              esac
+
+              # Search for this card type string in source
+              FOUND=$(grep -rl "'${ct}'\|\"${ct}\"" src/ 2>/dev/null | head -1 || true)
+              if [ -z "$FOUND" ]; then
+                UNREGISTERED="${UNREGISTERED}  - \`${ct}\` — in INVENTORY.md but not found in source code\n"
+              fi
+            done
+
+            if [ -n "$UNREGISTERED" ]; then
+              ISSUES="${ISSUES}### Card types in INVENTORY.md not found in source\n${UNREGISTERED}\n"
+            fi
+          fi
+
+          if [ -n "$ISSUES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            printf "%b" "$ISSUES" > /tmp/focus-card-registry.txt
+            echo "Card registry inconsistencies found"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "All card types verified in source"
+          fi
+
+      - name: "Focus: Route consistency"
+        id: focus_routes
+        if: steps.focus.outputs.area == 'consistency'
+        working-directory: web
+        continue-on-error: true
+        run: |
+          echo "Cross-referencing INVENTORY.md routes against router config..."
+          ISSUES=""
+
+          if [ -f "../INVENTORY.md" ]; then
+            # Extract route paths from INVENTORY.md
+            ROUTES=$(grep -oE '`/[a-z-]+`' ../INVENTORY.md | tr -d '`' | sort -u || true)
+
+            # Find the router file
+            ROUTER_FILE=$(find src -name "App.tsx" -o -name "Router.tsx" -o -name "routes.tsx" -o -name "AppRoutes.tsx" 2>/dev/null | head -1)
+
+            if [ -n "$ROUTER_FILE" ]; then
+              MISSING_ROUTES=""
+              for route in $ROUTES; do
+                FOUND=$(grep -l "\"${route}\"\|'${route}'" "$ROUTER_FILE" 2>/dev/null || true)
+                if [ -z "$FOUND" ]; then
+                  # Also check all tsx files for route definition
+                  FOUND2=$(grep -rl "path.*['\"]${route}['\"]" src/ --include="*.tsx" 2>/dev/null | head -1 || true)
+                  if [ -z "$FOUND2" ]; then
+                    MISSING_ROUTES="${MISSING_ROUTES}  - \`${route}\` — listed in INVENTORY.md but not found in router\n"
+                  fi
+                fi
+              done
+
+              if [ -n "$MISSING_ROUTES" ]; then
+                ISSUES="${ISSUES}### Routes in INVENTORY.md not found in router config\n${MISSING_ROUTES}\n"
+              fi
+            else
+              ISSUES="${ISSUES}### Could not locate router file to verify routes\n\n"
+            fi
+          fi
+
+          if [ -n "$ISSUES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            printf "%b" "$ISSUES" > /tmp/focus-routes.txt
+            echo "Route inconsistencies found"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "All routes verified"
+          fi
+
+      - name: "Focus: Modal and drill-down consistency"
+        id: focus_modal_consistency
+        if: steps.focus.outputs.area == 'consistency'
+        working-directory: web
+        continue-on-error: true
+        run: |
+          echo "Cross-referencing INVENTORY.md modals/drill-downs against source..."
+          ISSUES=""
+
+          if [ -f "../INVENTORY.md" ]; then
+            # Extract modal/drill-down file names from INVENTORY.md
+            MODAL_FILES=$(grep -oE '[A-Z][A-Za-z]+Modal\.tsx\|[A-Z][A-Za-z]+Dialog\.tsx\|[A-Z][A-Za-z]+DrillDown\.tsx' ../INVENTORY.md | sort -u || true)
+
+            MISSING_MODALS=""
+            for modal in $MODAL_FILES; do
+              FOUND=$(find src -name "$modal" 2>/dev/null | head -1)
+              if [ -z "$FOUND" ]; then
+                MISSING_MODALS="${MISSING_MODALS}  - \`${modal}\` — listed in INVENTORY.md but not found\n"
+              fi
+            done
+
+            if [ -n "$MISSING_MODALS" ]; then
+              ISSUES="${ISSUES}### Modals/dialogs/drill-downs in INVENTORY.md but missing\n${MISSING_MODALS}\n"
+            fi
+
+            # Check for drill-down views in source not listed in INVENTORY.md
+            ACTUAL_DRILLDOWNS=$(find src -path "*/drilldown/views/*.tsx" -exec basename {} \; 2>/dev/null | sort || true)
+            UNLISTED=""
+            for dd in $ACTUAL_DRILLDOWNS; do
+              LISTED=$(grep -c "$dd" ../INVENTORY.md 2>/dev/null || echo "0")
+              if [ "$LISTED" -eq 0 ]; then
+                UNLISTED="${UNLISTED}  - \`${dd}\` — exists in source but not listed in INVENTORY.md\n"
+              fi
+            done
+
+            if [ -n "$UNLISTED" ]; then
+              ISSUES="${ISSUES}### Drill-down views in source but not in INVENTORY.md\n${UNLISTED}\n"
+            fi
+          fi
+
+          # Also check consistency.md for noted issues that may still be open
+          if [ -f "../consistency.md" ]; then
+            NOTED=$(grep -c "Noted\|Missing\|FIXED" ../consistency.md 2>/dev/null || echo "0")
+            ISSUES="${ISSUES}### consistency.md status: ${NOTED} noted items found\n"
+          fi
+
+          if [ -n "$ISSUES" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            printf "%b" "$ISSUES" > /tmp/focus-modal-consistency.txt
+            echo "Modal/drill-down inconsistencies found"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "All modals and drill-downs verified"
+          fi
+
       # ── Ensure Labels Exist ────────────────────────────────────────
 
       - name: Ensure labels exist
@@ -601,6 +804,7 @@ jobs:
             "auto-qa:sre:10B981:SRE/multi-cluster improvement"
             "auto-qa:features:8B5CF6:Feature recommendation"
             "auto-qa:resilience:F97316:Resilience/error handling improvement"
+            "auto-qa:consistency:6B7280:Inventory/documentation consistency"
           )
           for entry in "${LABELS[@]}"; do
             IFS=: read -r NAME COLOR DESC <<< "$entry"
@@ -647,6 +851,11 @@ jobs:
           # Resilience focus
           FOCUS_SWALLOWED: ${{ steps.focus_swallowed.outputs.found }}
           FOCUS_LOADING_STATES: ${{ steps.focus_loading_states.outputs.found }}
+          # Consistency focus
+          FOCUS_MISSING_FILES: ${{ steps.focus_missing_files.outputs.found }}
+          FOCUS_CARD_REGISTRY: ${{ steps.focus_card_registry.outputs.found }}
+          FOCUS_ROUTES: ${{ steps.focus_routes.outputs.found }}
+          FOCUS_MODAL_CONSISTENCY: ${{ steps.focus_modal_consistency.outputs.found }}
           # Control
           AUTO_TRIAGE: ${{ inputs.auto_triage || 'true' }}
           COMMIT_SHA: ${{ github.sha }}
@@ -817,6 +1026,7 @@ jobs:
               sre: 'auto-qa:sre',
               features: 'auto-qa:features',
               resilience: 'auto-qa:resilience',
+              consistency: 'auto-qa:consistency',
             };
 
             const focusLabel = focusLabels[focusArea] || 'auto-qa';
@@ -1002,6 +1212,54 @@ jobs:
                     ['Add loading indicators (skeleton screens or spinners) while data loads',
                      'Add error states with retry buttons for failed fetches',
                      'Consider using a shared data-fetching wrapper or custom hook'], true),
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                });
+              }
+            }
+
+            // Consistency (8th rotation)
+            if (focusArea === 'consistency') {
+              if (process.env.FOCUS_MISSING_FILES === 'true') {
+                checks.push({
+                  title: `${prefix} INVENTORY.md references missing component files`,
+                  body: buildFocusBody('Inventory Consistency', 'Missing Component Files',
+                    readOutput('/tmp/focus-missing-files.txt'),
+                    ['Remove stale entries from INVENTORY.md for deleted components',
+                     'Add missing component files if they should exist',
+                     'Run the consistency check locally to verify: `grep -oE "web/src/[^ ]+.tsx" INVENTORY.md`'], false),
+                  labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                });
+              }
+              if (process.env.FOCUS_CARD_REGISTRY === 'true') {
+                checks.push({
+                  title: `${prefix} Card types in INVENTORY.md not registered in source`,
+                  body: buildFocusBody('Inventory Consistency', 'Unregistered Card Types',
+                    readOutput('/tmp/focus-card-registry.txt'),
+                    ['Register missing card types in the card registry',
+                     'Remove obsolete card types from INVENTORY.md',
+                     'Ensure card type strings match between inventory and source'], false),
+                  labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                });
+              }
+              if (process.env.FOCUS_ROUTES === 'true') {
+                checks.push({
+                  title: `${prefix} Routes in INVENTORY.md not found in router config`,
+                  body: buildFocusBody('Inventory Consistency', 'Missing Routes',
+                    readOutput('/tmp/focus-routes.txt'),
+                    ['Add missing routes to the router configuration',
+                     'Remove obsolete routes from INVENTORY.md',
+                     'Verify route paths match between inventory and App.tsx'], false),
+                  labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                });
+              }
+              if (process.env.FOCUS_MODAL_CONSISTENCY === 'true') {
+                checks.push({
+                  title: `${prefix} Modal/drill-down inventory out of sync with source`,
+                  body: buildFocusBody('Inventory Consistency', 'Modal & Drill-Down Drift',
+                    readOutput('/tmp/focus-modal-consistency.txt'),
+                    ['Update INVENTORY.md to reflect current modals and drill-down views',
+                     'Add new drill-down views to the inventory',
+                     'Remove references to deleted modals/dialogs'], true),
                   labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
                 });
               }
