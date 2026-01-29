@@ -322,7 +322,8 @@ export const DEMO_DATA_CARDS = new Set([
   'gateway_status',
   // Service Topology - demo visualization
   'service_topology',
-  // Workload Deployment - now uses real data via useWorkloads hook
+  // Workload Deployment - uses real data when backend is running, falls back to demo
+  'workload_deployment',
   // ArgoCD cards - all use mock data
   'argocd_applications',
   'argocd_health',
