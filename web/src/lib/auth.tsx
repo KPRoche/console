@@ -42,7 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setDemoMode = useCallback(() => {
-    const demoOnboarded = localStorage.getItem('demo-user-onboarded') === 'true'
+    const isNetlifyPreview = import.meta.env.VITE_DEMO_MODE === 'true' ||
+      window.location.hostname.includes('netlify.app') ||
+      window.location.hostname.includes('deploy-preview-')
+    const demoOnboarded = isNetlifyPreview || localStorage.getItem('demo-user-onboarded') === 'true'
     localStorage.setItem('token', 'demo-token')
     setTokenState('demo-token')
     setUser({
