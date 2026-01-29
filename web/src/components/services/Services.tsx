@@ -248,7 +248,9 @@ export function Services() {
       case 'clusterip':
         return { value: clusterIPServices, sublabel: 'ClusterIP', onClick: () => drillToAllServices('clusterip'), isClickable: clusterIPServices > 0 }
       case 'ingresses':
-        return { value: 0, sublabel: 'ingresses', isClickable: false } // TODO: add ingress data
+        // Ingress data collection not yet implemented - would require querying networking.k8s.io/v1 Ingress resources
+        // across all clusters and aggregating the counts. See Network.tsx for similar implementation pattern.
+        return { value: 0, sublabel: 'ingresses', isClickable: false }
       case 'endpoints':
         return { value: totalServices, sublabel: 'endpoints', onClick: () => drillToAllServices(), isClickable: totalServices > 0 }
       default:

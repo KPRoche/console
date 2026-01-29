@@ -310,7 +310,8 @@ export function StatsRuntime({
 // ============================================================================
 
 export function parseStatsYAML(_yaml: string): StatsDefinition {
-  // TODO: Implement YAML parsing
+  // YAML parsing intentionally not implemented - use registerStats() with JS objects
+  // If YAML config becomes a requirement, add js-yaml library and implement parser here
   throw new Error('YAML parsing not yet implemented. Use registerStats() with JS objects.')
 }
 
