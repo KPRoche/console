@@ -885,50 +885,16 @@ func (h *WorkloadHandlers) GetDeployLogs(c *fiber.Ctx) error {
 		eventLines = eventLines[len(eventLines)-tailLines:]
 	}
 
-	// If we got events, prefer those over pod stdout
-	if len(eventLines) > 0 {
-		podName := ""
-		if len(pods.Items) > 0 {
-			podName = pods.Items[0].Name
-		}
-		return c.JSON(fiber.Map{
-			"logs": eventLines,
-			"pod":  podName,
-			"type": "events",
-		})
+	// Return Kubernetes events only — pod stdout is misleading for deploy events
+	// (e.g. nginx worker notices have nothing to do with the deploy lifecycle).
+	podName := ""
+	if len(pods.Items) > 0 {
+		podName = pods.Items[0].Name
 	}
-
-	// Fallback: get pod stdout logs if no events found
-	if len(pods.Items) == 0 {
-		return c.JSON(fiber.Map{
-			"logs": []string{},
-			"pod":  "",
-		})
-	}
-
-	sort.Slice(pods.Items, func(i, j int) bool {
-		return pods.Items[i].CreationTimestamp.After(pods.Items[j].CreationTimestamp.Time)
-	})
-
-	podName := pods.Items[0].Name
-	logs, err := h.k8sClient.GetPodLogs(ctx, cluster, namespace, podName, "", int64(tailLines))
-	if err != nil {
-		return c.JSON(fiber.Map{
-			"logs":  []string{},
-			"pod":   podName,
-			"error": err.Error(),
-		})
-	}
-
-	lines := strings.Split(strings.TrimRight(logs, "\n"), "\n")
-	if len(lines) == 1 && lines[0] == "" {
-		lines = []string{}
-	}
-
 	return c.JSON(fiber.Map{
-		"logs": lines,
+		"logs": eventLines,
 		"pod":  podName,
-		"type": "stdout",
+		"type": "events",
 	})
 }
 

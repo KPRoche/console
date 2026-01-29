@@ -346,7 +346,9 @@ function MissionRow({ mission, isExpanded, onToggle, isActive }: MissionRowProps
                   })
               ) : (
                 <div className="text-[10px] text-gray-600 italic py-1">
-                  Waiting for events...
+                  {(mission.status === 'orbit' || mission.status === 'abort')
+                    ? 'No recent events — K8s events expire after ~1 hour'
+                    : 'Waiting for events...'}
                 </div>
               )}
             </div>
