@@ -425,6 +425,7 @@ export function DashboardRuntime({
 // ============================================================================
 
 export function parseDashboardYAML(_yaml: string): DashboardDefinition {
-  // TODO: Implement YAML parsing
+  // YAML parsing intentionally not implemented - use registerDashboard() with JS objects
+  // If YAML config becomes a requirement, add js-yaml library and implement parser here
   throw new Error('YAML parsing not yet implemented. Use registerDashboard() with JS objects.')
 }

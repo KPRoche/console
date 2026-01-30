@@ -486,8 +486,7 @@ export function getAllCardDefinitions(): CardDefinition[] {
 // ============================================================================
 
 export function parseCardYAML(_yaml: string): CardDefinition {
-  // TODO: Implement YAML parsing
-  // For now, this is a placeholder that will be implemented
-  // when we add the yaml library
+  // YAML parsing intentionally not implemented - use registerCard() with JS objects
+  // If YAML config becomes a requirement, add js-yaml library and implement parser here
   throw new Error('YAML parsing not yet implemented. Use registerCard() with JS objects.')
 }
