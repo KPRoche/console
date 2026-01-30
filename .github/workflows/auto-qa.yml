@@ -1035,7 +1035,7 @@ jobs:
                     ['Remove unused dependencies with `npm uninstall <pkg>`',
                      'Verify each package is truly unused before removing',
                      'Some packages may be used indirectly (plugins, configs)'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_LAZY_LOADING === 'true') {
@@ -1046,7 +1046,7 @@ jobs:
                     ['Wrap large page components with `React.lazy(() => import(...))`',
                      'Add `<Suspense fallback={<Loading />}>` around lazy components',
                      'Focus on route-level components first for maximum impact'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1073,7 +1073,7 @@ jobs:
                     ['Review changelogs for breaking changes before updating',
                      'Update one dependency at a time and test thoroughly',
                      'Major version bumps may require code changes'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1089,7 +1089,7 @@ jobs:
                      'Add `alt` text to all images',
                      'Use semantic HTML elements where possible',
                      'Test with a screen reader to verify'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_KEYBOARD === 'true') {
@@ -1100,7 +1100,7 @@ jobs:
                     ['Replace clickable `<div>` elements with `<button>` or add `role="button"` and `tabIndex={0}`',
                      'Add `onKeyDown` handlers alongside `onClick` for non-button elements',
                      'Ensure all interactive elements are focusable via Tab'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1115,7 +1115,7 @@ jobs:
                     ['Extract magic numbers to named constants at the top of the file',
                      'Consider making thresholds configurable via environment or props',
                      'Add comments explaining the reasoning behind threshold values'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_TOOLTIPS === 'true') {
@@ -1126,7 +1126,7 @@ jobs:
                     ['Add tooltips to technical abbreviations (CPU, RBAC, CRD, etc.)',
                      'Use the existing Tooltip component or HTML `title` attribute',
                      'Explain what status indicators mean on hover'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1141,7 +1141,7 @@ jobs:
                     ['Review flagged code for multi-cluster compatibility',
                      'Ensure cluster selectors and filters work with multiple clusters',
                      'Add cluster context to API calls where missing'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_HEALTH === 'true') {
@@ -1152,7 +1152,7 @@ jobs:
                     ['Add health/status indicators to dashboard components',
                      'Show cluster connectivity status, degraded/healthy state',
                      'Add visual alerts for unhealthy resources'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1168,7 +1168,7 @@ jobs:
                     ['Review each TODO and either implement or create a tracking issue',
                      'Remove stale TODOs that are no longer relevant',
                      'Convert HACKs to proper implementations'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_COMPLEXITY === 'true') {
@@ -1179,7 +1179,7 @@ jobs:
                     ['Extract sub-components from large files',
                      'Move hooks into custom hooks for reusability',
                      'Consider splitting into container + presentational components'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1206,7 +1206,7 @@ jobs:
                     ['Add loading indicators (skeleton screens or spinners) while data loads',
                      'Add error states with retry buttons for failed fetches',
                      'Consider using a shared data-fetching wrapper or custom hook'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -1254,7 +1254,7 @@ jobs:
                     ['Update INVENTORY.md to reflect current modals and drill-down views',
                      'Add new drill-down views to the inventory',
                      'Remove references to deleted modals/dialogs'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', focusLabel],
+                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
