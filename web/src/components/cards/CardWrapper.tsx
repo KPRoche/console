@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect, useCallback, useRef, createContext, useContext, ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Maximize2, MoreVertical, Clock, Settings, Replace, Trash2, MessageCircle, RefreshCw, MoveHorizontal, ChevronRight, ChevronDown,
+  Maximize2, MoreVertical, Clock, Settings, Replace, Trash2, MessageCircle, RefreshCw, MoveHorizontal, ChevronRight, ChevronDown, Info,
   // Card icons
   AlertTriangle, Box, Activity, Database, Server, Cpu, Network, Shield, Package, GitBranch, FileCode, Gauge, AlertCircle, Layers, HardDrive, Globe, Users, Terminal, TrendingUp, Gamepad2, Puzzle, Target, Zap, Crown, Ghost, Bird, Rocket, Wand2,
 } from 'lucide-react'
@@ -232,6 +232,8 @@ const CARD_TITLES: Record<string, string> = {
   cluster_comparison: 'Cluster Comparison',
   cluster_costs: 'Cluster Costs',
   cluster_metrics: 'Cluster Metrics',
+  cluster_locations: 'Cluster Locations',
+  cluster_resource_tree: 'Cluster Resource Tree',
 
   // Workload and deployment cards
   app_status: 'Workload Status',
@@ -240,15 +242,32 @@ const CARD_TITLES: Record<string, string> = {
   deployment_progress: 'Deployment Progress',
   deployment_status: 'Deployment Status',
   deployment_issues: 'Deployment Issues',
+  cluster_groups: 'Cluster Groups',
+  resource_marshall: 'Resource Marshall',
 
   // Pod and resource cards
   pod_issues: 'Pod Issues',
   top_pods: 'Top Pods',
   resource_capacity: 'Resource Capacity',
   resource_usage: 'Resource Allocation',
+  compute_overview: 'Compute Overview',
 
   // Events
   event_stream: 'Event Stream',
+  event_summary: 'Event Summary',
+  warning_events: 'Warning Events',
+  recent_events: 'Recent Events',
+  events_timeline: 'Events Timeline',
+
+  // Trend cards
+  pod_health_trend: 'Pod Health Trend',
+  resource_trend: 'Resource Trend',
+
+  // Storage and network
+  storage_overview: 'Storage Overview',
+  pvc_status: 'PVC Status',
+  network_overview: 'Network Overview',
+  service_status: 'Service Status',
 
   // Namespace cards
   namespace_overview: 'Namespace Overview',
@@ -282,23 +301,55 @@ const CARD_TITLES: Record<string, string> = {
   gpu_overview: 'GPU Overview',
   gpu_status: 'GPU Status',
   gpu_inventory: 'GPU Inventory',
+  gpu_workloads: 'GPU Workloads',
+  gpu_utilization: 'GPU Utilization',
+  gpu_usage_trend: 'GPU Usage Trend',
 
-  // Security and RBAC
+  // Security, RBAC, and compliance
   security_issues: 'Security Issues',
   rbac_overview: 'RBAC Overview',
   policy_violations: 'Policy Violations',
+  opa_policies: 'OPA Policies',
+  kyverno_policies: 'Kyverno Policies',
+  falco_alerts: 'Falco Alerts',
+  trivy_scan: 'Trivy Scan',
+  kubescape_scan: 'Kubescape Scan',
+  compliance_score: 'Compliance Score',
+  vault_secrets: 'Vault Secrets',
+  external_secrets: 'External Secrets',
+  cert_manager: 'Cert Manager',
+
+  // Alerting cards
+  active_alerts: 'Active Alerts',
+  alert_rules: 'Alert Rules',
+
+  // Cost management
+  opencost_overview: 'OpenCost Overview',
+  kubecost_overview: 'Kubecost Overview',
+
+  // MCS (Multi-Cluster Service) cards
+  service_exports: 'Service Exports',
+  service_imports: 'Service Imports',
+  gateway_status: 'Gateway Status',
+  service_topology: 'Service Topology',
 
   // Other
   upgrade_status: 'Cluster Upgrade Status',
   user_management: 'User Management',
   github_activity: 'GitHub Activity',
   kubectl: 'Kubectl Terminal',
+  weather: 'Weather',
+  rss_feed: 'RSS Feed',
+  iframe_embed: 'Iframe Embed',
+  network_utils: 'Network Utils',
+  mobile_browser: 'Mobile Browser',
 
   // AI cards
   console_ai_issues: 'AI Issues',
   console_ai_kubeconfig_audit: 'AI Kubeconfig Audit',
   console_ai_health_check: 'AI Health Check',
-  
+  console_ai_offline_detection: 'AI Offline Detection',
+
   // Stock Market Ticker
   stock_market_ticker: 'Stock Market Ticker',
 
@@ -308,8 +359,8 @@ const CARD_TITLES: Record<string, string> = {
   prow_history: 'Prow History',
 
   // ML/AI workload cards
-  llm_inference: 'llm-d inference',
-  llm_models: 'llm-d models',
+  llm_inference: 'llm-d Inference',
+  llm_models: 'llm-d Models',
   ml_jobs: 'ML Jobs',
   ml_notebooks: 'ML Notebooks',
 
@@ -327,6 +378,118 @@ const CARD_TITLES: Record<string, string> = {
   kube_kong: 'Kube Kong',
   pod_pitfall: 'Pod Pitfall',
   node_invaders: 'Node Invaders',
+  pod_crosser: 'Pod Crosser',
+  pod_brothers: 'Pod Brothers',
+  kube_kart: 'Kube Kart',
+  kube_pong: 'Kube Pong',
+  kube_snake: 'Kube Snake',
+  kube_galaga: 'Kube Galaga',
+  kube_doom: 'Kube Doom',
+  kube_craft: 'Kube Craft',
+  kube_chess: 'Kube Chess',
+}
+
+// Short descriptions shown via info icon tooltip in the card header
+const CARD_DESCRIPTIONS: Record<string, string> = {
+  cluster_health: 'Overall health status of all connected Kubernetes clusters.',
+  cluster_focus: 'Deep-dive view of a single cluster with key metrics and resources.',
+  cluster_network: 'Network connectivity and traffic flow between clusters.',
+  cluster_comparison: 'Side-by-side comparison of clusters by resource usage and health.',
+  cluster_costs: 'Estimated infrastructure costs broken down by cluster.',
+  cluster_metrics: 'Real-time CPU, memory, and pod metrics across clusters.',
+  cluster_locations: 'Geographic map of cluster locations worldwide.',
+  cluster_resource_tree: 'Hierarchical tree view of all resources in a cluster.',
+  app_status: 'Status of workloads across clusters with health indicators.',
+  workload_deployment: 'Deploy workloads to clusters using drag-and-drop.',
+  deployment_missions: 'Track multi-cluster deployment missions and their progress.',
+  deployment_progress: 'Real-time deployment rollout progress and status.',
+  deployment_status: 'Detailed status of deployments including replicas and conditions.',
+  deployment_issues: 'Active deployment problems such as failed rollouts or image pull errors.',
+  cluster_groups: 'Organize clusters into logical groups for targeted deployments.',
+  resource_marshall: 'Explore resource dependency trees and ownership chains.',
+  pod_issues: 'Pods with errors, restarts, or scheduling problems.',
+  top_pods: 'Top resource-consuming pods ranked by CPU or memory usage.',
+  resource_capacity: 'Cluster resource capacity vs. current allocation.',
+  resource_usage: 'CPU and memory allocation breakdown across clusters.',
+  compute_overview: 'Summary of compute resources: nodes, CPUs, and memory.',
+  event_stream: 'Live stream of Kubernetes events from all clusters.',
+  event_summary: 'Aggregated event counts grouped by type and reason.',
+  warning_events: 'Warning-level events that may need attention.',
+  recent_events: 'Most recent events across all clusters.',
+  events_timeline: 'Timeline chart of event frequency over time.',
+  pod_health_trend: 'Historical trend of pod health status over time.',
+  resource_trend: 'Resource usage trends showing CPU and memory over time.',
+  storage_overview: 'Persistent volume and storage class overview.',
+  pvc_status: 'Status of Persistent Volume Claims across clusters.',
+  network_overview: 'Network policies, services, and ingress summary.',
+  service_status: 'Status of Kubernetes services and their endpoints.',
+  namespace_overview: 'Summary of resources within a namespace.',
+  namespace_analysis: 'Detailed analysis of namespace health and resource usage.',
+  namespace_rbac: 'RBAC roles and bindings within a namespace.',
+  namespace_quotas: 'Resource quota utilization within a namespace.',
+  namespace_events: 'Events filtered to a specific namespace.',
+  namespace_monitor: 'Real-time monitoring of namespace resource trends.',
+  operator_status: 'Status of installed Kubernetes operators.',
+  operator_subscriptions: 'Operator subscriptions and update channels.',
+  crd_health: 'Health and status of Custom Resource Definitions.',
+  gitops_drift: 'Drift detection between Git source and live cluster state.',
+  helm_release_status: 'Status of Helm releases across clusters.',
+  helm_releases: 'List of all deployed Helm releases.',
+  helm_history: 'Revision history and rollback options for Helm releases.',
+  helm_values_diff: 'Diff of Helm values between revisions.',
+  kustomization_status: 'Status of Kustomize overlays and their resources.',
+  overlay_comparison: 'Compare Kustomize overlays across environments.',
+  chart_versions: 'Available Helm chart versions and update status.',
+  argocd_applications: 'ArgoCD application inventory and sync status.',
+  argocd_sync_status: 'Sync status of ArgoCD-managed applications.',
+  argocd_health: 'Health of ArgoCD applications and components.',
+  gpu_overview: 'Summary of GPU resources across all clusters.',
+  gpu_status: 'Current GPU utilization and health status.',
+  gpu_inventory: 'Inventory of GPU nodes with model, memory, and driver info.',
+  gpu_workloads: 'Workloads running on GPU-enabled nodes.',
+  gpu_utilization: 'Real-time GPU utilization percentage and temperature.',
+  gpu_usage_trend: 'Historical GPU usage trends over time.',
+  security_issues: 'Security vulnerabilities and misconfigurations detected.',
+  rbac_overview: 'Overview of RBAC roles, bindings, and permissions.',
+  policy_violations: 'Active policy violations from OPA, Kyverno, or other engines.',
+  opa_policies: 'OPA Gatekeeper policies and constraint status.',
+  kyverno_policies: 'Kyverno policies and their enforcement status.',
+  falco_alerts: 'Runtime security alerts from Falco.',
+  trivy_scan: 'Container image vulnerability scan results from Trivy.',
+  kubescape_scan: 'Security posture scan results from Kubescape.',
+  compliance_score: 'Overall compliance score across security frameworks.',
+  vault_secrets: 'HashiCorp Vault secrets management status.',
+  external_secrets: 'External Secrets Operator sync status.',
+  cert_manager: 'TLS certificate status and renewal from cert-manager.',
+  active_alerts: 'Currently firing alerts from Prometheus or other sources.',
+  alert_rules: 'Configured alert rules and their evaluation status.',
+  opencost_overview: 'Cost allocation data from OpenCost.',
+  kubecost_overview: 'Cost breakdown and optimization from Kubecost.',
+  service_exports: 'Services exported for multi-cluster discovery.',
+  service_imports: 'Services imported from other clusters.',
+  gateway_status: 'Gateway API resource status and routing.',
+  service_topology: 'Visual topology of service-to-service communication.',
+  upgrade_status: 'Kubernetes version upgrade status and available upgrades.',
+  user_management: 'Manage console users and their roles.',
+  github_activity: 'Recent GitHub activity: commits, PRs, and issues.',
+  kubectl: 'Interactive kubectl terminal for running commands.',
+  weather: 'Current weather conditions for cluster locations.',
+  rss_feed: 'RSS feed reader for Kubernetes news and blogs.',
+  iframe_embed: 'Embed an external web page inside a card.',
+  network_utils: 'Network diagnostic utilities: ping, DNS, traceroute.',
+  mobile_browser: 'Embedded mobile-sized browser for testing.',
+  console_ai_issues: 'AI-detected issues and recommended fixes.',
+  console_ai_kubeconfig_audit: 'AI audit of kubeconfig files for security and cleanup.',
+  console_ai_health_check: 'AI-powered cluster health analysis.',
+  console_ai_offline_detection: 'AI detection of offline or unreachable clusters.',
+  stock_market_ticker: 'Live stock market ticker with tech company prices.',
+  prow_jobs: 'Prow CI/CD job status and results.',
+  prow_status: 'Overall Prow system health and queue depth.',
+  prow_history: 'Historical Prow job runs and success rates.',
+  llm_inference: 'llm-d inference endpoint status and request metrics.',
+  llm_models: 'LLM models deployed via llm-d with version info.',
+  ml_jobs: 'Machine learning training and batch job status.',
+  ml_notebooks: 'Jupyter notebook server status and resource usage.',
 }
 
 // Card icons with their colors - displayed in the card header next to the title
@@ -605,6 +768,7 @@ export function CardWrapper({
   const messages = externalMessages ?? localMessages
 
   const title = CARD_TITLES[cardType] || customTitle || cardType
+  const description = CARD_DESCRIPTIONS[cardType]
   const newTitle = pendingSwap?.newTitle || CARD_TITLES[pendingSwap?.newType || ''] || pendingSwap?.newType
 
   // Get icon from prop or registry
@@ -734,6 +898,14 @@ export function CardWrapper({
             {dragHandle}
             {ResolvedIcon && <ResolvedIcon className={cn('w-4 h-4', resolvedIconColor)} />}
             <h3 className="text-sm font-medium text-foreground">{title}</h3>
+            {description && (
+              <span className="relative group/info">
+                <Info className="w-3.5 h-3.5 text-muted-foreground/50 hover:text-muted-foreground cursor-help transition-colors" />
+                <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 w-56 px-2.5 py-1.5 rounded-md bg-popover border border-border text-xs text-muted-foreground shadow-lg opacity-0 pointer-events-none group-hover/info:opacity-100 group-hover/info:pointer-events-auto transition-opacity z-50 leading-relaxed">
+                  {description}
+                </span>
+              </span>
+            )}
             {/* Demo data indicator - shows if global demo mode is on OR card uses demo data */}
             {(isDemoMode || isDemoData) && (
               <span
