@@ -1,6 +1,6 @@
 import { api, isBackendUnavailable } from '../../lib/api'
 import { reportAgentDataError, reportAgentDataSuccess, isAgentUnavailable } from '../useLocalAgent'
-import { getDemoMode, setGlobalDemoMode } from '../useDemoMode'
+import { getDemoMode, setGlobalDemoMode, isDemoModeForced } from '../useDemoMode'
 import { kubectlProxy } from '../../lib/kubectlProxy'
 import { getPresentationMode } from '../usePresentationMode'
 import type { ClusterInfo, ClusterHealth } from './types'
@@ -666,8 +666,11 @@ if (import.meta.hot) {
 
 // Fetch basic cluster list from local agent (fast, no health check)
 async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
-  // Always attempt to reach the agent — it may be running even if AgentManager
-  // has not detected it yet (e.g., AgentManager was blocked by demo mode at init)
+  // On Netlify deployments (isDemoModeForced), skip agent entirely — there is
+  // no local agent and the request would fail with CORS errors.
+  // On localhost, always attempt to reach the agent — it may be running even if
+  // AgentManager has not detected it yet.
+  if (isDemoModeForced) return null
 
   try {
     const controller = new AbortController()
@@ -735,7 +738,7 @@ export function clearClusterFailure(clusterName: string): void {
 export async function fetchSingleClusterHealth(clusterName: string, kubectlContext?: string): Promise<ClusterHealth | null> {
   // Try local agent's HTTP endpoint first (same pattern as GPU nodes)
   // This is more reliable than WebSocket for simple data fetching
-  if (!isAgentUnavailable()) {
+  if (!isDemoModeForced && !isAgentUnavailable()) {
     try {
       const context = kubectlContext || clusterName
       const controller = new AbortController()
