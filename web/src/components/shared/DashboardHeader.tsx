@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { RefreshCw, Hourglass } from 'lucide-react'
+import { RefreshCw, Hourglass, AlertTriangle } from 'lucide-react'
 import { getRememberPosition, setRememberPosition } from '../../hooks/useLastRoute'
 
 interface DashboardHeaderProps {
@@ -27,6 +27,8 @@ interface DashboardHeaderProps {
   afterTitle?: React.ReactNode
   /** Extra content rendered on the right side before auto-refresh (e.g., delete button) */
   rightExtra?: React.ReactNode
+  /** Error message to display (optional) */
+  error?: string | null
 }
 
 /**
@@ -52,6 +54,7 @@ export function DashboardHeader({
   lastUpdated: externalLastUpdated,
   afterTitle,
   rightExtra,
+  error,
 }: DashboardHeaderProps) {
   const location = useLocation()
   const [rememberPosition, setRememberPositionState] = useState(() => getRememberPosition(location.pathname))
@@ -138,11 +141,16 @@ export function DashboardHeader({
             <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        {displayTimestamp && (
+        {error ? (
+          <span className="text-xs text-red-400 flex items-center gap-1" role="alert" aria-live="polite">
+            <AlertTriangle className="w-3 h-3" aria-hidden="true" />
+            <span>{error}</span>
+          </span>
+        ) : displayTimestamp ? (
           <span className="text-xs text-muted-foreground">
             Updated {displayTimestamp.toLocaleTimeString()}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   )
