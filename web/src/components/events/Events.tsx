@@ -30,7 +30,8 @@ import { ConfigureCardModal } from '../dashboard/ConfigureCardModal'
 import { FloatingDashboardActions } from '../dashboard/FloatingDashboardActions'
 import { DashboardTemplate } from '../dashboard/templates'
 import { formatCardTitle } from '../../lib/formatCardTitle'
-import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
+import { UnifiedStatsSection, EVENTS_STATS_CONFIG } from '../../lib/unified/stats'
+import type { StatBlockValue } from '../ui/StatsOverview'
 import { useDashboard, DashboardCard } from '../../lib/dashboards'
 import { useRefreshIndicator } from '../../hooks/useRefreshIndicator'
 import { useMobile } from '../../hooks/useMobile'
@@ -611,13 +612,12 @@ export function Events() {
       />
 
       {/* Stats Overview - configurable */}
-      <StatsOverview
-        dashboardType="events"
+      <UnifiedStatsSection
+        config={EVENTS_STATS_CONFIG}
         getStatValue={getStatValue}
         hasData={displayStats.total > 0}
         isLoading={isLoading}
         lastUpdated={lastUpdated}
-        collapsedStorageKey="kubestellar-events-stats-collapsed"
       />
 
       {/* Tabs */}

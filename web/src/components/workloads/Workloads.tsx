@@ -18,7 +18,8 @@ import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { StatusIndicator } from '../charts/StatusIndicator'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { Skeleton } from '../ui/Skeleton'
-import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
+import { UnifiedStatsSection, WORKLOADS_STATS_CONFIG } from '../../lib/unified/stats'
+import type { StatBlockValue } from '../ui/StatsOverview'
 import { useUniversalStats, createMergedStatValueGetter } from '../../hooks/useUniversalStats'
 import { CardWrapper } from '../cards/CardWrapper'
 import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
@@ -423,13 +424,12 @@ export function Workloads() {
       />
 
       {/* Stats Overview - configurable */}
-      <StatsOverview
-        dashboardType="workloads"
+      <UnifiedStatsSection
+        config={WORKLOADS_STATS_CONFIG}
         getStatValue={getStatValue}
         hasData={apps.length > 0 || !showSkeletons}
         isLoading={showSkeletons}
         lastUpdated={lastUpdated}
-        collapsedStorageKey="kubestellar-workloads-stats-collapsed"
       />
 
       {/* Dashboard Cards Section */}

@@ -18,14 +18,15 @@ import { useRefreshIndicator } from '../../hooks/useRefreshIndicator'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
 import { useUniversalStats, createMergedStatValueGetter } from '../../hooks/useUniversalStats'
 import { CardWrapper } from '../cards/CardWrapper'
-import { CARD_COMPONENTS, DEMO_DATA_CARDS } from '../cards/cardRegistry'
+import { CARD_COMPONENTS } from '../cards/cardRegistry'
 import { AddCardModal } from '../dashboard/AddCardModal'
 import { TemplatesModal } from '../dashboard/TemplatesModal'
 import { ConfigureCardModal } from '../dashboard/ConfigureCardModal'
 import { FloatingDashboardActions } from '../dashboard/FloatingDashboardActions'
 import { DashboardTemplate } from '../dashboard/templates'
 import { formatCardTitle } from '../../lib/formatCardTitle'
-import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
+import { UnifiedStatsSection, DATA_COMPLIANCE_STATS_CONFIG } from '../../lib/unified/stats'
+import type { StatBlockValue } from '../ui/StatsOverview'
 import { useDashboard, DashboardCard } from '../../lib/dashboards'
 
 // Width class lookup for Tailwind
@@ -96,7 +97,6 @@ const SortableCard = memo(function SortableCard({
         cardType={card.card_type}
         cardWidth={width}
         onWidthChange={onWidthChange}
-        isDemoData={DEMO_DATA_CARDS.has(card.card_type)}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
         lastUpdated={lastUpdated}
@@ -332,14 +332,12 @@ export function DataCompliance() {
       )}
 
       {/* Stats Overview */}
-      <StatsOverview
-        dashboardType="data-compliance"
+      <UnifiedStatsSection
+        config={DATA_COMPLIANCE_STATS_CONFIG}
         getStatValue={getStatValue}
         hasData={true}
         isLoading={isLoading && clusters.length === 0}
         lastUpdated={lastUpdated}
-        collapsedStorageKey="kubestellar-data-compliance-stats-collapsed"
-        isDemoData={true}
       />
 
       {/* Cards Grid */}

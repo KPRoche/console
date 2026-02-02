@@ -37,7 +37,8 @@ import { FloatingDashboardActions } from './FloatingDashboardActions'
 import { DashboardTemplate } from './templates'
 import { BaseModal } from '../../lib/modals'
 import { formatCardTitle } from '../../lib/formatCardTitle'
-import { StatsOverview, StatBlockValue } from '../ui/StatsOverview'
+import { UnifiedStatsSection, DASHBOARD_STATS_CONFIG } from '../../lib/unified/stats'
+import type { StatBlockValue } from '../ui/StatsOverview'
 import { useUniversalStats, createMergedStatValueGetter } from '../../hooks/useUniversalStats'
 import { useRefreshIndicator } from '../../hooks/useRefreshIndicator'
 import { DashboardHeader } from '../shared/DashboardHeader'
@@ -475,13 +476,12 @@ export function CustomDashboard() {
       />
 
       {/* Stats Overview */}
-      <StatsOverview
-        dashboardType="dashboard"
+      <UnifiedStatsSection
+        config={DASHBOARD_STATS_CONFIG}
         getStatValue={getStatValue}
         hasData={deduplicatedClusters.length > 0}
         isLoading={isClustersLoading && deduplicatedClusters.length === 0}
         lastUpdated={lastUpdated}
-        collapsedStorageKey={`kubestellar-custom-${id}-stats-collapsed`}
       />
 
       {/* AI Recommendations - always shown to help users add relevant cards */}
