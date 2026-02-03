@@ -232,8 +232,8 @@ export function useServices(cluster?: string, namespace?: string) {
       setLastRefresh(new Date())
       if (!silent) {
         setError('Failed to fetch services')
-        // Fall back to demo data on error if no cached data
-        if (services.length === 0) {
+        // Only fall back to demo data on error if in demo mode and no cached data
+        if (services.length === 0 && getDemoMode()) {
           setServices(getDemoServices().filter(s =>
             (!cluster || s.cluster === cluster) && (!namespace || s.namespace === namespace)
           ))
@@ -326,10 +326,12 @@ export function useIngresses(cluster?: string, namespace?: string) {
       setError(null)
     } catch {
       setError('Failed to fetch Ingresses')
-      // Fall back to demo data on error
-      setIngresses(getDemoIngresses().filter(i =>
-        (!cluster || i.cluster === cluster) && (!namespace || i.namespace === namespace)
-      ))
+      // Only fall back to demo data on error if in demo mode
+      if (getDemoMode()) {
+        setIngresses(getDemoIngresses().filter(i =>
+          (!cluster || i.cluster === cluster) && (!namespace || i.namespace === namespace)
+        ))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -390,10 +392,12 @@ export function useNetworkPolicies(cluster?: string, namespace?: string) {
       setError(null)
     } catch {
       setError('Failed to fetch NetworkPolicies')
-      // Fall back to demo data on error
-      setNetworkPolicies(getDemoNetworkPolicies().filter(np =>
-        (!cluster || np.cluster === cluster) && (!namespace || np.namespace === namespace)
-      ))
+      // Only fall back to demo data on error if in demo mode
+      if (getDemoMode()) {
+        setNetworkPolicies(getDemoNetworkPolicies().filter(np =>
+          (!cluster || np.cluster === cluster) && (!namespace || np.namespace === namespace)
+        ))
+      }
     } finally {
       setIsLoading(false)
     }

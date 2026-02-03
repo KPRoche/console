@@ -77,13 +77,17 @@ export function useSecurityIssues(cluster?: string, namespace?: string) {
       setLastRefresh(now)
       setIsUsingDemoData(false)
     } catch (err) {
-      // Only set demo data if we don't have existing data and not silent
+      // Only set demo data if we're in demo mode AND don't have existing data AND not silent
+      // In live mode, show error state instead of falling back to demo data
       setConsecutiveFailures(prev => prev + 1)
       setLastRefresh(new Date())
       if (!silent && hadNoData) {
         setError('Failed to fetch security issues')
-        setIssues(getDemoSecurityIssues())
-        setIsUsingDemoData(true)
+        // Only fall back to demo data if in demo mode
+        if (isDemoMode()) {
+          setIssues(getDemoSecurityIssues())
+          setIsUsingDemoData(true)
+        }
       }
     } finally {
       if (!silent) {
@@ -187,7 +191,10 @@ export function useGitOpsDrifts(cluster?: string, namespace?: string) {
       setLastRefresh(new Date())
       if (!silent) {
         setError('Failed to fetch GitOps drifts')
-        setDrifts(getDemoGitOpsDrifts())
+        // Only fall back to demo data if in demo mode
+        if (isDemoMode()) {
+          setDrifts(getDemoGitOpsDrifts())
+        }
       }
     } finally {
       if (!silent) {

@@ -26,6 +26,15 @@ export const MIN_REFRESH_INDICATOR_MS = 500
 // Local agent URL for direct cluster access
 export const LOCAL_AGENT_URL = 'http://127.0.0.1:8585'
 
+// Centralized timeout configuration for consistent behavior
+export const TIMEOUT_CONFIG = {
+  clusterList: 3000,        // Fast - user is waiting for cluster list
+  healthCheck: 8000,        // Per-cluster health check (reduced from 15s)
+  distributionDetect: 5000, // Non-critical distribution detection
+  podMetrics: 15000,        // Background operations with more data
+  deployments: 15000,       // Background deployments fetch
+} as const
+
 // ============================================================================
 // Shared Cluster State - ensures all useClusters() consumers see the same data
 // ============================================================================
@@ -145,6 +154,24 @@ function saveClusterCacheToStorage(clusters: ClusterInfo[]) {
   }
 }
 
+// Debounced storage writes to prevent main thread blocking during rapid updates
+let pendingStorageWrite: ClusterInfo[] | null = null
+let storageWriteTimeout: ReturnType<typeof setTimeout> | null = null
+
+function debouncedSaveClusterCache(clusters: ClusterInfo[]) {
+  pendingStorageWrite = clusters
+  if (storageWriteTimeout) return // Already scheduled
+
+  storageWriteTimeout = setTimeout(() => {
+    if (pendingStorageWrite) {
+      saveClusterCacheToStorage(pendingStorageWrite)
+      updateDistributionCache(pendingStorageWrite)
+      pendingStorageWrite = null
+    }
+    storageWriteTimeout = null
+  }, 200) // 200ms debounce batches rapid health check updates
+}
+
 // Merge stored cluster data with fresh cluster list (preserves cached metrics)
 // Uses cached value when new value is missing/zero (0 is treated as missing for metrics)
 function mergeWithStoredClusters(newClusters: ClusterInfo[]): ClusterInfo[] {
@@ -225,9 +252,8 @@ export function updateClusterCache(updates: Partial<ClusterCache>) {
   if (updates.clusters) {
     updates.clusters = mergeWithStoredClusters(updates.clusters)
     updates.clusters = applyDistributionCache(updates.clusters)
-    // Save cluster data to localStorage
-    saveClusterCacheToStorage(updates.clusters)
-    updateDistributionCache(updates.clusters)
+    // Save cluster data to localStorage (debounced to prevent main thread blocking)
+    debouncedSaveClusterCache(updates.clusters)
   }
   clusterCache = { ...clusterCache, ...updates }
   notifyClusterSubscribers()
@@ -489,12 +515,8 @@ export function updateSingleClusterInCache(clusterName: string, updates: Partial
     ...clusterCache,
     clusters: updatedClusters,
   }
-  // Persist all cluster data to localStorage
-  saveClusterCacheToStorage(updatedClusters)
-  // Persist distribution changes
-  if (updates.distribution) {
-    updateDistributionCache(updatedClusters)
-  }
+  // Persist cluster data to localStorage (debounced to prevent main thread blocking)
+  debouncedSaveClusterCache(updatedClusters)
   // Use debounced notification to batch multiple cluster updates
   notifyClusterSubscribersDebounced()
 }
@@ -735,7 +757,6 @@ export async function clearDemoDataAndResetLoading() {
   // Reset fetch tracking
   initialFetchStarted = false
   healthCheckFailures = 0
-  distributionDetectionFailures = 0
 
   // Clear per-cluster failure tracking
   clusterHealthFailureStart.clear()
@@ -792,7 +813,7 @@ async function fetchClusterListFromAgent(): Promise<ClusterInfo[] | null> {
         context: c.context || c.name,
         server: c.server,
         user: c.user,
-        healthy: true, // Will be updated by health check
+        healthy: undefined, // Unknown until health check completes
         reachable: undefined, // Unknown until health check completes
         source: 'kubeconfig',
         nodeCount: undefined, // undefined = still checking, 0 = unreachable
@@ -814,9 +835,9 @@ export let healthCheckFailures = 0
 const MAX_HEALTH_CHECK_FAILURES = 3
 
 // Per-cluster failure tracking to prevent transient errors from showing "-"
-// Track first failure timestamp - only mark unreachable after 5 minutes of consecutive failures
+// Track first failure timestamp - only mark unreachable after consecutive failures
 const clusterHealthFailureStart = new Map<string, number>() // timestamp of first failure
-const OFFLINE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes before marking as offline
+const OFFLINE_THRESHOLD_MS = 30 * 1000 // 30 seconds before marking as offline (reduced from 5 minutes)
 
 // Helper to check if cluster has been failing long enough to mark offline
 export function shouldMarkOffline(clusterName: string): boolean {
@@ -907,23 +928,20 @@ function detectDistributionFromNamespaces(namespaces: string[]): string | undefi
   return undefined
 }
 
-// Track backend API failures for distribution detection separately
-let distributionDetectionFailures = 0
-const MAX_DISTRIBUTION_FAILURES = 2
-
 // Detect cluster distribution by checking for system namespaces
-// Uses kubectl via WebSocket when available, falls back to backend API
+// Uses kubectl via WebSocket only - distribution is non-critical, skip if kubectl fails
 async function detectClusterDistribution(clusterName: string, kubectlContext?: string): Promise<{ distribution?: string; namespaces?: string[] }> {
   // Skip in demo mode - no local agent available
   if (isDemoModeForced || getDemoMode()) return {}
 
-  // Try kubectl via WebSocket first (if agent available)
-  // Use the kubectl context (full path) if provided, otherwise fall back to name
+  // Only try kubectl via WebSocket - skip if agent unavailable
+  // Distribution detection is non-critical (only affects cluster logos)
+  // Removed sequential backend fallbacks to eliminate 15s+ worst-case delay
   if (!isAgentUnavailable()) {
     try {
       const response = await kubectlProxy.exec(
         ['get', 'namespaces', '-o', 'jsonpath={.items[*].metadata.name}'],
-        { context: kubectlContext || clusterName, timeout: 10000 }
+        { context: kubectlContext || clusterName, timeout: 5000 } // Reduced from 10s
       )
       if (response.exitCode === 0 && response.output) {
         const namespaces = response.output.split(/\s+/).filter(Boolean)
@@ -931,87 +949,9 @@ async function detectClusterDistribution(clusterName: string, kubectlContext?: s
         return { distribution, namespaces }
       }
     } catch {
-      // WebSocket failed, continue to backend fallback
+      // kubectl failed - skip distribution detection entirely
+      // Logo will update on next successful health check cycle
     }
-  }
-
-  const token = localStorage.getItem('token')
-
-  // Skip backend if using demo token, too many failures, or health checks failing
-  if (!token || token === 'demo-token' ||
-      distributionDetectionFailures >= MAX_DISTRIBUTION_FAILURES ||
-      healthCheckFailures >= MAX_HEALTH_CHECK_FAILURES) {
-    return {}
-  }
-
-  const headers: Record<string, string> = { 'Authorization': `Bearer ${token}` }
-
-  // Helper to extract namespaces from API response
-  const extractNamespaces = (items: Array<{ namespace?: string }>): string[] => {
-    return Array.from(new Set<string>(
-      items.map(item => item.namespace).filter((ns): ns is string => Boolean(ns))
-    ))
-  }
-
-  // Try pods endpoint first
-  try {
-    const response = await fetch(
-      `/api/mcp/pods?cluster=${encodeURIComponent(clusterName)}&limit=500`,
-      { signal: AbortSignal.timeout(5000), headers }
-    )
-    if (response.ok) {
-      distributionDetectionFailures = 0 // Reset on success
-      const data = await response.json()
-      const namespaces = extractNamespaces(data.pods || [])
-      const distribution = detectDistributionFromNamespaces(namespaces)
-      if (distribution) return { distribution, namespaces }
-    } else {
-      distributionDetectionFailures++
-      if (distributionDetectionFailures >= MAX_DISTRIBUTION_FAILURES) return {}
-    }
-  } catch {
-    distributionDetectionFailures++
-    if (distributionDetectionFailures >= MAX_DISTRIBUTION_FAILURES) return {}
-  }
-
-  // Fallback: try events endpoint
-  try {
-    const response = await fetch(
-      `/api/mcp/events?cluster=${encodeURIComponent(clusterName)}&limit=200`,
-      { signal: AbortSignal.timeout(5000), headers }
-    )
-    if (response.ok) {
-      distributionDetectionFailures = 0
-      const data = await response.json()
-      const namespaces = extractNamespaces(data.events || [])
-      const distribution = detectDistributionFromNamespaces(namespaces)
-      if (distribution) return { distribution, namespaces }
-    } else {
-      distributionDetectionFailures++
-      if (distributionDetectionFailures >= MAX_DISTRIBUTION_FAILURES) return {}
-    }
-  } catch {
-    distributionDetectionFailures++
-    if (distributionDetectionFailures >= MAX_DISTRIBUTION_FAILURES) return {}
-  }
-
-  // Fallback: try deployments endpoint
-  try {
-    const response = await fetch(
-      `/api/mcp/deployments?cluster=${encodeURIComponent(clusterName)}`,
-      { signal: AbortSignal.timeout(5000), headers }
-    )
-    if (response.ok) {
-      distributionDetectionFailures = 0
-      const data = await response.json()
-      const namespaces = extractNamespaces(data.deployments || [])
-      const distribution = detectDistributionFromNamespaces(namespaces)
-      if (distribution) return { distribution, namespaces }
-    } else {
-      distributionDetectionFailures++
-    }
-  } catch {
-    distributionDetectionFailures++
   }
 
   return {}
@@ -1072,14 +1012,16 @@ async function processClusterHealth(cluster: ClusterInfo): Promise<void> {
         // Cluster reported as unreachable - check error type to decide handling
         recordClusterFailure(cluster.name)
 
-        // Connection refused/reset errors are definitive - mark offline immediately
-        // Timeout errors might be transient - use the 5-minute grace period
+        // Connection refused/reset/timeout errors are definitive - mark offline immediately
         const errorMsg = health.errorMessage?.toLowerCase() || ''
         const isDefinitiveError = errorMsg.includes('connection refused') ||
           errorMsg.includes('connection reset') ||
           errorMsg.includes('no such host') ||
           errorMsg.includes('network is unreachable') ||
-          health.errorType === 'network'
+          errorMsg.includes('timeout') ||
+          errorMsg.includes('timed out') ||
+          health.errorType === 'network' ||
+          health.errorType === 'timeout'
 
         if (isDefinitiveError || shouldMarkOffline(cluster.name)) {
           // Definitive error or 5+ minutes of failures - mark as unreachable
@@ -1122,7 +1064,7 @@ async function processClusterHealth(cluster: ClusterInfo): Promise<void> {
 
 // Concurrency limit for health checks - rolling concurrency for 100+ clusters
 // Keep at 2 to avoid overwhelming the local agent WebSocket connection
-const HEALTH_CHECK_CONCURRENCY = 2
+const HEALTH_CHECK_CONCURRENCY = 6 // Increased from 2 for faster cluster health population
 
 // Progressive health check with rolling concurrency
 // Uses continuous processing: as soon as one finishes, the next starts

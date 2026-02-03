@@ -280,7 +280,7 @@ class AgentManager {
     }
   }
 
-  // Report successful data fetch - can recover from degraded
+  // Report successful data fetch - can recover from degraded or disconnected
   reportDataSuccess() {
     if (this.state.status === 'degraded') {
       // Clear old errors and check if we can recover
@@ -297,6 +297,20 @@ class AgentManager {
           lastDataError: null,
         })
       }
+    } else if (this.state.status === 'disconnected') {
+      // If we're getting successful data from the agent, we're actually connected
+      // This can happen if /health is slow but data endpoints work
+      this.hasEverConnected = true
+      this.failureCount = 0
+      this.addEvent('connected', 'Connected via data endpoint')
+      this.setState({
+        status: 'connected',
+        error: null,
+        dataErrorCount: 0,
+        lastDataError: null,
+      })
+      // Speed up health polling now that we know agent is available
+      this.adjustPollInterval(POLL_INTERVAL)
     }
   }
 
@@ -328,6 +342,24 @@ class AgentManager {
 
 // Global singleton instance
 const agentManager = new AgentManager()
+
+// Listen for demo mode changes and restart agent checking when switching to live mode
+if (typeof window !== 'undefined') {
+  let previousDemoMode = getDemoMode()
+  window.addEventListener('kc-demo-mode-change', (event: Event) => {
+    const customEvent = event as CustomEvent<boolean>
+    const newDemoMode = customEvent.detail
+
+    // When switching FROM demo mode TO live mode, restart agent checking
+    if (previousDemoMode && !newDemoMode) {
+      agentManager.stop()
+      agentManager.start()
+      agentManager.aggressiveDetect()
+    }
+
+    previousDemoMode = newDemoMode
+  })
+}
 
 // ============================================================================
 // Non-hook API for reporting data errors from module-level code

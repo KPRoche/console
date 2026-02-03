@@ -55,9 +55,12 @@ export function useConfigMaps(cluster?: string, namespace?: string) {
       setError(null)
     } catch {
       setError('Failed to fetch ConfigMaps')
-      setConfigMaps(getDemoConfigMaps().filter(cm =>
-        (!cluster || cm.cluster === cluster) && (!namespace || cm.namespace === namespace)
-      ))
+      // Only fall back to demo data if in demo mode
+      if (getDemoMode()) {
+        setConfigMaps(getDemoConfigMaps().filter(cm =>
+          (!cluster || cm.cluster === cluster) && (!namespace || cm.namespace === namespace)
+        ))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -120,9 +123,12 @@ export function useSecrets(cluster?: string, namespace?: string) {
       setError(null)
     } catch {
       setError('Failed to fetch Secrets')
-      setSecrets(getDemoSecrets().filter(s =>
-        (!cluster || s.cluster === cluster) && (!namespace || s.namespace === namespace)
-      ))
+      // Only fall back to demo data if in demo mode
+      if (getDemoMode()) {
+        setSecrets(getDemoSecrets().filter(s =>
+          (!cluster || s.cluster === cluster) && (!namespace || s.namespace === namespace)
+        ))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -185,9 +191,12 @@ export function useServiceAccounts(cluster?: string, namespace?: string) {
       setError(null)
     } catch {
       setError('Failed to fetch ServiceAccounts')
-      setServiceAccounts(getDemoServiceAccounts().filter(sa =>
-        (!cluster || sa.cluster === cluster) && (!namespace || sa.namespace === namespace)
-      ))
+      // Only fall back to demo data if in demo mode
+      if (getDemoMode()) {
+        setServiceAccounts(getDemoServiceAccounts().filter(sa =>
+          (!cluster || sa.cluster === cluster) && (!namespace || sa.namespace === namespace)
+        ))
+      }
     } finally {
       setIsLoading(false)
     }

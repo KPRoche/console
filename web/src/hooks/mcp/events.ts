@@ -148,12 +148,16 @@ export function useEvents(cluster?: string, namespace?: string, limit = 20) {
         return
       }
       console.error('[useEvents] Failed to fetch events:', err)
-      // Keep stale data, only use demo if no cached data
+      // Keep stale data, only use demo if no cached data AND in demo mode
       setConsecutiveFailures(prev => prev + 1)
       setLastRefresh(new Date())
       if (!silent && !eventsCache) {
         setError('Failed to fetch events')
-        setEvents(getDemoEvents())
+        // Only fall back to demo data if in demo mode
+        const token = localStorage.getItem('token')
+        if (!token || token === 'demo-token') {
+          setEvents(getDemoEvents())
+        }
       }
     } finally {
       // console.log('[useEvents] Finally block started')
@@ -287,10 +291,14 @@ export function useWarningEvents(cluster?: string, namespace?: string, limit = 2
       setError(null)
       setLastUpdated(now)
     } catch (err) {
-      // Keep stale data, only use demo if no cached data
+      // Keep stale data, only use demo if no cached data AND in demo mode
       if (!silent && !warningEventsCache) {
         setError('Failed to fetch warning events')
-        setEvents(getDemoEvents().filter(e => e.type === 'Warning'))
+        // Only fall back to demo data if in demo mode
+        const token = localStorage.getItem('token')
+        if (!token || token === 'demo-token') {
+          setEvents(getDemoEvents().filter(e => e.type === 'Warning'))
+        }
       }
     } finally {
       setIsLoading(false)

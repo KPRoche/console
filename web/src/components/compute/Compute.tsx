@@ -382,8 +382,8 @@ export function Compute() {
         lastUpdated={lastUpdated}
       />
 
-      {/* Error Display */}
-      {error && (
+      {/* Error Display - only show when no data is available */}
+      {error && !hasDataToShow && (
         <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">

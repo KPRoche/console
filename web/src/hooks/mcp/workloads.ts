@@ -312,12 +312,14 @@ export function usePods(cluster?: string, namespace?: string, sortBy: 'restarts'
       setConsecutiveFailures(0)
       setLastRefresh(now)
     } catch (err) {
-      // Keep stale data on error - don't fall back to demo
+      // Keep stale data on error - only fall back to demo if in demo mode
       setConsecutiveFailures(prev => prev + 1)
       setLastRefresh(new Date())
       if (!silent && !podsCache) {
         setError('Failed to fetch pods')
-        setPods(getDemoPods())
+        if (getDemoMode()) {
+          setPods(getDemoPods())
+        }
       }
     } finally {
       setIsLoading(false)
@@ -410,12 +412,14 @@ export function useAllPods(cluster?: string, namespace?: string) {
       setError(null)
       setLastUpdated(now)
     } catch (err) {
-      // Keep stale data on error, fallback to demo data if no cache
+      // Keep stale data on error, only fallback to demo data if in demo mode
       if (!silent && !podsCache) {
         setError('Failed to fetch pods')
-        setPods(getDemoAllPods().filter(p =>
-          (!cluster || p.cluster === cluster) && (!namespace || p.namespace === namespace)
-        ))
+        if (getDemoMode()) {
+          setPods(getDemoAllPods().filter(p =>
+            (!cluster || p.cluster === cluster) && (!namespace || p.namespace === namespace)
+          ))
+        }
       }
     } finally {
       if (!silent) {
@@ -676,12 +680,14 @@ export function useDeploymentIssues(cluster?: string, namespace?: string) {
       setConsecutiveFailures(0)
       setLastRefresh(now)
     } catch (err) {
-      // Keep stale data, only use demo if no cached data
+      // Keep stale data, only use demo if in demo mode and no cached data
       setConsecutiveFailures(prev => prev + 1)
       setLastRefresh(new Date())
       if (!silent && !deploymentIssuesCache) {
         setError('Failed to fetch deployment issues')
-        setIssues(getDemoDeploymentIssues())
+        if (getDemoMode()) {
+          setIssues(getDemoDeploymentIssues())
+        }
       }
     } finally {
       setIsLoading(false)
