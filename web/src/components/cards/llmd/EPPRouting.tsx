@@ -3,11 +3,15 @@
  *
  * Premium Sankey-style diagram showing request distribution through EPP
  * with glowing nodes, animated flow particles, and routing percentages.
+ *
+ * Uses live stack data when available, demo data when in demo mode.
  */
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, ArrowRight, CircleDot } from 'lucide-react'
 import { Acronym } from './shared/PortalTooltip'
+import { useOptionalStack } from '../../../contexts/StackContext'
+import { useDemoMode } from '../../../hooks/useDemoMode'
 
 type MetricType = 'load' | 'rps'
 type ViewMode = 'default' | 'horseshoe'
@@ -26,6 +30,7 @@ interface FlowNode {
   type: 'source' | 'router' | 'prefill' | 'decode'
   color: string
   load?: number
+  isGhost?: boolean  // For scaled-to-0 autoscaler nodes
 }
 
 interface FlowLink {
@@ -36,15 +41,15 @@ interface FlowLink {
   type: 'prefill' | 'decode' | 'kv-transfer'
 }
 
-// Node layout - spread across viewBox
+// Node layout - spread across viewBox (matching LLMdFlow spacing)
 const NODES: FlowNode[] = [
   { id: 'requests', label: 'Requests', x: 12, y: 50, type: 'source', color: '#3b82f6', load: 0 },
   { id: 'epp', label: 'EPP', x: 38, y: 50, type: 'router', color: '#f59e0b', load: 65 },
-  { id: 'prefill-0', label: 'Prefill-0', x: 65, y: 15, type: 'prefill', color: '#9333ea', load: 72 },
-  { id: 'prefill-1', label: 'Prefill-1', x: 65, y: 38, type: 'prefill', color: '#9333ea', load: 58 },
-  { id: 'prefill-2', label: 'Prefill-2', x: 65, y: 62, type: 'prefill', color: '#9333ea', load: 45 },
-  { id: 'decode-0', label: 'Decode-0', x: 65, y: 85, type: 'decode', color: '#22c55e', load: 80 },
-  { id: 'decode-1', label: 'Decode-1', x: 90, y: 50, type: 'decode', color: '#22c55e', load: 67 },
+  { id: 'prefill-0', label: 'Prefill-0', x: 65, y: 18, type: 'prefill', color: '#9333ea', load: 72 },
+  { id: 'prefill-1', label: 'Prefill-1', x: 65, y: 50, type: 'prefill', color: '#9333ea', load: 58 },
+  { id: 'prefill-2', label: 'Prefill-2', x: 65, y: 82, type: 'prefill', color: '#9333ea', load: 45 },
+  { id: 'decode-0', label: 'Decode-0', x: 90, y: 34, type: 'decode', color: '#22c55e', load: 80 },
+  { id: 'decode-1', label: 'Decode-1', x: 90, y: 66, type: 'decode', color: '#22c55e', load: 67 },
 ]
 
 // Get color based on load percentage
@@ -107,8 +112,12 @@ interface PremiumNodeProps {
 }
 
 function PremiumNode({ node, uniqueId, isSelected, onClick }: PremiumNodeProps) {
-  const load = node.load || 0
-  const loadColors = getLoadColors(load)
+  const isGhost = node.isGhost || false
+  const load = isGhost ? 0 : (node.load || 0)
+  // Ghost nodes get dimmed gray colors
+  const loadColors = isGhost
+    ? { start: '#475569', end: '#64748b', glow: '#475569' }
+    : getLoadColors(load)
 
   // Arc calculation (270 degrees, bottom open)
   const startAngle = -225
@@ -200,14 +209,15 @@ function PremiumNode({ node, uniqueId, isSelected, onClick }: PremiumNodeProps) 
         style={{ filter: `blur(0.5px)` }}
       />
 
-      {/* Track background (270 degree arc) */}
+      {/* Track background (270 degree arc) - dashed for ghost nodes */}
       <path
         d={createArc(NODE_RADIUS, startAngle, endAngle)}
         fill="none"
-        stroke="#1e293b"
+        stroke={isGhost ? '#475569' : '#1e293b'}
         strokeWidth={TRACK_WIDTH}
         strokeLinecap="round"
-        opacity={0.9}
+        strokeDasharray={isGhost ? '1 1' : undefined}
+        opacity={isGhost ? 0.5 : 0.9}
       />
 
       {/* Load arc with glow */}
@@ -241,8 +251,14 @@ function PremiumNode({ node, uniqueId, isSelected, onClick }: PremiumNodeProps) 
         fill={`url(#${innerGlowId})`}
       />
 
-      {/* Load percentage inside gauge */}
-      {load > 0 && (
+      {/* Load percentage inside gauge - or pause icon for ghost */}
+      {isGhost ? (
+        /* Pause icon for ghost nodes */
+        <g transform={`translate(${node.x - 1.5}, ${node.y - 1.5})`}>
+          <rect x="0" y="0" width="1" height="3" fill="#64748b" rx="0.2" />
+          <rect x="2" y="0" width="1" height="3" fill="#64748b" rx="0.2" />
+        </g>
+      ) : load > 0 ? (
         <text
           x={node.x}
           y={node.y + 0.5}
@@ -255,7 +271,7 @@ function PremiumNode({ node, uniqueId, isSelected, onClick }: PremiumNodeProps) 
         >
           {load}%
         </text>
-      )}
+      ) : null}
 
       {/* Node label below */}
       <text
@@ -272,56 +288,50 @@ function PremiumNode({ node, uniqueId, isSelected, onClick }: PremiumNodeProps) 
   )
 }
 
-// Flow particle component - follows quadratic bezier curve
+// Flow particle component - uses SVG animateMotion for guaranteed path following
 interface FlowParticleProps {
   link: FlowLink
   delay: number
+  nodes: FlowNode[]
+  pathGenerator: (source: FlowNode, target: FlowNode) => string
 }
 
-function FlowParticle({ link, delay }: FlowParticleProps) {
-  const sourceNode = NODES.find(n => n.id === link.source)
-  const targetNode = NODES.find(n => n.id === link.target)
+function FlowParticle({ link, delay, nodes, pathGenerator }: FlowParticleProps) {
+  const sourceNode = nodes.find(n => n.id === link.source)
+  const targetNode = nodes.find(n => n.id === link.target)
 
   if (!sourceNode || !targetNode) return null
 
   const color = link.type === 'prefill' ? '#9333ea' : link.type === 'decode' ? '#22c55e' : '#06b6d4'
 
-  // Calculate control point for quadratic bezier (same as path)
-  const midX = (sourceNode.x + targetNode.x) / 2
-  const midY = (sourceNode.y + targetNode.y) / 2
-  const curve = Math.abs(sourceNode.y - targetNode.y) > 20 ? 8 : 3
-  const controlX = midX
-  const controlY = midY - curve
+  // Use the same path generator as the visible line
+  const path = pathGenerator(sourceNode, targetNode)
 
-  // Generate points along the quadratic bezier curve
-  const numPoints = 20
-  const curvePoints: { x: number; y: number }[] = []
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints
-    // Quadratic bezier: B(t) = (1-t)²P0 + 2(1-t)t*P1 + t²P2
-    const x = Math.pow(1 - t, 2) * sourceNode.x + 2 * (1 - t) * t * controlX + Math.pow(t, 2) * targetNode.x
-    const y = Math.pow(1 - t, 2) * sourceNode.y + 2 * (1 - t) * t * controlY + Math.pow(t, 2) * targetNode.y
-    curvePoints.push({ x, y })
-  }
+  // Speed varies by percentage: higher percentage = faster (shorter duration)
+  // Range: 1.5s for 100% to 4s for low percentages
+  const baseDuration = 4 - (link.percentage / 100) * 2.5
 
   return (
-    <motion.circle
+    <circle
       r={PARTICLE_RADIUS}
       fill={color}
-      initial={{ cx: curvePoints[0].x, cy: curvePoints[0].y, opacity: 0 }}
-      animate={{
-        cx: curvePoints.map(p => p.x),
-        cy: curvePoints.map(p => p.y),
-        opacity: [0, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0, 0],
-      }}
-      transition={{
-        duration: 2.5,
-        delay,
-        repeat: Infinity,
-        ease: 'linear',
-      }}
       style={{ filter: `drop-shadow(0 0 1.5px ${color})` }}
-    />
+    >
+      <animateMotion
+        dur={`${baseDuration}s`}
+        repeatCount="indefinite"
+        begin={`${delay}s`}
+        path={path}
+        calcMode="linear"
+      />
+      <animate
+        attributeName="opacity"
+        values="0;0.8;0.8;0.8;0.8;0.8;0.8;0.8;0.8;0"
+        dur={`${baseDuration}s`}
+        repeatCount="indefinite"
+        begin={`${delay}s`}
+      />
+    </circle>
   )
 }
 
@@ -343,8 +353,10 @@ const getHorseshoeColor = (pct: number) => {
 }
 
 function HorseshoeNode({ node, uniqueId, isSelected, onClick }: HorseshoeNodeProps) {
-  const load = node.load || 0
-  const color = getHorseshoeColor(load)
+  const isGhost = node.isGhost || false
+  const load = isGhost ? 0 : (node.load || 0)
+  // Ghost nodes get dimmed gray color
+  const color = isGhost ? '#475569' : getHorseshoeColor(load)
   const filterId = `hs-glow-${uniqueId}-${node.id}`
 
   // Larger horseshoe for this view
@@ -410,17 +422,19 @@ function HorseshoeNode({ node, uniqueId, isSelected, onClick }: HorseshoeNodePro
         />
       )}
 
-      {/* Track background arc */}
+      {/* Track background arc - dashed for ghost nodes */}
       <path
         d={createArc(radius, startAngle, endAngle, totalSweep)}
         fill="none"
-        stroke="#374151"
+        stroke={isGhost ? '#475569' : '#374151'}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
+        strokeDasharray={isGhost ? '2 2' : undefined}
+        opacity={isGhost ? 0.5 : 1}
       />
 
       {/* Value arc */}
-      {load > 0 && (
+      {load > 0 && !isGhost && (
         <motion.path
           d={createArc(radius, startAngle, valueEndAngle, valueSweep)}
           fill="none"
@@ -442,19 +456,27 @@ function HorseshoeNode({ node, uniqueId, isSelected, onClick }: HorseshoeNodePro
         fill="#0f172a"
       />
 
-      {/* Percentage text */}
-      <text
-        x={cx}
-        y={cy + 0.5}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#ffffff"
-        fontSize="4"
-        fontWeight="700"
-        style={{ textShadow: `0 0 4px ${color}` }}
-      >
-        {load}%
-      </text>
+      {/* Percentage text - or pause icon for ghost */}
+      {isGhost ? (
+        /* Pause icon for ghost nodes */
+        <g transform={`translate(${cx - 2}, ${cy - 2})`}>
+          <rect x="0" y="0" width="1.5" height="4" fill="#64748b" rx="0.3" />
+          <rect x="2.5" y="0" width="1.5" height="4" fill="#64748b" rx="0.3" />
+        </g>
+      ) : (
+        <text
+          x={cx}
+          y={cy + 0.5}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#ffffff"
+          fontSize="4"
+          fontWeight="700"
+          style={{ textShadow: `0 0 4px ${color}` }}
+        >
+          {load}%
+        </text>
+      )}
 
       {/* Label below */}
       <text
@@ -472,6 +494,7 @@ function HorseshoeNode({ node, uniqueId, isSelected, onClick }: HorseshoeNodePro
 }
 
 export function EPPRouting() {
+  const stackContext = useOptionalStack()
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
   const [showParticles, setShowParticles] = useState(true)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
@@ -480,6 +503,130 @@ export function EPPRouting() {
   const [selectedMetricTypes, setSelectedMetricTypes] = useState<MetricType[]>(['load'])
   const [viewMode, setViewMode] = useState<ViewMode>('default')
   const uniqueId = useRef(`epp-${Math.random().toString(36).substr(2, 9)}`).current
+
+  // Get stack context and demo mode
+  const selectedStack = stackContext?.selectedStack
+  const { isDemoMode } = useDemoMode()
+
+  // Build dynamic nodes from stack topology
+  const dynamicNodes = useMemo((): FlowNode[] => {
+    // Only show demo nodes if demo mode is ON
+    if (!selectedStack && isDemoMode) {
+      return NODES // Default demo nodes
+    }
+    // In live mode with no stack, return empty
+    if (!selectedStack) {
+      return []
+    }
+
+    const nodes: FlowNode[] = [
+      { id: 'requests', label: 'Requests', x: 12, y: 50, type: 'source', color: '#3b82f6', load: 0 },
+      { id: 'epp', label: 'EPP', x: 38, y: 50, type: 'router', color: '#f59e0b', load: 65 },
+    ]
+
+    // Count total replicas (not just component count) to match LLMdFlow
+    const prefillCount = selectedStack.components.prefill.reduce((sum, c) => sum + c.replicas, 0)
+    const decodeCount = selectedStack.components.decode.reduce((sum, c) => sum + c.replicas, 0)
+    const unifiedCount = selectedStack.components.both.reduce((sum, c) => sum + c.replicas, 0)
+    const hasDisaggregation = prefillCount > 0 && decodeCount > 0
+
+    if (hasDisaggregation) {
+      // Disaggregated topology - spread prefill nodes from y=18 to y=82 (matching demo NODES)
+      const maxPrefill = Math.min(prefillCount, 10)
+      for (let i = 0; i < maxPrefill; i++) {
+        // For 1 node: y=50, for 2 nodes: y=18,82, for 3 nodes: y=18,50,82
+        const y = maxPrefill === 1 ? 50 : 18 + (64 * i) / (maxPrefill - 1)
+        nodes.push({
+          id: `prefill-${i}`,
+          label: `Prefill-${i}`,
+          x: 65,
+          y,
+          type: 'prefill',
+          color: '#9333ea',
+          load: 50 + Math.random() * 30,
+        })
+      }
+
+      // Decode nodes - spread from y=34 to y=66 (matching demo NODES)
+      const maxDecode = Math.min(decodeCount, 10)
+      for (let i = 0; i < maxDecode; i++) {
+        const y = maxDecode === 1 ? 50 : 34 + (32 * i) / (maxDecode - 1)
+        nodes.push({
+          id: `decode-${i}`,
+          label: `Decode-${i}`,
+          x: 90,
+          y,
+          type: 'decode',
+          color: '#22c55e',
+          load: 50 + Math.random() * 35,
+        })
+      }
+    } else if (decodeCount > 0) {
+      // Decode-only topology - spread from y=18 to y=82
+      const maxDecode = Math.min(decodeCount, 10)
+      for (let i = 0; i < maxDecode; i++) {
+        const y = maxDecode === 1 ? 50 : 18 + (64 * i) / (maxDecode - 1)
+        nodes.push({
+          id: `decode-${i}`,
+          label: `Decode-${i}`,
+          x: 75,
+          y,
+          type: 'decode',
+          color: '#22c55e',
+          load: 50 + Math.random() * 35,
+        })
+      }
+    } else if (prefillCount > 0) {
+      // Prefill-only topology - spread from y=18 to y=82
+      const maxPrefill = Math.min(prefillCount, 10)
+      for (let i = 0; i < maxPrefill; i++) {
+        const y = maxPrefill === 1 ? 50 : 18 + (64 * i) / (maxPrefill - 1)
+        nodes.push({
+          id: `prefill-${i}`,
+          label: `Prefill-${i}`,
+          x: 75,
+          y,
+          type: 'prefill',
+          color: '#9333ea',
+          load: 50 + Math.random() * 30,
+        })
+      }
+    } else if (unifiedCount > 0) {
+      // Unified topology - spread from y=18 to y=82
+      const maxServers = Math.min(unifiedCount, 10)
+      for (let i = 0; i < maxServers; i++) {
+        const y = maxServers === 1 ? 50 : 18 + (64 * i) / (maxServers - 1)
+        nodes.push({
+          id: `server-${i}`,
+          label: `Server-${i}`,
+          x: 75,
+          y,
+          type: 'prefill', // Use prefill color for unified
+          color: '#9333ea',
+          load: 50 + Math.random() * 30,
+        })
+      }
+    } else if (selectedStack.autoscaler) {
+      // Scaled to 0 but has autoscaler - show ghost nodes
+      const maxReplicas = selectedStack.autoscaler.maxReplicas || 3
+      const ghostCount = Math.min(maxReplicas, 3)
+      for (let i = 0; i < ghostCount; i++) {
+        const y = ghostCount === 1 ? 50 : 18 + (64 * i) / (ghostCount - 1)
+        nodes.push({
+          id: `ghost-${i}`,
+          label: '(scaled to 0)',
+          x: 75,
+          y,
+          type: 'prefill',
+          color: '#475569', // Dimmed color for ghost
+          load: 0,
+          isGhost: true,  // Mark as ghost node
+        })
+      }
+    }
+
+    return nodes
+  }, [selectedStack, isDemoMode])
 
   // Toggle metric selection
   const toggleMetric = (metric: MetricType) => {
@@ -496,7 +643,7 @@ export function EPPRouting() {
   useEffect(() => {
     const updateMetrics = () => {
       const newMetrics: Record<string, { load: number; rps: number }> = {}
-      NODES.forEach(node => {
+      dynamicNodes.forEach(node => {
         if (node.type !== 'source') {
           newMetrics[node.id] = {
             load: Math.floor(40 + Math.random() * 50),
@@ -525,29 +672,120 @@ export function EPPRouting() {
     updateMetrics()
     const interval = setInterval(updateMetrics, 2000)
     return () => clearInterval(interval)
-  }, [])
+  }, [dynamicNodes])
 
-  // Get current node with live metrics
-  const getNodeWithMetrics = (node: FlowNode): FlowNode => {
+  // Get current node with live metrics (skip ghost nodes)
+  const getNodeWithMetrics = useCallback((node: FlowNode): FlowNode => {
+    // Don't override ghost node metrics - they stay at 0
+    if (node.isGhost) return node
     const m = nodeMetrics[node.id]
     if (!m) return node
     return { ...node, load: m.load }
-  }
+  }, [nodeMetrics])
 
-  // Transform routing stats to flow links
+  // Transform routing stats to flow links based on topology
   const links = useMemo((): FlowLink[] => {
-    return [
+    const flowLinks: FlowLink[] = [
       { source: 'requests', target: 'epp', value: 450, percentage: 100, type: 'prefill' as const },
-      { source: 'epp', target: 'prefill-0', value: 120, percentage: 27, type: 'prefill' as const },
-      { source: 'epp', target: 'prefill-1', value: 115, percentage: 26, type: 'prefill' as const },
-      { source: 'epp', target: 'prefill-2', value: 95, percentage: 21, type: 'prefill' as const },
-      { source: 'epp', target: 'decode-0', value: 65, percentage: 14, type: 'decode' as const },
-      { source: 'epp', target: 'decode-1', value: 55, percentage: 12, type: 'decode' as const },
-      { source: 'prefill-0', target: 'decode-1', value: 60, percentage: 50, type: 'decode' as const },
-      { source: 'prefill-1', target: 'decode-1', value: 58, percentage: 50, type: 'decode' as const },
-      { source: 'prefill-2', target: 'decode-1', value: 48, percentage: 50, type: 'decode' as const },
     ]
-  }, [])
+
+    // Get prefill, decode, and server nodes
+    const prefillNodes = dynamicNodes.filter(n => n.type === 'prefill' && n.id.startsWith('prefill-'))
+    const decodeNodes = dynamicNodes.filter(n => n.type === 'decode')
+    const serverNodes = dynamicNodes.filter(n => n.id.startsWith('server-'))
+
+    if (prefillNodes.length > 0 && decodeNodes.length > 0) {
+      // Disaggregated topology
+      const prefillPercent = Math.round(80 / prefillNodes.length)
+      prefillNodes.forEach((node, i) => {
+        flowLinks.push({
+          source: 'epp',
+          target: node.id,
+          value: Math.round(350 / prefillNodes.length),
+          percentage: prefillPercent - (i * 2), // Slight variation
+          type: 'prefill',
+        })
+      })
+
+      // Direct decode connections (for cached KV)
+      const decodePercent = Math.round(20 / decodeNodes.length)
+      decodeNodes.forEach((node, i) => {
+        flowLinks.push({
+          source: 'epp',
+          target: node.id,
+          value: Math.round(100 / decodeNodes.length),
+          percentage: decodePercent - i,
+          type: 'decode',
+        })
+      })
+
+      // Prefill to decode handoff
+      if (decodeNodes.length > 0) {
+        prefillNodes.forEach(prefillNode => {
+          decodeNodes.forEach(decodeNode => {
+            flowLinks.push({
+              source: prefillNode.id,
+              target: decodeNode.id,
+              value: Math.round(50 / decodeNodes.length),
+              percentage: Math.round(100 / decodeNodes.length),
+              type: 'decode',
+            })
+          })
+        })
+      }
+    } else if (serverNodes.length > 0) {
+      // Unified topology - EPP to servers
+      const percent = Math.round(100 / serverNodes.length)
+      serverNodes.forEach((node, i) => {
+        flowLinks.push({
+          source: 'epp',
+          target: node.id,
+          value: Math.round(450 / serverNodes.length),
+          percentage: percent - (i * 3),
+          type: 'prefill',
+        })
+      })
+    } else if (decodeNodes.length > 0) {
+      // Decode-only topology - EPP to decode nodes
+      const percent = Math.round(100 / decodeNodes.length)
+      decodeNodes.forEach((node, i) => {
+        flowLinks.push({
+          source: 'epp',
+          target: node.id,
+          value: Math.round(450 / decodeNodes.length),
+          percentage: percent - (i * 2),
+          type: 'decode',
+        })
+      })
+    } else if (prefillNodes.length > 0) {
+      // Prefill-only topology - EPP to prefill nodes
+      const percent = Math.round(100 / prefillNodes.length)
+      prefillNodes.forEach((node, i) => {
+        flowLinks.push({
+          source: 'epp',
+          target: node.id,
+          value: Math.round(450 / prefillNodes.length),
+          percentage: percent - (i * 2),
+          type: 'prefill',
+        })
+      })
+    } else {
+      // Fallback to default links (demo mode)
+      return [
+        { source: 'requests', target: 'epp', value: 450, percentage: 100, type: 'prefill' as const },
+        { source: 'epp', target: 'prefill-0', value: 120, percentage: 27, type: 'prefill' as const },
+        { source: 'epp', target: 'prefill-1', value: 115, percentage: 26, type: 'prefill' as const },
+        { source: 'epp', target: 'prefill-2', value: 95, percentage: 21, type: 'prefill' as const },
+        { source: 'epp', target: 'decode-0', value: 65, percentage: 14, type: 'decode' as const },
+        { source: 'epp', target: 'decode-1', value: 55, percentage: 12, type: 'decode' as const },
+        { source: 'prefill-0', target: 'decode-1', value: 60, percentage: 50, type: 'decode' as const },
+        { source: 'prefill-1', target: 'decode-1', value: 58, percentage: 50, type: 'decode' as const },
+        { source: 'prefill-2', target: 'decode-1', value: 48, percentage: 50, type: 'decode' as const },
+      ]
+    }
+
+    return flowLinks
+  }, [dynamicNodes])
 
   // Aggregate metrics
   const metrics = useMemo(() => {
@@ -567,15 +805,28 @@ export function EPPRouting() {
     }
   }, [links])
 
-  // Generate path between nodes
-  const generatePath = (source: FlowNode, target: FlowNode): string => {
+  // Generate path between nodes - must match FlowParticle curve calculation exactly
+  const generatePath = useCallback((source: FlowNode, target: FlowNode): string => {
     const midX = (source.x + target.x) / 2
+    const midY = (source.y + target.y) / 2
     const curve = Math.abs(source.y - target.y) > 20 ? 8 : 3
-    return `M ${source.x} ${source.y} Q ${midX} ${(source.y + target.y) / 2 - curve} ${target.x} ${target.y}`
-  }
+    const controlY = midY - curve
+    return `M ${source.x} ${source.y} Q ${midX} ${controlY} ${target.x} ${target.y}`
+  }, [])
+
+  // Show empty state when no stack selected in live mode
+  const showEmptyState = !selectedStack && !isDemoMode
 
   return (
-    <div className="p-4 h-full flex flex-col bg-gradient-to-br from-slate-900/50 to-slate-800/30">
+    <div className="p-4 h-full flex flex-col bg-gradient-to-br from-slate-900/50 to-slate-800/30 relative">
+      {/* Empty state overlay */}
+      {showEmptyState && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-900/60 backdrop-blur-sm rounded-lg">
+          <div className="w-12 h-12 rounded-full border-2 border-slate-600 border-t-amber-500 animate-spin mb-4" />
+          <span className="text-slate-400 text-sm">Select a stack to view routing</span>
+          <span className="text-slate-500 text-xs mt-1">Use the stack selector above</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -586,6 +837,20 @@ export function EPPRouting() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Stack info */}
+          {selectedStack && (
+            <div className="flex items-center gap-1 text-xs">
+              <span className={`px-1.5 py-0.5 rounded font-medium truncate max-w-[80px] ${
+                isDemoMode ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400'
+              }`}>
+                {selectedStack.name}
+              </span>
+              {isDemoMode && (
+                <span className="px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px]">Demo</span>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => setViewMode(viewMode === 'default' ? 'horseshoe' : 'default')}
             className={`px-2 py-1 text-xs rounded font-medium transition-all flex items-center gap-1 ${
@@ -650,8 +915,8 @@ export function EPPRouting() {
 
           {/* Links */}
           {links.map((link, i) => {
-            const source = NODES.find(n => n.id === link.source)
-            const target = NODES.find(n => n.id === link.target)
+            const source = dynamicNodes.find(n => n.id === link.source)
+            const target = dynamicNodes.find(n => n.id === link.target)
             if (!source || !target) return null
 
             const linkId = `${link.source}-${link.target}`
@@ -680,14 +945,15 @@ export function EPPRouting() {
                   transition={{ duration: 0.8, delay: i * 0.08 }}
                 />
 
-                {/* Percentage label for major routes */}
-                {link.percentage >= 20 && (
+                {/* Percentage label for routes from EPP */}
+                {link.source === 'epp' && link.percentage >= 5 && (
                   <text
                     x={(source.x + target.x) / 2}
                     y={(source.y + target.y) / 2 - 2}
                     textAnchor="middle"
-                    fill={isHovered ? '#fff' : '#71717a'}
+                    fill={isHovered ? '#fff' : '#a1a1aa'}
                     fontSize="2.5"
+                    fontWeight="500"
                   >
                     {link.percentage}%
                   </text>
@@ -702,12 +968,14 @@ export function EPPRouting() {
               key={`particle-${link.source}-${link.target}`}
               link={link}
               delay={i * 0.2}
+              nodes={dynamicNodes}
+              pathGenerator={generatePath}
             />
           ))}
 
           {/* Nodes - render either default or horseshoe style */}
           {viewMode === 'horseshoe' ? (
-            NODES.map((node) => (
+            dynamicNodes.map((node) => (
               <HorseshoeNode
                 key={node.id}
                 node={getNodeWithMetrics(node)}
@@ -717,7 +985,7 @@ export function EPPRouting() {
               />
             ))
           ) : (
-            NODES.map((node) => (
+            dynamicNodes.map((node) => (
               <PremiumNode
                 key={node.id}
                 node={getNodeWithMetrics(node)}
@@ -740,7 +1008,7 @@ export function EPPRouting() {
               className="absolute left-2 top-2 bg-slate-900/95 backdrop-blur-sm rounded-lg border border-slate-700 p-3 shadow-xl max-w-[180px]"
             >
               {(() => {
-                const node = NODES.find(n => n.id === selectedNode)
+                const node = dynamicNodes.find(n => n.id === selectedNode)
                 const metrics = nodeMetrics[selectedNode]
                 const history = metricsHistory[selectedNode]
                 if (!node) return null

@@ -8,13 +8,13 @@
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CircleDot, Radio } from 'lucide-react'
+import { CircleDot } from 'lucide-react'
 import { generateServerMetrics, type ServerMetrics } from '../../../lib/llmd/mockData'
 import { Acronym } from './shared/PortalTooltip'
 import { useOptionalStack } from '../../../contexts/StackContext'
+import { useDemoMode } from '../../../hooks/useDemoMode'
 
 type ViewMode = 'default' | 'horseshoe'
-type DataMode = 'live' | 'demo'
 
 // Node positions for the flow diagram (coordinates in viewBox units)
 const NODE_POSITIONS = {
@@ -29,7 +29,7 @@ const NODE_POSITIONS = {
 }
 
 // Node styling constants
-const NODE_RADIUS = 7
+const NODE_RADIUS = 6
 const STROKE_WIDTH = 1.5
 const TRACK_WIDTH = 1
 
@@ -84,13 +84,14 @@ interface PremiumNodeProps {
   onClick?: () => void
   uniqueId: string
   nodePositions: Record<string, { x: number; y: number }>
+  isGhost?: boolean  // For scaled-to-0 autoscaler nodes
 }
 
-function PremiumNode({ id, label, metrics, nodeColor, isSelected, onClick, uniqueId, nodePositions }: PremiumNodeProps) {
+function PremiumNode({ id, label, metrics, nodeColor, isSelected, onClick, uniqueId, nodePositions, isGhost }: PremiumNodeProps) {
   const pos = nodePositions[id]
   if (!pos) return null
-  const load = metrics?.load || 0
-  const loadColors = getLoadColors(load)
+  const load = isGhost ? 0 : (metrics?.load || 0)
+  const loadColors = isGhost ? { start: '#475569', end: '#64748b', glow: '#475569' } : getLoadColors(load)
 
   // Arc calculation (270 degrees, bottom open)
   const startAngle = -225
@@ -182,14 +183,15 @@ function PremiumNode({ id, label, metrics, nodeColor, isSelected, onClick, uniqu
         />
       )}
 
-      {/* Track background (270 degree arc) */}
+      {/* Track background (270 degree arc) - dashed for ghost nodes */}
       <path
         d={createArc(NODE_RADIUS, startAngle, endAngle)}
         fill="none"
-        stroke="#1e293b"
+        stroke={isGhost ? '#475569' : '#1e293b'}
         strokeWidth={TRACK_WIDTH}
         strokeLinecap="round"
-        opacity={0.9}
+        strokeDasharray={isGhost ? '1 1' : undefined}
+        opacity={isGhost ? 0.5 : 0.9}
       />
 
       {/* Load arc with glow */}
@@ -212,19 +214,39 @@ function PremiumNode({ id, label, metrics, nodeColor, isSelected, onClick, uniqu
         cx={pos.x}
         cy={pos.y}
         r={NODE_RADIUS - 1.8}
-        fill={`url(#${centerGradientId})`}
+        fill={isGhost ? 'transparent' : `url(#${centerGradientId})`}
+        stroke={isGhost ? '#475569' : undefined}
+        strokeWidth={isGhost ? 0.5 : undefined}
+        strokeDasharray={isGhost ? '1 1' : undefined}
+        opacity={isGhost ? 0.4 : 1}
       />
 
       {/* Inner ambient glow overlay */}
-      <circle
-        cx={pos.x}
-        cy={pos.y}
-        r={NODE_RADIUS - 1.8}
-        fill={`url(#${innerGlowId})`}
-      />
+      {!isGhost && (
+        <circle
+          cx={pos.x}
+          cy={pos.y}
+          r={NODE_RADIUS - 1.8}
+          fill={`url(#${innerGlowId})`}
+        />
+      )}
 
       {/* Load percentage inside gauge - primary metric */}
-      {metrics && (
+      {isGhost ? (
+        <>
+          {/* Pause icon for ghost nodes */}
+          <text
+            x={pos.x}
+            y={pos.y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#64748b"
+            fontSize="3"
+          >
+            ⏸
+          </text>
+        </>
+      ) : metrics && (
         <>
           <text
             x={pos.x}
@@ -257,9 +279,10 @@ function PremiumNode({ id, label, metrics, nodeColor, isSelected, onClick, uniqu
         x={pos.x}
         y={pos.y + NODE_RADIUS + 3}
         textAnchor="middle"
-        fill="#e5e5e5"
-        fontSize="3"
+        fill={isGhost ? '#64748b' : '#e5e5e5'}
+        fontSize={isGhost ? '2' : '2.5'}
         fontWeight="600"
+        fontStyle={isGhost ? 'italic' : undefined}
       >
         {label}
       </text>
@@ -343,13 +366,14 @@ interface HorseshoeFlowNodeProps {
   onClick?: () => void
   uniqueId: string
   nodePositions: Record<string, { x: number; y: number }>
+  isGhost?: boolean
 }
 
-function HorseshoeFlowNode({ id, label, metrics, isSelected, onClick, uniqueId, nodePositions }: HorseshoeFlowNodeProps) {
+function HorseshoeFlowNode({ id, label, metrics, isSelected, onClick, uniqueId, nodePositions, isGhost }: HorseshoeFlowNodeProps) {
   const pos = nodePositions[id]
   if (!pos) return null
-  const load = metrics?.load || 0
-  const color = getHorseshoeColor(load)
+  const load = isGhost ? 0 : (metrics?.load || 0)
+  const color = isGhost ? '#475569' : getHorseshoeColor(load)
   const filterId = `hsf-glow-${uniqueId}-${id}`
 
   const radius = 8
@@ -465,7 +489,7 @@ function HorseshoeFlowNode({ id, label, metrics, isSelected, onClick, uniqueId, 
         y={cy + radius + 4}
         textAnchor="middle"
         fill="#e5e5e5"
-        fontSize="3"
+        fontSize="2.5"
         fontWeight="600"
       >
         {label}
@@ -543,16 +567,16 @@ export function LLMdFlow() {
   const [metricsHistory, setMetricsHistory] = useState<Record<string, MetricsHistoryData>>({})
   const [selectedMetricTypes, setSelectedMetricTypes] = useState<MetricType[]>(['rps'])
   const [viewMode, setViewMode] = useState<ViewMode>('default')
-  const [dataMode, setDataMode] = useState<DataMode>('live')
   const uniqueId = useRef(`flow-${Math.random().toString(36).substr(2, 9)}`).current
 
-  // Get selected stack from context
+  // Get selected stack from context and demo mode from global hook
   const selectedStack = stackContext?.selectedStack
+  const { isDemoMode } = useDemoMode()
 
   // Build dynamic node positions based on actual stack topology
   const { nodePositions, connections, nodeLabels } = useMemo(() => {
-    if (!selectedStack || dataMode === 'demo') {
-      // Default demo topology
+    // Only show demo topology if demo mode is ON
+    if (!selectedStack && isDemoMode) {
       return {
         nodePositions: NODE_POSITIONS,
         connections: CONNECTIONS,
@@ -569,11 +593,31 @@ export function LLMdFlow() {
       }
     }
 
+    // In live mode with no stack selected, return empty state
+    if (!selectedStack) {
+      return {
+        nodePositions: {} as Record<string, { x: number; y: number }>,
+        connections: [] as Connection[],
+        nodeLabels: {} as Record<string, string>,
+      }
+    }
+
     // Live topology from stack
     const prefillCount = selectedStack.components.prefill.reduce((sum, c) => sum + c.replicas, 0)
     const decodeCount = selectedStack.components.decode.reduce((sum, c) => sum + c.replicas, 0)
     const unifiedCount = selectedStack.components.both.reduce((sum, c) => sum + c.replicas, 0)
     const hasDisaggregation = prefillCount > 0 && decodeCount > 0
+
+    // Debug: log component counts
+    console.log('[LLMdFlow] Stack topology:', {
+      stack: selectedStack.name,
+      prefillCount,
+      decodeCount,
+      unifiedCount,
+      hasDisaggregation,
+      prefillComponents: selectedStack.components.prefill.length,
+      decodeComponents: selectedStack.components.decode.length,
+    })
 
     const positions: Record<string, { x: number; y: number }> = {
       client: { x: 10, y: 50 },
@@ -593,15 +637,15 @@ export function LLMdFlow() {
     ]
 
     if (hasDisaggregation) {
-      // Disaggregated topology
-      const maxPrefill = Math.min(prefillCount, 3) // Show up to 3 prefill
-      const maxDecode = Math.min(decodeCount, 2)   // Show up to 2 decode
+      // Disaggregated topology (both prefill AND decode)
+      const maxPrefill = Math.min(prefillCount, 10) // Show up to 3 prefill
+      const maxDecode = Math.min(decodeCount, 10)   // Show up to 2 decode
 
-      // Position prefill nodes
-      const prefillSpacing = 64 / (maxPrefill + 1)
+      // Position prefill nodes - spread from y=18 to y=82
       for (let i = 0; i < maxPrefill; i++) {
         const key = `prefill${i}`
-        positions[key] = { x: 70, y: 18 + prefillSpacing * (i + 1) }
+        const y = maxPrefill === 1 ? 50 : 5 + (90 * i) / (maxPrefill - 1)
+        positions[key] = { x: 70, y }
         labels[key] = `Prefill-${i}`
         conns.push({
           from: 'epp',
@@ -611,11 +655,11 @@ export function LLMdFlow() {
         })
       }
 
-      // Position decode nodes
-      const decodeSpacing = 32 / (maxDecode + 1)
+      // Position decode nodes - spread from y=34 to y=66
       for (let i = 0; i < maxDecode; i++) {
         const key = `decode${i}`
-        positions[key] = { x: 92, y: 34 + decodeSpacing * (i + 1) }
+        const y = maxDecode === 1 ? 50 : 34 + (32 * i) / (maxDecode - 1)
+        positions[key] = { x: 92, y }
         labels[key] = `Decode-${i}`
         // Direct EPP to decode connections (for cached KV)
         conns.push({
@@ -634,13 +678,43 @@ export function LLMdFlow() {
           })
         }
       }
+    } else if (decodeCount > 0) {
+      // Decode-only topology - spread from y=18 to y=82
+      const maxDecode = Math.min(decodeCount, 10)
+      for (let i = 0; i < maxDecode; i++) {
+        const key = `decode${i}`
+        const y = maxDecode === 1 ? 50 : 5 + (90 * i) / (maxDecode - 1)
+        positions[key] = { x: 78, y }
+        labels[key] = `Decode-${i}`
+        conns.push({
+          from: 'epp',
+          to: key as keyof typeof NODE_POSITIONS,
+          type: 'decode',
+          trafficPercent: Math.round(100 / maxDecode),
+        })
+      }
+    } else if (prefillCount > 0) {
+      // Prefill-only topology - spread from y=18 to y=82
+      const maxPrefill = Math.min(prefillCount, 10)
+      for (let i = 0; i < maxPrefill; i++) {
+        const key = `prefill${i}`
+        const y = maxPrefill === 1 ? 50 : 5 + (90 * i) / (maxPrefill - 1)
+        positions[key] = { x: 78, y }
+        labels[key] = `Prefill-${i}`
+        conns.push({
+          from: 'epp',
+          to: key as keyof typeof NODE_POSITIONS,
+          type: 'prefill',
+          trafficPercent: Math.round(100 / maxPrefill),
+        })
+      }
     } else if (unifiedCount > 0) {
-      // Unified serving topology
-      const maxServers = Math.min(unifiedCount, 4)
-      const spacing = 64 / (maxServers + 1)
+      // Unified serving topology - spread from y=18 to y=82
+      const maxServers = Math.min(unifiedCount, 10)
       for (let i = 0; i < maxServers; i++) {
         const key = `server${i}`
-        positions[key] = { x: 78, y: 18 + spacing * (i + 1) }
+        const y = maxServers === 1 ? 50 : 5 + (90 * i) / (maxServers - 1)
+        positions[key] = { x: 78, y }
         labels[key] = `Server-${i}`
         conns.push({
           from: 'epp',
@@ -649,10 +723,27 @@ export function LLMdFlow() {
           trafficPercent: Math.round(100 / maxServers),
         })
       }
+    } else if (selectedStack.autoscaler) {
+      // Scaled to 0 but has autoscaler - show ghost nodes
+      const maxReplicas = selectedStack.autoscaler.maxReplicas || 3
+      const ghostCount = Math.min(maxReplicas, 3) // Show up to 3 ghost nodes
+      for (let i = 0; i < ghostCount; i++) {
+        const key = `ghost${i}`
+        const y = ghostCount === 1 ? 50 : 18 + (64 * i) / (ghostCount - 1)
+        positions[key] = { x: 78, y }
+        labels[key] = `(scaled to 0)`
+        // Dashed connection to ghost node
+        conns.push({
+          from: 'epp',
+          to: key as keyof typeof NODE_POSITIONS,
+          type: 'prefill',
+          trafficPercent: 0, // No traffic when scaled to 0
+        })
+      }
     }
 
     return { nodePositions: positions, connections: conns, nodeLabels: labels }
-  }, [selectedStack, dataMode])
+  }, [selectedStack, isDemoMode])
 
   // Toggle metric selection
   const toggleMetric = (metric: MetricType) => {
@@ -666,10 +757,15 @@ export function LLMdFlow() {
     })
   }
 
-  // Generate metrics based on stack data or demo
+  // Generate metrics based on stack data
   const generateLiveMetrics = useCallback((): ServerMetrics[] => {
-    if (!selectedStack || dataMode === 'demo') {
+    // Only show demo metrics if demo mode is ON
+    if (!selectedStack && isDemoMode) {
       return generateServerMetrics()
+    }
+    // In live mode with no stack, return empty
+    if (!selectedStack) {
+      return []
     }
 
     const now = Date.now()
@@ -745,7 +841,7 @@ export function LLMdFlow() {
     })
 
     return metrics
-  }, [selectedStack, dataMode])
+  }, [selectedStack, isDemoMode])
 
   // Update metrics periodically and track history for all metric types
   useEffect(() => {
@@ -834,18 +930,50 @@ export function LLMdFlow() {
     rps: { label: 'RPS', color: getNodeColor(selectedNode), unit: '' },
   }
 
+  // Show empty state when no stack selected in live mode
+  const showEmptyState = !selectedStack && !isDemoMode
+
   return (
     <div className="relative w-full h-full min-h-[300px] bg-gradient-to-br from-slate-900/50 to-slate-800/30 rounded-lg overflow-hidden">
+      {/* Empty state overlay */}
+      {showEmptyState && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-12 h-12 rounded-full border-2 border-slate-600 border-t-purple-500 animate-spin mb-4" />
+          <span className="text-slate-400 text-sm">Select a stack to visualize</span>
+          <span className="text-slate-500 text-xs mt-1">Use the stack selector above</span>
+        </div>
+      )}
       {/* Header */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
         <div className="flex items-center gap-4">
-          {/* Stack info when live */}
-          {dataMode === 'live' && selectedStack && (
+          {/* Stack info */}
+          {selectedStack && (
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 font-medium truncate max-w-[100px]">
+              <span className={`px-1.5 py-0.5 rounded font-medium truncate max-w-[100px] ${
+                isDemoMode ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400'
+              }`}>
                 {selectedStack.name}
               </span>
-              <span className="text-slate-500">@{selectedStack.cluster}</span>
+              <span className="text-slate-500">{selectedStack.cluster}</span>
+              {/* Autoscaler indicator */}
+              {selectedStack.autoscaler && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  selectedStack.autoscaler.type === 'WVA' ? 'bg-purple-500/20 text-purple-400' :
+                  selectedStack.autoscaler.type === 'HPA' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-green-500/20 text-green-400'
+                }`}>
+                  {selectedStack.autoscaler.type}: {selectedStack.autoscaler.currentReplicas ?? 0}→{selectedStack.autoscaler.desiredReplicas ?? '?'}
+                </span>
+              )}
+              {/* Scaled to 0 indicator */}
+              {selectedStack.autoscaler && selectedStack.totalReplicas === 0 && (
+                <span className="px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400 text-[10px] italic">
+                  ⏸ Scaled to 0
+                </span>
+              )}
+              {isDemoMode && (
+                <span className="px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px]">Demo</span>
+              )}
             </div>
           )}
           <div className="flex items-center gap-1.5 text-xs">
@@ -861,19 +989,6 @@ export function LLMdFlow() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Live/Demo toggle */}
-          <button
-            onClick={() => setDataMode(dataMode === 'live' ? 'demo' : 'live')}
-            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
-              dataMode === 'live' && selectedStack
-                ? 'bg-green-500/20 text-green-400 shadow-lg shadow-green-500/20'
-                : 'bg-slate-700/50 text-slate-400'
-            }`}
-            title={dataMode === 'live' ? 'Using live stack data' : 'Using demo data'}
-          >
-            <Radio size={12} className={dataMode === 'live' && selectedStack ? 'animate-pulse' : ''} />
-            {dataMode === 'live' ? 'Live' : 'Demo'}
-          </button>
           <button
             onClick={() => setViewMode(viewMode === 'default' ? 'horseshoe' : 'default')}
             className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
@@ -944,6 +1059,7 @@ export function LLMdFlow() {
                 onClick={() => setSelectedNode(selectedNode === nodeId ? null : nodeId)}
                 uniqueId={uniqueId}
                 nodePositions={nodePositions}
+                isGhost={nodeId.startsWith('ghost')}
               />
             ))}
           </>
@@ -960,6 +1076,7 @@ export function LLMdFlow() {
                 onClick={() => setSelectedNode(selectedNode === nodeId ? null : nodeId)}
                 uniqueId={uniqueId}
                 nodePositions={nodePositions}
+                isGhost={nodeId.startsWith('ghost')}
               />
             ))}
           </>

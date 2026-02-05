@@ -415,11 +415,8 @@ export const DEMO_DATA_CARDS = new Set([
   // Note: llm_inference, llm_models now use real data via useLLMd hook
   'ml_jobs',
   'ml_notebooks',
-  // LLM-d visualization cards - demo data when VPN is unavailable
-  'llmd_flow',
-  'kvcache_monitor',
-  'epp_routing',
-  'pd_disaggregation',
+  // Note: LLM-d cards (llmd_flow, kvcache_monitor, epp_routing, pd_disaggregation) removed - they now use StackContext for live data
+  // These cards will show Demo badge only when global demo mode is enabled
   'llmd_benchmarks',
   'llmd_ai_insights',
   // Note: llmd_configurator NOT in demo list - shows real llm-d presets from the project
