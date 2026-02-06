@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Plus, X, Save, Trash2, Activity, Sparkles,
   CheckCircle, Eye, GripVertical,
@@ -179,6 +179,17 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
   // Icon picker state
   const [editingBlockIcon, setEditingBlockIcon] = useState<number | null>(null)
 
+  // Track timeouts for cleanup
+  const timeoutsRef = useRef<number[]>([])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(clearTimeout)
+      timeoutsRef.current = []
+    }
+  }, [])
+
   const handleTabChange = useCallback((newTab: Tab) => {
     setTab(newTab)
     if (newTab === 'manage') {
@@ -220,7 +231,8 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
     const type = statsType.trim() || `custom_${Date.now()}`
     if (blocks.filter(b => b.label.trim()).length === 0) {
       setSaveMessage('Add at least one stat block.')
-      setTimeout(() => setSaveMessage(null), 3000)
+      const validationTimeoutId = setTimeout(() => setSaveMessage(null), 3000)
+      timeoutsRef.current.push(validationTimeoutId)
       return
     }
 
@@ -252,7 +264,8 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
     setSaveMessage(`Stats "${definition.title}" created!`)
     onStatsCreated?.(type)
 
-    setTimeout(() => setSaveMessage(null), 3000)
+    const saveSuccessTimeoutId = setTimeout(() => setSaveMessage(null), 3000)
+    timeoutsRef.current.push(saveSuccessTimeoutId)
   }, [statsType, blocks, title, gridCols, onStatsCreated])
 
   const handleDelete = useCallback((type: string) => {
@@ -546,7 +559,8 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
               saveDynamicStatsDefinition(definition)
               setSaveMessage(`Stats "${definition.title}" created with AI!`)
               onStatsCreated?.(type)
-              setTimeout(() => setSaveMessage(null), 3000)
+              const aiCreateTimeoutId = setTimeout(() => setSaveMessage(null), 3000)
+              timeoutsRef.current.push(aiCreateTimeoutId)
             }}
             saveLabel="Create Stat Block"
           />
