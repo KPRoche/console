@@ -200,10 +200,12 @@ function mergeWithStoredClusters(newClusters: ClusterInfo[]): ClusterInfo[] {
 
 // Module-level shared state - initialize from localStorage if available
 const storedClusters = loadClusterCacheFromStorage()
+// In forced demo mode (Netlify), don't show loading - demo data will be set synchronously
+const hasInitialData = storedClusters.length > 0 || isDemoModeForced
 export let clusterCache: ClusterCache = {
   clusters: storedClusters,
   lastUpdated: storedClusters.length > 0 ? new Date() : null,
-  isLoading: storedClusters.length === 0, // Don't show loading if we have cached data
+  isLoading: !hasInitialData, // Don't show loading if we have cached data or are in forced demo mode
   isRefreshing: false,
   error: null,
   consecutiveFailures: 0,
@@ -1138,6 +1140,25 @@ export async function fullFetchClusters() {
   if (fetchInProgress) {
     return
   }
+
+  // On forced demo mode deployments (Netlify), skip fetching entirely to avoid flicker.
+  // Demo data is already in the initial cache state, so no loading indicators needed.
+  if (isDemoModeForced) {
+    const token = localStorage.getItem('token')
+    if (!token || token === 'demo-token') {
+      // Only update if cache is empty (first load) - otherwise preserve existing demo data
+      if (clusterCache.clusters.length === 0) {
+        updateClusterCache({
+          clusters: getDemoClusters(),
+          isLoading: false,
+          isRefreshing: false,
+          error: null,
+        })
+      }
+      return
+    }
+  }
+
   fetchInProgress = true
 
   // If we have cached data, show refreshing; otherwise show loading
