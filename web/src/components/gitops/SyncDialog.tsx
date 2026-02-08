@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, AlertTriangle, Play, Loader2, ChevronRight, GitBranch, Box, Server, Shield, Settings, Database, Network, Layers, Container, FileText, Puzzle, X } from 'lucide-react'
 import { BaseModal } from '../../lib/modals'
@@ -187,11 +187,13 @@ export function SyncDialog({
 
       setPhase('plan')
     } catch (err) {
+      // Error states should be shown immediately (not deferred with startTransition)
       updateLastLog('error')
       const message = err instanceof Error ? err.message : 'Detection failed'
       addLog(`Error: ${message}`, 'error')
       setError(message)
     } finally {
+      // Always reset initializing state
       setIsInitializing(false)
     }
   }, [appName, namespace, cluster, repoUrl, path, addLog, updateLastLog])
@@ -199,12 +201,16 @@ export function SyncDialog({
   // Reset state when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setPhase('detection')
-      setDriftedResources([])
-      setSyncPlan([])
-      setSyncLogs([])
-      setTokenCount(0)
+      // Clear error immediately so user doesn't see stale errors
       setError(null)
+      // Batch non-critical state resets to prevent flicker
+      startTransition(() => {
+        setPhase('detection')
+        setDriftedResources([])
+        setSyncPlan([])
+        setSyncLogs([])
+        setTokenCount(0)
+      })
       // runDetection() will set isInitializing to true
       runDetection()
     }
