@@ -461,8 +461,16 @@ export function NamespaceMonitor({ config: _config }: CardComponentProps) {
     if (!modalResource) return null
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setModalResource(null)}>
-        <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" 
+        onClick={() => setModalResource(null)}
+      >
+        <div 
+          className="bg-card border border-border rounded-lg shadow-xl w-full max-w-lg mx-4" 
+          onClick={e => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-2">
               {(() => {
