@@ -269,7 +269,7 @@ p{color:#94a3b8;font-size:.875rem}
 <div class="wrap">
 <div class="spinner"></div>
 <h1>KubeStellar Console</h1>
-<p>Starting up&hellip;</p>
+<p>KubeStellar Console is loading, please wait&hellip;</p>
 </div>
 <script>
 // Star field
