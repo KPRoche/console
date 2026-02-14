@@ -1489,7 +1489,5 @@ if (typeof window !== 'undefined') {
       workloadsSharedState = { ...workloadsSharedState, isResetting: false }
       notifyWorkloadsSubscribers()
     }, 0)
-
-    console.log('[Workloads] All caches cleared for mode transition')
   })
 }
