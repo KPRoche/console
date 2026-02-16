@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useId } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { Pencil, X, Check, Loader2, WifiOff, ChevronRight, CheckCircle, AlertTriangle, AlertCircle, ChevronDown, HardDrive, Network, FolderOpen, Plus, Trash2, Box, Layers, Server, List, GitBranch, Eye, Terminal, FileText, Info, Activity, Briefcase, Lock, Settings, LayoutGrid, Wrench } from 'lucide-react'
 import {
@@ -95,6 +95,7 @@ function ResourceDetailModal({ resource, onClose }: ResourceDetailModalProps) {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<'describe' | 'labels' | 'logs'>('describe')
   const { startMission } = useMissions()
+  const titleId = useId()
 
   const handleRepairPod = () => {
     const issues = resource.data?.issues as string[] | undefined
@@ -182,10 +183,20 @@ Start by running diagnostic commands to understand what's happening.`,
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="glass p-6 rounded-lg w-[700px] max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+      onClick={onClose}
+      role="presentation"
+    >
+      <div 
+        className="glass p-6 rounded-lg w-[700px] max-h-[80vh] overflow-hidden flex flex-col" 
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div id={titleId} className="flex items-center gap-2">
             <span className={`flex items-center gap-1 px-2 py-1 rounded text-sm font-medium ${getKindColors()}`}>
               {getKindIcon()}
               {resource.kind}
@@ -829,6 +840,7 @@ export function _ClusterDetail({ clusterName, onClose, onRename }: _ClusterDetai
   const [showNodeDetails, setShowNodeDetails] = useState(false)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [expandedNamespace, setExpandedNamespace] = useState<string | null>(null)
+  const titleId = useId()
 
   // ESC to close
   useEffect(() => {
@@ -892,8 +904,18 @@ export function _ClusterDetail({ clusterName, onClose, onRename }: _ClusterDetai
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="glass p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+      onClick={onClose}
+      role="presentation"
+    >
+      <div 
+        className="glass p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto" 
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         {/* Header with status icons */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -910,7 +932,7 @@ export function _ClusterDetail({ clusterName, onClose, onRename }: _ClusterDetai
                 <AlertTriangle className="w-4 h-4" />
               </span>
             )}
-            <h2 className="text-xl font-semibold text-foreground">{clusterName.split('/').pop()}</h2>
+            <h2 id={titleId} className="text-xl font-semibold text-foreground">{clusterName.split('/').pop()}</h2>
             {onRename && (
               <button
                 onClick={() => onRename(clusterName)}
