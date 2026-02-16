@@ -39,8 +39,8 @@ export function FloatingDashboardActions({
   const { isSidebarOpen, isSidebarMinimized } = useMissions()
   const { isMobile } = useMobile()
   const [isOpen, setIsOpen] = useState(false)
-  const [showResetDialog, setShowResetDialog] = useState(false)
-  const [showCustomizer, setShowCustomizer] = useState(false)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -77,7 +77,7 @@ export function FloatingDashboardActions({
   const positionClasses = getPositionClasses()
 
   const handleReset = (mode: ResetMode) => {
-    setShowResetDialog(false)
+    setIsResetDialogOpen(false)
     if (onReset) {
       onReset(mode)
     } else if (onResetToDefaults && mode === 'replace') {
@@ -145,7 +145,7 @@ export function FloatingDashboardActions({
             )}
             {showResetOption && (
               <button
-                onClick={() => { setIsOpen(false); setShowResetDialog(true) }}
+                onClick={() => { setIsOpen(false); setIsResetDialogOpen(true) }}
                 className={menuBtnClass}
                 title={t('dashboard.actions.resetTitle')}
               >
@@ -154,7 +154,7 @@ export function FloatingDashboardActions({
               </button>
             )}
             <button
-              onClick={() => { setIsOpen(false); setShowCustomizer(true) }}
+              onClick={() => { setIsOpen(false); setIsCustomizerOpen(true) }}
               className={menuBtnClass}
               title={t('dashboard.actions.customizeTitle')}
             >
@@ -199,14 +199,14 @@ export function FloatingDashboardActions({
       </div>
 
       <ResetDialog
-        isOpen={showResetDialog}
-        onClose={() => setShowResetDialog(false)}
+        isOpen={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
         onReset={handleReset}
       />
 
       <SidebarCustomizer
-        isOpen={showCustomizer}
-        onClose={() => setShowCustomizer(false)}
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
       />
     </>
   )
