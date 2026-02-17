@@ -50,6 +50,7 @@ import { Gauge } from '../charts/Gauge'
 import { ClusterCardSkeleton, StatsOverviewSkeleton } from '../ui/ClusterCardSkeleton'
 import { useIsModeSwitching } from '../../lib/unified/demo'
 import { useTranslation } from 'react-i18next'
+import { LOCAL_AGENT_HTTP_URL, STORAGE_KEY_CLUSTER_LAYOUT } from '../../lib/constants'
 
 // Helper to format labels/annotations for tooltip
 function formatMetadata(labels?: Record<string, string>, annotations?: Record<string, string>): string {
@@ -1444,7 +1445,7 @@ export function Clusters() {
   const [sortBy, setSortBy] = useState<'name' | 'nodes' | 'pods' | 'health'>('name')
   const [sortAsc, setSortAsc] = useState(true)
   const [layoutMode, setLayoutMode] = useState<ClusterLayoutMode>(() => {
-    const stored = localStorage.getItem('kubestellar-cluster-layout-mode')
+    const stored = localStorage.getItem(STORAGE_KEY_CLUSTER_LAYOUT)
     return (stored as ClusterLayoutMode) || 'grid'
   })
   const [renamingCluster, setRenamingCluster] = useState<string | null>(null)
@@ -1538,7 +1539,7 @@ export function Clusters() {
 
   const handleRenameContext = async (oldName: string, newName: string) => {
     if (!isConnected) throw new Error('Local agent not connected')
-    const response = await fetch('http://127.0.0.1:8585/rename-context', {
+    const response = await fetch(`${LOCAL_AGENT_HTTP_URL}/rename-context`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ oldName, newName }),
@@ -1791,7 +1792,7 @@ export function Clusters() {
                 layoutMode={layoutMode}
                 onLayoutModeChange={(mode) => {
                   setLayoutMode(mode)
-                  localStorage.setItem('kubestellar-cluster-layout-mode', mode)
+                  localStorage.setItem(STORAGE_KEY_CLUSTER_LAYOUT, mode)
                 }}
               />
               <ClusterGrid
