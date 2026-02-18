@@ -535,30 +535,43 @@ jobs:
           > /tmp/cncf-notable.md
           for REPO in "${SELECTED[@]}"; do
             echo "Scanning $REPO..."
+            FILE="/tmp/cncf-$(echo "$REPO" | tr '/' '-').json"
+
+            # Fetch merged PRs as a proper JSON array
             gh pr list --repo "$REPO" --state merged --limit 30 \
               --json title,mergedAt,url \
-              --jq ".[] | select(.mergedAt > \"$WEEK_AGO\")" \
-              > "/tmp/cncf-$(echo "$REPO" | tr '/' '-').json" 2>/dev/null || echo "[]" > "/tmp/cncf-$(echo "$REPO" | tr '/' '-').json"
+              --jq "[.[] | select(.mergedAt > \"$WEEK_AGO\")]" \
+              > "$FILE" 2>/dev/null || echo "[]" > "$FILE"
 
-            # Count patterns
-            FILE="/tmp/cncf-$(echo "$REPO" | tr '/' '-').json"
+            # Ensure valid JSON array
+            if ! jq empty "$FILE" 2>/dev/null; then
+              echo "[]" > "$FILE"
+            fi
+
+            PR_COUNT=$(jq length "$FILE")
+            echo "  Found $PR_COUNT merged PRs in last 7 days"
+
+            # Count patterns by scanning titles
+            TITLES=$(jq -r '.[].title' "$FILE" 2>/dev/null)
 
             for PATTERN in "${PATTERN_NAMES[@]}"; do
               case $PATTERN in
-                error_handling) REGEX='error|handle|recover|retry|fallback|panic' ;;
-                testing) REGEX='test|coverage|e2e|unit|integration|benchmark' ;;
-                observability) REGEX='metric|trace|log|monitor|alert|telemetry' ;;
-                security) REGEX='auth|rbac|token|permission|vuln|CVE|security' ;;
-                performance) REGEX='cache|optim|reduce|memory|latency|perf|speed' ;;
-                ci_cd) REGEX='ci|workflow|pipeline|action|build|release|deploy' ;;
-                documentation) REGEX='doc|readme|guide|example|tutorial|changelog' ;;
+                error_handling) REGEX='error|handle|recover|retry|fallback|panic|catch|exception' ;;
+                testing) REGEX='test|coverage|e2e|unit|integration|benchmark|spec|cypress|playwright' ;;
+                observability) REGEX='metric|trace|log|monitor|alert|telemetry|dashboard|grafana' ;;
+                security) REGEX='auth|rbac|token|permission|vuln|CVE|security|deps|dependabot' ;;
+                performance) REGEX='cache|optim|reduce|memory|latency|perf|speed|bundle|lazy|chunk' ;;
+                ci_cd) REGEX='ci|workflow|pipeline|action|build|release|deploy|docker|helm' ;;
+                documentation) REGEX='doc|readme|guide|example|tutorial|changelog|comment' ;;
               esac
-              COUNT=$(jq -r '.title' "$FILE" 2>/dev/null | grep -ciE "$REGEX" || echo 0)
+              COUNT=$(echo "$TITLES" | grep -ciE "$REGEX" 2>/dev/null || true)
+              COUNT=${COUNT:-0}
               PATTERNS["${REPO}:${PATTERN}"]=$COUNT
+              [ "$COUNT" -gt 0 ] && echo "  $PATTERN: $COUNT"
             done
 
             # Find notable PRs (ones with interesting titles)
-            jq -r 'select(.title | test("error|test|security|perf|observ|metric"; "i")) | "- [\(.title)](\(.url)) — *\("'"$REPO"'")*"' "$FILE" 2>/dev/null | head -3 >> /tmp/cncf-notable.md
+            jq -r '.[] | select(.title | test("error|test|security|perf|observ|metric|a11y|accessib|component|hook|react|typescript|css|style|ui|dashboard|frontend"; "i")) | "- [\(.title)](\(.url)) — *'"$REPO"'*"' "$FILE" 2>/dev/null | head -5 >> /tmp/cncf-notable.md
 
             sleep 2  # Rate limiting
           done
@@ -568,7 +581,8 @@ jobs:
             ROW="| $PATTERN |"
             TOTAL_P=0
             for REPO in "${SELECTED[@]}"; do
-              C=${PATTERNS["${REPO}:${PATTERN}"]:-0}
+              C="${PATTERNS["${REPO}:${PATTERN}"]:-0}"
+              C=$((C + 0))  # Ensure numeric
               ROW="$ROW $C |"
               TOTAL_P=$((TOTAL_P + C))
             done
@@ -637,15 +651,17 @@ jobs:
             for REPO in ${{ steps.scan.outputs.selected }}; do
               FILE="/tmp/cncf-$(echo "$REPO" | tr '/' '-').json"
               case $PATTERN in
-                error_handling) REGEX='error|handle|recover|retry|fallback|panic' ;;
-                testing) REGEX='test|coverage|e2e|unit|integration|benchmark' ;;
-                observability) REGEX='metric|trace|log|monitor|alert|telemetry' ;;
-                security) REGEX='auth|rbac|token|permission|vuln|CVE|security' ;;
-                performance) REGEX='cache|optim|reduce|memory|latency|perf|speed' ;;
-                ci_cd) REGEX='ci|workflow|pipeline|action|build|release|deploy' ;;
-                documentation) REGEX='doc|readme|guide|example|tutorial|changelog' ;;
+                error_handling) REGEX='error|handle|recover|retry|fallback|panic|catch|exception' ;;
+                testing) REGEX='test|coverage|e2e|unit|integration|benchmark|spec|cypress|playwright' ;;
+                observability) REGEX='metric|trace|log|monitor|alert|telemetry|dashboard|grafana' ;;
+                security) REGEX='auth|rbac|token|permission|vuln|CVE|security|deps|dependabot' ;;
+                performance) REGEX='cache|optim|reduce|memory|latency|perf|speed|bundle|lazy|chunk' ;;
+                ci_cd) REGEX='ci|workflow|pipeline|action|build|release|deploy|docker|helm' ;;
+                documentation) REGEX='doc|readme|guide|example|tutorial|changelog|comment' ;;
               esac
-              C=$(jq -r '.title' "$FILE" 2>/dev/null | grep -ciE "$REGEX" || echo 0)
+              C=$(jq -r '.[].title' "$FILE" 2>/dev/null | grep -ciE "$REGEX" || true)
+              C=${C:-0}
+              C=$((C + 0))
               TOTAL_P=$((TOTAL_P + C))
             done
             if [ "$TOTAL_P" -ge 5 ]; then
