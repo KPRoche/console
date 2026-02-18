@@ -78,26 +78,8 @@
     "last_scan_date": "2026-02-18",
     "suggested_checks": [
       {
-        "pattern": "testing",
-        "count": 8,
-        "added": "2026-02-18",
-        "priority": "medium"
-      },
-      {
-        "pattern": "security",
-        "count": 17,
-        "added": "2026-02-18",
-        "priority": "medium"
-      },
-      {
-        "pattern": "ci_cd",
-        "count": 18,
-        "added": "2026-02-18",
-        "priority": "medium"
-      },
-      {
-        "pattern": "documentation",
-        "count": 7,
+        "pattern": "form_ux",
+        "count": 9,
         "added": "2026-02-18",
         "priority": "medium"
       }
