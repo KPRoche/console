@@ -30,6 +30,7 @@ coverage.out
 Thumbs.db
 
 # Logs
+*.out
 *.log
 npm-debug.log*
 
