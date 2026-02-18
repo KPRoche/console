@@ -1,63 +1,63 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-02-18T02:13:26Z",
+  "last_updated": "2026-02-18T02:29:56Z",
   "rolling_window_days": 30,
   "categories": {
     "other": {
-      "merged": 1,
-      "closed": 2,
+      "merged": 2,
+      "closed": 4,
       "acceptance_rate": 0.33,
       "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
+      "last_evaluated": "2026-02-18T02:29:56Z"
     },
     "security": {
-      "merged": 1,
-      "closed": 0,
-      "acceptance_rate": 1,
-      "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
-    },
-    "resilience": {
-      "merged": 1,
-      "closed": 1,
-      "acceptance_rate": 0.5,
-      "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
-    },
-    "performance": {
-      "merged": 1,
-      "closed": 0,
-      "acceptance_rate": 1,
-      "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
-    },
-    "consistency": {
       "merged": 2,
       "closed": 0,
       "acceptance_rate": 1,
       "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
+      "last_evaluated": "2026-02-18T02:29:56Z"
     },
-    "dom-errors": {
-      "merged": 1,
+    "resilience": {
+      "merged": 2,
+      "closed": 2,
+      "acceptance_rate": 0.5,
+      "status": "normal",
+      "last_evaluated": "2026-02-18T02:29:56Z"
+    },
+    "performance": {
+      "merged": 2,
       "closed": 0,
       "acceptance_rate": 1,
       "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
+      "last_evaluated": "2026-02-18T02:29:56Z"
+    },
+    "consistency": {
+      "merged": 4,
+      "closed": 0,
+      "acceptance_rate": 1,
+      "status": "normal",
+      "last_evaluated": "2026-02-18T02:29:56Z"
+    },
+    "dom-errors": {
+      "merged": 2,
+      "closed": 0,
+      "acceptance_rate": 1,
+      "status": "normal",
+      "last_evaluated": "2026-02-18T02:29:56Z"
     },
     "a11y": {
+      "merged": 0,
+      "closed": 4,
+      "acceptance_rate": 0,
+      "status": "normal",
+      "last_evaluated": "2026-02-18T02:29:56Z"
+    },
+    "ui-design": {
       "merged": 0,
       "closed": 2,
       "acceptance_rate": 0,
       "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
-    },
-    "ui-design": {
-      "merged": 0,
-      "closed": 1,
-      "acceptance_rate": 0,
-      "status": "normal",
-      "last_evaluated": "2026-02-18T02:13:26Z"
+      "last_evaluated": "2026-02-18T02:29:56Z"
     }
   },
   "weekly_insights": {
@@ -110,6 +110,25 @@
       "total_closed": 6,
       "categories_blocked": [],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-02-18",
+      "total_merged": 14,
+      "total_closed": 12,
+      "categories_blocked": [],
+      "categories_boosted": []
     }
-  ]
+  ],
+  "rotation_weights": {
+    "other": 0.5,
+    "security": 1.0,
+    "resilience": 0.75,
+    "performance": 1.0,
+    "consistency": 1.5,
+    "dom-errors": 1.0,
+    "a11y": 0.3,
+    "ui-design": 1.0
+  },
+  "max_issues_override": 3,
+  "pr_guidance": "Keep changes under 50 lines (size S) for best acceptance rate. Split larger fixes into multiple PRs."
 }
