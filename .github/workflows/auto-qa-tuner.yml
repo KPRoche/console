@@ -458,34 +458,32 @@ jobs:
         run: |
           WEEK_AGO=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)
 
-          # Curated CNCF repos (26 total, pick 4 random)
+          # Frontend-heavy CNCF & cloud-native projects (dashboards, web UIs, consoles)
+          # Pick 4 random per run — these all have React/TS/Vue frontends
           REPOS=(
-            "kubernetes/kubernetes"
-            "backstage/backstage"
-            "argoproj/argo-cd"
-            "helm/helm"
-            "prometheus/prometheus"
-            "open-telemetry/opentelemetry-collector"
-            "crossplane/crossplane"
-            "cert-manager/cert-manager"
-            "kyverno/kyverno"
-            "istio/istio"
-            "cilium/cilium"
-            "containerd/containerd"
-            "envoyproxy/envoy"
-            "etcd-io/etcd"
-            "fluxcd/flux2"
-            "goharbor/harbor"
-            "linkerd/linkerd2"
-            "thanos-io/thanos"
-            "rook/rook"
-            "dapr/dapr"
-            "grpc/grpc-go"
-            "nats-io/nats-server"
-            "vitessio/vitess"
-            "kubevirt/kubevirt"
-            "jaegertracing/jaeger"
-            "grafana/grafana"
+            # Tier 1: Large React/TS dashboards (most similar to us)
+            "backstage/backstage"              # React, TypeScript, plugin architecture
+            "grafana/grafana"                  # React, TypeScript, dashboard panels
+            "kubernetes/dashboard"             # React, TypeScript, K8s UI
+            "argoproj/argo-cd"                 # React, TypeScript, GitOps UI
+            "rancher/dashboard"                # Vue, TypeScript, K8s management UI
+            "headlamp-k8s/headlamp"            # React, TypeScript, K8s UI
+            "kubevirt/kubevirt-ui"              # React, TypeScript, VM management
+            # Tier 2: Significant web UIs
+            "goharbor/harbor"                  # React frontend for container registry
+            "meshery/meshery"                  # React, Next.js, service mesh UI
+            "opencost/opencost"                # React dashboard for K8s cost monitoring
+            "kubecost/cost-analyzer-helm-chart" # React cost dashboard
+            "loft-sh/vcluster"                 # React UI for virtual clusters
+            "jaegertracing/jaeger-ui"          # React, trace visualization
+            "prometheus/prometheus"             # React UI for metrics
+            # Tier 3: Other frontend-relevant CNCF projects
+            "thanos-io/thanos"                 # React UI for metrics at scale
+            "fluxcd/flux2"                     # Web UI components
+            "open-telemetry/opentelemetry-js"  # TypeScript, browser telemetry SDK
+            "vitessio/vitess"                  # React vtadmin dashboard
+            "cilium/hubble-ui"                 # React, network observability UI
+            "kiali/kiali"                      # React, Istio service mesh UI
           )
 
           TOTAL=${#REPOS[@]}
