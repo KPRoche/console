@@ -63,10 +63,16 @@ const DASHBOARDS = [
   { id: 'arcade', name: 'Arcade', route: '/arcade' },
 ]
 
+// When REAL_BACKEND=true, skip mocks and test against the live backend.
+// Requires a running console + backend and a valid OAuth token via REAL_TOKEN env var.
+const REAL_BACKEND = process.env.REAL_BACKEND === 'true'
+const REAL_TOKEN = process.env.REAL_TOKEN || ''
+const REAL_USER = process.env.REAL_USER || ''
+
 // How long to wait for cards to load after navigation
-const NAV_CARD_TIMEOUT_MS = 15_000
+const NAV_CARD_TIMEOUT_MS = REAL_BACKEND ? 30_000 : 15_000
 // How long to wait for initial app load
-const APP_LOAD_TIMEOUT_MS = 15_000
+const APP_LOAD_TIMEOUT_MS = REAL_BACKEND ? 30_000 : 15_000
 
 // ---------------------------------------------------------------------------
 // Mock data & helpers (reused from dashboard-perf.spec.ts)
@@ -344,13 +350,18 @@ async function setupLiveMocks(page: Page) {
   })
 }
 
+async function setupMocks(page: Page) {
+  if (REAL_BACKEND) return // skip all mocks — test against live backend
+  await setupMocks(page)
+}
+
 async function setMode(page: Page) {
   const lsValues: Record<string, string> = {
-    token: 'test-token',
+    token: REAL_BACKEND ? REAL_TOKEN : 'test-token',
     'kc-demo-mode': 'false',
     'demo-user-onboarded': 'true',
     'kubestellar-console-tour-completed': 'true',
-    'kc-user-cache': JSON.stringify(mockUser),
+    'kc-user-cache': REAL_BACKEND && REAL_USER ? REAL_USER : JSON.stringify(mockUser),
     'kc-backend-status': JSON.stringify({ available: true, timestamp: Date.now() }),
     'kc-sqlite-migrated': '2',
   }
@@ -645,9 +656,13 @@ function summarizeScenario(metrics: NavMetric[]): string {
 
 test.describe.configure({ mode: 'serial' })
 
+if (REAL_BACKEND) {
+  console.log('[NAV] *** REAL BACKEND MODE — no mocks, testing against live backend ***')
+  if (!REAL_TOKEN) console.log('[NAV] WARNING: REAL_TOKEN not set — auth may fail')
+}
+
 test('warmup — prime module cache', async ({ page }) => {
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Load the app and visit a few dashboards to warm up Vite module cache
@@ -669,8 +684,7 @@ test('cold-nav — first visit to each dashboard via sidebar', async ({ page }) 
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(err.message))
 
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Start at home dashboard
@@ -710,8 +724,7 @@ test('warm-nav — revisit dashboards (chunks already cached)', async ({ page })
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(err.message))
 
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Start at home and warm up ALL dashboards first (simulate the cold run)
@@ -763,8 +776,7 @@ test('from-main — navigate away from Main Dashboard to various dashboards', as
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(err.message))
 
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Pre-warm all dashboards so we isolate the "leaving Main Dashboard" transition
@@ -816,8 +828,7 @@ test('from-clusters — navigate away from My Clusters to various dashboards', a
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(err.message))
 
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Pre-warm all dashboards so we isolate the "leaving My Clusters" transition
@@ -871,8 +882,7 @@ test('rapid-nav — quick clicks through dashboards', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(err.message))
 
-  await setupAuth(page)
-  await setupLiveMocks(page)
+  await setupMocks(page)
   await setMode(page)
 
   // Pre-warm all dashboards so we isolate rapid-click behavior
@@ -971,6 +981,8 @@ test.afterAll(async () => {
   // Markdown summary
   const lines: string[] = [
     '# Dashboard Navigation Performance',
+    '',
+    `**Mode**: ${REAL_BACKEND ? 'REAL BACKEND' : 'Mocked APIs'}`,
     '',
     `Generated: ${new Date().toISOString()}`,
     `Total navigations: ${navReport.metrics.length}`,
