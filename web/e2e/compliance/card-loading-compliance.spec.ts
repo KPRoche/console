@@ -1,4 +1,4 @@
-import { test, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
@@ -447,12 +447,9 @@ async function startComplianceMonitor(page: Page, cardIds: string[]) {
             hasVisualContent: !!card.querySelector('canvas,svg,iframe,table,img,video,pre,code,[role="img"]'),
           }
 
-          // Check for large skeleton placeholders
-          for (const el of card.querySelectorAll('.animate-pulse')) {
-            if ((el as HTMLElement).getBoundingClientRect().height > 40) {
-              snap.hasLargeSkeleton = true
-              break
-            }
+          // Check for CardWrapper skeleton overlay (precise attribute — ignores card-internal animate-pulse decorations)
+          if (card.querySelector('[data-card-skeleton="true"]')) {
+            snap.hasLargeSkeleton = true
           }
 
           cardHistory[id].push(snap)
@@ -1219,4 +1216,13 @@ test('card loading compliance — cold + warm', async ({ page }) => {
       console.log(`  [${gap.priority.toUpperCase()}] ${gap.area}: ${gap.observation}`)
     }
   }
+
+  // ── Assertions ──────────────────────────────────────────────────────────
+  // Critical criteria (c: skeleton shown during load, d: no demo badge in live mode, f: data-loading attr)
+  for (const criterion of ['c', 'd', 'f'] as const) {
+    const rate = criterionPassRates[criterion]
+    expect(rate, `Criterion ${criterion} pass rate ${Math.round(rate * 100)}% should be >= 95%`).toBeGreaterThanOrEqual(0.95)
+  }
+  // Overall fail count
+  expect(report.summary.failCount, `${report.summary.failCount} card compliance failures found`).toBe(0)
 })
