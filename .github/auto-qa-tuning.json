@@ -76,7 +76,32 @@
   },
   "cncf_insights": {
     "last_scan_date": "2026-02-18",
-    "suggested_checks": []
+    "suggested_checks": [
+      {
+        "pattern": "testing",
+        "count": 8,
+        "added": "2026-02-18",
+        "priority": "medium"
+      },
+      {
+        "pattern": "security",
+        "count": 17,
+        "added": "2026-02-18",
+        "priority": "medium"
+      },
+      {
+        "pattern": "ci_cd",
+        "count": 18,
+        "added": "2026-02-18",
+        "priority": "medium"
+      },
+      {
+        "pattern": "documentation",
+        "count": 7,
+        "added": "2026-02-18",
+        "priority": "medium"
+      }
+    ]
   },
   "history": [
     {
