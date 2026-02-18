@@ -286,14 +286,10 @@ export default async (req: Request) => {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+  const token = process.env.GITHUB_TOKEN || "";
   if (!token) {
-    // List available env var keys (not values) to debug configuration
-    const envKeys = Object.keys(process.env).filter(k =>
-      k.includes("GITHUB") || k.includes("GH_") || k.includes("NETLIFY") || k.includes("TOKEN")
-    );
     return new Response(
-      JSON.stringify({ error: "GITHUB_TOKEN not configured", hint: "Set GITHUB_TOKEN in Netlify dashboard with Functions scope", envKeysFound: envKeys }),
+      JSON.stringify({ error: "GITHUB_TOKEN not configured", hint: "Set GITHUB_TOKEN in Netlify dashboard with Functions scope" }),
       { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
