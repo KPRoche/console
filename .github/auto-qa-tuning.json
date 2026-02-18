@@ -61,10 +61,18 @@
     }
   },
   "weekly_insights": {
-    "best_pr_size": "",
+    "best_pr_size": "S",
     "size_acceptance": {},
     "type_acceptance": {},
-    "common_rejection_reasons": []
+    "common_rejection_reasons": [
+      "- PR #1098: Closing — bundling React 19, Vite 7, ESLint 10, and multiple other major version bumps in a single PR is too risky. The Netlify build is also failing. These should be done as separate, incremental PRs so breakage can be isolated. Thank you for the effort!",
+      "- PR #1081: Closing — @netlify/blobs is actively used by `netlify/functions/presence.mts` for tracking simultaneous active users (consumed by `useActiveUsers.ts`). Not unused.",
+      "- PR #1064: Closing — ARIA labels on an internal Kubernetes dashboard used by platform engineers aren't a priority right now.",
+      "- PR #1061: Closing — the keyboard navigation hooks are well-designed but the FloatingDashboardActions refactor loses tooltip title attributes on all buttons, introducing a regression. The risk outweighs the benefit for this codebase.",
+      "- PR #1060: Closing — the delete confirmations add friction and the AI chat toast is noisy. Not needed at this time."
+    ],
+    "best_change_type": "bug_fix",
+    "last_report_date": "2026-02-18"
   },
   "cncf_insights": {
     "last_scan_date": "",
