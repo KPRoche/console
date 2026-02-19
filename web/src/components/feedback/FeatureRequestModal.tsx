@@ -930,7 +930,7 @@ export function FeatureRequestModal({ isOpen, onClose, initialTab, initialContex
                           <Github className="w-6 h-6 mx-auto mb-2 opacity-50" />
                           <p className="text-xs">Log in with GitHub to see contributions</p>
                         </div>
-                      ) : githubRewards.contributions.length === 0 ? (
+                      ) : !githubRewards.contributions?.length ? (
                         <div className="p-6 text-center text-muted-foreground">
                           <Github className="w-6 h-6 mx-auto mb-2 opacity-50" />
                           <p className="text-xs">No contributions found — open issues or PRs to earn points</p>
