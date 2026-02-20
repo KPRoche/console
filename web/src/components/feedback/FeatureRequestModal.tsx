@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Bug, Sparkles, Loader2, ExternalLink, Bell, Check, Clock, GitPullRequest, GitMerge, Eye, RefreshCw, MessageSquare, Settings, Github, Coins, Lightbulb, AlertCircle, Linkedin, Share2 } from 'lucide-react'
+import { X, Bug, Sparkles, Loader2, ExternalLink, Bell, Check, Clock, GitPullRequest, GitMerge, Eye, RefreshCw, MessageSquare, Settings, Github, Coins, Lightbulb, AlertCircle, Linkedin } from 'lucide-react'
 import { BaseModal } from '../../lib/modals'
 import {
   useFeatureRequests,
@@ -904,13 +904,30 @@ export function FeatureRequestModal({ isOpen, onClose, initialTab, initialContex
                             <span className="ml-1 text-yellow-400 font-bold">{githubPoints.toLocaleString()} coins</span>
                           )}
                         </span>
-                        <button
-                          onClick={handleRefreshGitHub}
-                          disabled={isGitHubRefreshing}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <RefreshCw className={`w-3 h-3 ${isGitHubRefreshing ? 'animate-spin' : ''}`} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {githubRewards && githubPoints > 0 && (
+                            <button
+                              onClick={() => {
+                                const prCount = githubRewards.breakdown.prs_merged + githubRewards.breakdown.prs_opened
+                                const issueCount = githubRewards.breakdown.bug_issues + githubRewards.breakdown.feature_issues + githubRewards.breakdown.other_issues
+                                const text = `I've earned ${githubPoints.toLocaleString()} contributor coins on the KubeStellar Console! ${prCount > 0 ? `${prCount} PRs` : ''}${prCount > 0 && issueCount > 0 ? ' and ' : ''}${issueCount > 0 ? `${issueCount} issues` : ''} contributed to the open-source KubeStellar project.`
+                                const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://kubestellar.io')}&summary=${encodeURIComponent(text)}`
+                                window.open(linkedInUrl, '_blank', 'width=600,height=600')
+                              }}
+                              className="p-1 rounded hover:bg-secondary/50 text-muted-foreground hover:text-[#0A66C2] transition-colors"
+                              title={`Share ${githubPoints.toLocaleString()} coins on LinkedIn`}
+                            >
+                              <Linkedin className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={handleRefreshGitHub}
+                            disabled={isGitHubRefreshing}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${isGitHubRefreshing ? 'animate-spin' : ''}`} />
+                          </button>
+                        </div>
                       </div>
 
                       {githubRewards && (
@@ -996,26 +1013,6 @@ export function FeatureRequestModal({ isOpen, onClose, initialTab, initialContex
                       </div>
                     )}
 
-                    {/* Share on LinkedIn */}
-                    {githubRewards && githubPoints > 0 && (
-                      <div className="p-3 border-t border-border/50">
-                        <button
-                          onClick={() => {
-                            const totalPoints = githubPoints
-                            const prCount = githubRewards.breakdown.prs_merged + githubRewards.breakdown.prs_opened
-                            const issueCount = githubRewards.breakdown.bug_issues + githubRewards.breakdown.feature_issues + githubRewards.breakdown.other_issues
-                            const text = `I've earned ${totalPoints.toLocaleString()} contributor coins on the KubeStellar Console! ${prCount > 0 ? `${prCount} PRs` : ''}${prCount > 0 && issueCount > 0 ? ' and ' : ''}${issueCount > 0 ? `${issueCount} issues` : ''} contributed to the open-source KubeStellar project.`
-                            const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://kubestellar.io')}&summary=${encodeURIComponent(text)}`
-                            window.open(linkedInUrl, '_blank', 'width=600,height=600')
-                          }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Linkedin className="w-4 h-4 text-[#0A66C2]" />
-                          Share {githubPoints.toLocaleString()} coins on LinkedIn
-                          <Share2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
               </div>
             </div>
           ) : success ? (
