@@ -24,6 +24,7 @@ import {
   Github,
 } from 'lucide-react'
 import { useVersionCheck } from '../../hooks/useVersionCheck'
+import { useUpdateProgress } from '../../hooks/useUpdateProgress'
 import { checkOAuthConfigured } from '../../lib/api'
 import { STORAGE_KEY_GITHUB_TOKEN } from '../../lib/constants'
 import type { UpdateChannel } from '../../types/updates'
@@ -60,7 +61,6 @@ export function UpdateSettings() {
     autoUpdateEnabled,
     installMethod,
     autoUpdateStatus,
-    updateProgress,
     agentConnected,
     hasCodingAgent,
     latestMainSHA,
@@ -68,6 +68,9 @@ export function UpdateSettings() {
     setAutoUpdateEnabled,
     triggerUpdate,
   } = useVersionCheck()
+
+  // WebSocket-driven update progress from kc-agent
+  const { progress: updateProgress, dismiss: dismissProgress } = useUpdateProgress()
 
   const CHANNEL_OPTIONS: { value: UpdateChannel; label: string; description: string; devOnly?: boolean }[] = [
     {
@@ -425,22 +428,32 @@ export function UpdateSettings() {
       {/* Update Complete/Failed */}
       {updateProgress?.status === 'done' && (
         <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-green-400" />
-            <p className="text-sm text-green-400">{updateProgress.message}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-400" />
+              <p className="text-sm text-green-400">{updateProgress.message}</p>
+            </div>
+            <button onClick={dismissProgress} className="text-green-400/60 hover:text-green-400">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
       {updateProgress?.status === 'failed' && (
         <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
-            <div>
-              <p className="text-sm text-red-400">{updateProgress.message}</p>
-              {updateProgress.error && (
-                <p className="text-xs text-red-400/70 mt-1">{updateProgress.error}</p>
-              )}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              <div>
+                <p className="text-sm text-red-400">{updateProgress.message}</p>
+                {updateProgress.error && (
+                  <p className="text-xs text-red-400/70 mt-1">{updateProgress.error}</p>
+                )}
+              </div>
             </div>
+            <button onClick={dismissProgress} className="text-red-400/60 hover:text-red-400 shrink-0 ml-2">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
@@ -540,29 +553,9 @@ export function UpdateSettings() {
               setTriggerError(null)
               const result = await triggerUpdate()
               if (result.success) {
-                // Keep showing spinner while update runs in background
-                // Poll status for up to 60s to track progress
-                let attempts = 0
-                const maxAttempts = 30
-                const poll = async () => {
-                  try {
-                    const resp = await fetch(`http://127.0.0.1:8585/auto-update/status`)
-                    if (resp.ok) {
-                      const data = await resp.json()
-                      if (data.lastUpdateResult) {
-                        setTriggerState('idle')
-                        setTriggerError(data.lastUpdateResult === 'success' ? null : data.lastUpdateResult)
-                        return
-                      }
-                    }
-                  } catch { /* agent may restart during update */ }
-                  if (++attempts < maxAttempts) {
-                    setTimeout(poll, 2000)
-                  } else {
-                    setTriggerState('idle')
-                  }
-                }
-                setTimeout(poll, 2000)
+                // WebSocket will broadcast progress via useUpdateProgress
+                // Reset trigger state — progress banner takes over
+                setTriggerState('idle')
               } else {
                 setTriggerState('error')
                 setTriggerError(result.error ?? 'Unknown error')
