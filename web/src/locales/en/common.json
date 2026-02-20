@@ -518,7 +518,7 @@
       "helmDisabled": "Auto-update not available for Helm installs",
       "helmDisabledDesc": "Use 'helm upgrade' to update your cluster deployment",
       "updating": "Updating...",
-      "startingUpdate": "Starting update...",
+      "startingUpdate": "Starting update — please wait...",
       "updateComplete": "Updated successfully",
       "updateFailed": "Update failed",
       "devMode": "Dev Mode",
