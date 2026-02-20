@@ -429,7 +429,15 @@ export function UpdateSettings() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-green-400" />
-              <p className="text-sm text-green-400">{updateProgress.message}</p>
+              <div>
+                <p className="text-sm text-green-400">{updateProgress.message}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-green-400/80 hover:text-green-300 underline underline-offset-2 mt-1"
+                >
+                  {t('settings.updates.refreshToLoad')}
+                </button>
+              </div>
             </div>
             <button onClick={dismissProgress} className="text-green-400/60 hover:text-green-400">
               <X className="w-4 h-4" />
