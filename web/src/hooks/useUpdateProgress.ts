@@ -9,6 +9,10 @@ import { LOCAL_AGENT_WS_URL } from '../lib/constants/network'
 export function useUpdateProgress() {
   const [progress, setProgress] = useState<UpdateProgress | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const progressRef = useRef<UpdateProgress | null>(null)
+
+  // Keep ref in sync so the connect closure always sees the latest value
+  progressRef.current = progress
 
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout>
@@ -17,6 +21,14 @@ export function useUpdateProgress() {
       try {
         const ws = new WebSocket(LOCAL_AGENT_WS_URL)
         wsRef.current = ws
+
+        ws.onopen = () => {
+          // If we reconnected while showing "restarting", the restart succeeded
+          const cur = progressRef.current
+          if (cur && cur.status === 'restarting') {
+            setProgress({ status: 'done', message: 'Update complete — restarted successfully', progress: 100 })
+          }
+        }
 
         ws.onmessage = (event) => {
           try {
@@ -31,8 +43,8 @@ export function useUpdateProgress() {
 
         ws.onclose = () => {
           wsRef.current = null
-          // Reconnect after 10 seconds
-          reconnectTimer = setTimeout(connect, 10000)
+          // Reconnect after 5 seconds (faster during restarts)
+          reconnectTimer = setTimeout(connect, 5000)
         }
 
         ws.onerror = () => {
@@ -40,7 +52,7 @@ export function useUpdateProgress() {
         }
       } catch {
         // Agent not available, retry later
-        reconnectTimer = setTimeout(connect, 10000)
+        reconnectTimer = setTimeout(connect, 5000)
       }
     }
 
