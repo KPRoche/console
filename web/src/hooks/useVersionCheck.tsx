@@ -534,11 +534,13 @@ function useVersionCheckCore() {
    * Returns { success, error } so the UI can show feedback.
    */
   const triggerUpdate = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    console.debug('[version-check] Triggering update via kc-agent...')
+    console.debug('[version-check] Triggering update via kc-agent, channel:', channel)
     try {
       const resp = await fetch(`${LOCAL_AGENT_HTTP_URL}/auto-update/trigger`, {
         method: 'POST',
-        signal: AbortSignal.timeout(5000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel }),
+        signal: AbortSignal.timeout(30000),
       })
       if (resp.ok) {
         console.debug('[version-check] Update triggered successfully')
@@ -554,7 +556,7 @@ function useVersionCheckCore() {
       console.debug('[version-check] Update trigger error:', msg)
       return { success: false, error: msg }
     }
-  }, [])
+  }, [channel])
 
   /**
    * Fetch releases from GitHub API with caching.

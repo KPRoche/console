@@ -1432,7 +1432,12 @@ func (s *Server) handleAutoUpdateTrigger(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	s.updateChecker.TriggerNow()
+	// Accept optional channel override from frontend
+	var body struct {
+		Channel string `json:"channel"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	s.updateChecker.TriggerNow(body.Channel)
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "update check triggered"})
 }
 

@@ -540,7 +540,29 @@ export function UpdateSettings() {
               setTriggerError(null)
               const result = await triggerUpdate()
               if (result.success) {
-                setTriggerState('idle')
+                // Keep showing spinner while update runs in background
+                // Poll status for up to 60s to track progress
+                let attempts = 0
+                const maxAttempts = 30
+                const poll = async () => {
+                  try {
+                    const resp = await fetch(`http://127.0.0.1:8585/auto-update/status`)
+                    if (resp.ok) {
+                      const data = await resp.json()
+                      if (data.lastUpdateResult) {
+                        setTriggerState('idle')
+                        setTriggerError(data.lastUpdateResult === 'success' ? null : data.lastUpdateResult)
+                        return
+                      }
+                    }
+                  } catch { /* agent may restart during update */ }
+                  if (++attempts < maxAttempts) {
+                    setTimeout(poll, 2000)
+                  } else {
+                    setTriggerState('idle')
+                  }
+                }
+                setTimeout(poll, 2000)
               } else {
                 setTriggerState('error')
                 setTriggerError(result.error ?? 'Unknown error')

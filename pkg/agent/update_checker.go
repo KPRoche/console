@@ -166,8 +166,24 @@ func (uc *UpdateChecker) Status() AutoUpdateStatusResponse {
 }
 
 // TriggerNow runs an immediate update check (non-blocking).
-func (uc *UpdateChecker) TriggerNow() {
-	go uc.checkAndUpdate()
+// If channelOverride is non-empty, it temporarily uses that channel for this check.
+func (uc *UpdateChecker) TriggerNow(channelOverride string) {
+	if channelOverride != "" {
+		go func() {
+			uc.mu.Lock()
+			origChannel := uc.channel
+			uc.channel = channelOverride
+			uc.mu.Unlock()
+
+			uc.checkAndUpdate()
+
+			uc.mu.Lock()
+			uc.channel = origChannel
+			uc.mu.Unlock()
+		}()
+	} else {
+		go uc.checkAndUpdate()
+	}
 }
 
 func (uc *UpdateChecker) run(ctx context.Context) {
