@@ -363,23 +363,42 @@ func (uc *UpdateChecker) restartViaStartupScript(repoPath string) {
 		return
 	}
 
+	// Redirect output to a log file so the child survives our exit.
+	// If stdout/stderr inherit from this process, they become broken pipes
+	// when os.Exit(0) closes the file descriptors, killing the child via SIGPIPE.
+	logPath := repoPath + "/data/auto-update-restart.log"
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Printf("[AutoUpdate] Cannot create restart log at %s: %v", logPath, err)
+		logFile = nil
+	}
+
 	// Spawn the script in a new process group so it survives our exit
 	cmd := exec.Command("bash", scriptPath)
 	cmd.Dir = repoPath
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if logFile != nil {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
 		log.Printf("[AutoUpdate] Failed to spawn startup-oauth.sh: %v", err)
+		if logFile != nil {
+			logFile.Close()
+		}
 		uc.selfUpdateFallback(repoPath)
 		return
 	}
 
-	log.Printf("[AutoUpdate] startup-oauth.sh spawned (pid %d), exiting for restart...", cmd.Process.Pid)
+	log.Printf("[AutoUpdate] startup-oauth.sh spawned (pid %d), log: %s, exiting for restart...", cmd.Process.Pid, logPath)
 
 	// Give the script a moment to start before we exit
 	time.Sleep(1 * time.Second)
+
+	if logFile != nil {
+		logFile.Close()
+	}
 
 	// Exit this process — startup-oauth.sh will start fresh instances
 	os.Exit(0)
