@@ -69,6 +69,10 @@ export default {
           from: { transform: 'rotate(360deg) translateZ(0)' },
           to: { transform: 'rotate(0deg) translateZ(0)' },
         },
+        'pulse-once': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.4' },
+        },
       },
       animation: {
         'roll-up': 'roll-up 0.3s ease-in-out',
@@ -77,6 +81,7 @@ export default {
         'spin': 'spin 1s linear infinite',
         'spin-slow': 'spin-slow 20s linear infinite',
         'spin-slower': 'spin-slower 30s linear infinite',
+        'pulse-once': 'pulse-once 1s ease-in-out 3',
       },
     },
   },

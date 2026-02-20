@@ -168,6 +168,11 @@ export function UpdateSettings() {
   const isHelmInstall = installMethod === 'helm'
   const isUpdating = updateProgress && !['idle', 'done', 'failed'].includes(updateProgress.status)
 
+  // SHAs match = up to date on developer channel
+  const currentSHA = autoUpdateStatus?.currentSHA ?? commitHash
+  const latestSHA = autoUpdateStatus?.latestSHA ?? latestMainSHA ?? ''
+  const shasMatch = isDeveloperChannel && currentSHA && latestSHA && currentSHA.startsWith(latestSHA.slice(0, 7))
+
   return (
     <div id="system-updates-settings" className="glass rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
@@ -490,14 +495,14 @@ export function UpdateSettings() {
             <>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{t('settings.updates.currentSHA')}</span>
-                <span className="text-sm font-mono text-foreground">
-                  {shortSHA(autoUpdateStatus?.currentSHA ?? commitHash)}
+                <span className={`text-sm font-mono transition-colors duration-1000 ${shasMatch ? 'text-green-400 animate-pulse-once' : 'text-foreground'}`}>
+                  {shortSHA(currentSHA)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{t('settings.updates.latestSHA')}</span>
-                <span className="text-sm font-mono text-foreground">
-                  {shortSHA(autoUpdateStatus?.latestSHA ?? latestMainSHA ?? '')}
+                <span className={`text-sm font-mono transition-colors duration-1000 ${shasMatch ? 'text-green-400 animate-pulse-once' : 'text-foreground'}`}>
+                  {shortSHA(latestSHA)}
                 </span>
               </div>
             </>
