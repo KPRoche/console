@@ -354,15 +354,13 @@ export function UpdateSettings() {
             </div>
             <button
               onClick={() => setAutoUpdateEnabled(!autoUpdateEnabled)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                autoUpdateEnabled ? 'bg-green-500' : 'bg-secondary'
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                autoUpdateEnabled
+                  ? 'bg-green-500 border-green-500'
+                  : 'bg-transparent border-muted-foreground/40 hover:border-muted-foreground'
               }`}
             >
-              <div
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                  autoUpdateEnabled ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
+              {autoUpdateEnabled && <Check className="w-3.5 h-3.5 text-white" />}
             </button>
           </div>
           {autoUpdateEnabled && isDeveloperChannel && autoUpdateStatus?.hasUncommittedChanges && (
