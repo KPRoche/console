@@ -35,6 +35,9 @@ const MIN_SPIN_DURATION = 1000
 /** Initial progress bar percentage shown before WebSocket messages arrive */
 const INITIAL_PROGRESS_PCT = 5
 
+/** Retry interval (ms) when polling OAuth status while backend is starting */
+const OAUTH_RETRY_MS = 5000
+
 /** Scroll to a settings section by ID (mirrors Settings.tsx logic) */
 function scrollToSettingsSection(sectionId: string) {
   const element = document.getElementById(sectionId)
@@ -143,11 +146,21 @@ export function UpdateSettings() {
     }
   }, [updateProgress, triggerState])
 
-  // Fetch OAuth status on mount
+  // Fetch OAuth status on mount — retry if backend was down
   useEffect(() => {
-    checkOAuthConfigured().then(({ oauthConfigured: configured }) => {
-      setOauthConfigured(configured)
-    })
+    let retryTimer: ReturnType<typeof setTimeout>
+    function check() {
+      checkOAuthConfigured().then(({ backendUp, oauthConfigured: configured }) => {
+        if (backendUp) {
+          setOauthConfigured(configured)
+        } else {
+          // Backend not ready yet — retry in 5s
+          retryTimer = setTimeout(check, OAUTH_RETRY_MS)
+        }
+      })
+    }
+    check()
+    return () => clearTimeout(retryTimer)
   }, [])
 
   const copyCommand = async (command: string, id: string) => {
