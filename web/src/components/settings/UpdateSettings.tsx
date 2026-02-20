@@ -35,6 +35,12 @@ const MIN_SPIN_DURATION = 1000
 /** Initial progress bar percentage shown before WebSocket messages arrive */
 const INITIAL_PROGRESS_PCT = 5
 
+/** Estimated total update duration in seconds (pull + install + build + restart) */
+const ESTIMATED_UPDATE_SECS = 60
+
+/** Countdown tick interval in milliseconds */
+const COUNTDOWN_TICK_MS = 1000
+
 /** Retry interval (ms) when polling OAuth status while backend is starting */
 const OAUTH_RETRY_MS = 5000
 
@@ -108,6 +114,7 @@ export function UpdateSettings() {
   const [oauthConfigured, setOauthConfigured] = useState<boolean | null>(null)
   const [triggerState, setTriggerState] = useState<'idle' | 'triggered' | 'error'>('idle')
   const [triggerError, setTriggerError] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(ESTIMATED_UPDATE_SECS)
   const hasGithubToken = Boolean(localStorage.getItem(STORAGE_KEY_GITHUB_TOKEN))
 
   // Track visual spinning for Check Now button (ensures 1 full rotation like cards)
@@ -191,6 +198,17 @@ export function UpdateSettings() {
   const isHelmInstall = installMethod === 'helm'
   const isWsUpdating = updateProgress && !['idle', 'done', 'failed'].includes(updateProgress.status)
   const isUpdating = isWsUpdating || triggerState === 'triggered'
+
+  // Countdown timer during updates — reset on start, tick every second
+  useEffect(() => {
+    if (isUpdating) {
+      setCountdown(ESTIMATED_UPDATE_SECS)
+      const id = setInterval(() => {
+        setCountdown(prev => Math.max(0, prev - 1))
+      }, COUNTDOWN_TICK_MS)
+      return () => clearInterval(id)
+    }
+  }, [isUpdating])
 
   // SHAs match = up to date on developer channel
   const currentSHA = autoUpdateStatus?.currentSHA ?? commitHash
@@ -451,7 +469,14 @@ export function UpdateSettings() {
               style={{ width: `${updateProgress?.progress ?? INITIAL_PROGRESS_PCT}%` }}
             />
           </div>
-          <p className="text-xs text-blue-400/60 mt-2">{t('settings.updates.doNotNavigate')}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-blue-400/60">{t('settings.updates.doNotNavigate')}</p>
+            <p className="text-xs text-blue-400/60 tabular-nums">
+              {countdown > 0
+                ? t('settings.updates.estimatedRemaining', { seconds: countdown })
+                : t('settings.updates.almostDone')}
+            </p>
+          </div>
         </div>
       )}
 
