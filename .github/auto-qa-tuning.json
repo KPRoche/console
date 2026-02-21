@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-02-20T03:47:48Z",
+  "last_updated": "2026-02-21T03:45:10Z",
   "rolling_window_days": 30,
   "categories": {
     "other": {
-      "merged": 4,
+      "merged": 9,
       "closed": 6,
-      "acceptance_rate": 0.4,
+      "acceptance_rate": 0.6,
       "status": "normal",
-      "last_evaluated": "2026-02-19T03:49:44Z"
+      "last_evaluated": "2026-02-21T03:45:10Z"
     },
     "security": {
       "merged": 4,
@@ -32,11 +32,11 @@
       "last_evaluated": "2026-02-18T03:50:02Z"
     },
     "consistency": {
-      "merged": 6,
+      "merged": 7,
       "closed": 1,
-      "acceptance_rate": 0.86,
+      "acceptance_rate": 0.88,
       "status": "normal",
-      "last_evaluated": "2026-02-20T03:47:48Z"
+      "last_evaluated": "2026-02-21T03:45:10Z"
     },
     "dom-errors": {
       "merged": 3,
@@ -132,14 +132,21 @@
       "total_closed": 22,
       "categories_blocked": [],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-02-21",
+      "total_merged": 31,
+      "total_closed": 22,
+      "categories_blocked": [],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
-    "other": 0.6,
+    "other": 0.9,
     "security": 1.5,
     "resilience": 0.75,
     "performance": 1.5,
-    "consistency": 1.29,
+    "consistency": 1.32,
     "dom-errors": 1.5,
     "a11y": 0.3,
     "ui-design": 0.3
