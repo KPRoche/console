@@ -304,7 +304,7 @@ export function Sidebar() {
           data-testid="sidebar-collapse-toggle"
           onClick={toggleCollapsed}
           aria-expanded={!config.collapsed}
-          className="absolute -right-3 top-6 p-1 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground z-10 hidden md:block"
+          className="sticky top-2 float-right -mr-4 mb-4 p-1 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground z-10 hidden md:block shadow-md"
         >
           {config.collapsed ? <ChevronRight className="w-4 h-4" aria-hidden="true" /> : <ChevronLeft className="w-4 h-4" aria-hidden="true" />}
         </button>
