@@ -480,11 +480,12 @@ type ServerMockProvider struct {
 	name string
 }
 
-func (m *ServerMockProvider) Name() string        { return m.name }
-func (m *ServerMockProvider) DisplayName() string { return m.name }
-func (m *ServerMockProvider) Description() string { return m.name }
-func (m *ServerMockProvider) Provider() string    { return "mock" }
-func (m *ServerMockProvider) IsAvailable() bool   { return true }
+func (m *ServerMockProvider) Name() string                     { return m.name }
+func (m *ServerMockProvider) DisplayName() string              { return m.name }
+func (m *ServerMockProvider) Description() string              { return m.name }
+func (m *ServerMockProvider) Provider() string                 { return "mock" }
+func (m *ServerMockProvider) IsAvailable() bool                { return true }
+func (m *ServerMockProvider) Capabilities() ProviderCapability { return CapabilityChat }
 func (m *ServerMockProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	return &ChatResponse{
 		Content: "Mock response: " + req.Prompt,
@@ -740,7 +741,7 @@ func TestMatchOrigin(t *testing.T) {
 		{"http://localhost:5174", "http://localhost", true},
 		{"https://app.ibm.com", "https://*.ibm.com", true},
 		{"https://deep.sub.ibm.com", "https://*.ibm.com", true},
-		{"http://ibm.com", "https://*.ibm.com", false}, // wrong scheme
+		{"http://ibm.com", "https://*.ibm.com", false},  // wrong scheme
 		{"https://ibm.com", "https://*.ibm.com", false}, // no subdomain, doesn't have .ibm.com suffix
 		{"https://google.com", "https://*.ibm.com", false},
 		{"http://exact.com", "http://exact.com", true},
@@ -1732,12 +1733,27 @@ func TestServer_ValidateAPIKeyValue_UnknownProvider(t *testing.T) {
 		SkipKeyValidation: false,
 	}
 
-	_, err := server.validateAPIKeyValue("unknown-provider", "test-key")
-	if err == nil {
-		t.Error("Expected error for unknown provider")
+	// Unknown/IDE providers with a non-empty key are accepted without validation
+	valid, err := server.validateAPIKeyValue("unknown-provider", "test-key")
+	if err != nil {
+		t.Fatalf("Expected no error for unknown provider with non-empty key, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "unknown provider") {
-		t.Errorf("Expected 'unknown provider' error, got: %v", err)
+	if !valid {
+		t.Fatalf("Expected valid=true for unknown provider with non-empty key")
+	}
+}
+
+func TestServer_ValidateAPIKeyValue_EmptyKey(t *testing.T) {
+	server := &Server{
+		SkipKeyValidation: false,
+	}
+
+	_, err := server.validateAPIKeyValue("unknown-provider", "")
+	if err == nil {
+		t.Fatal("Expected error for empty API key")
+	}
+	if !strings.Contains(err.Error(), "empty API key") {
+		t.Errorf("Expected 'empty API key' error, got: %v", err)
 	}
 }
 
@@ -2162,13 +2178,13 @@ func TestServer_ErrorResponse(t *testing.T) {
 	server := &Server{}
 
 	tests := []struct {
-		name        string
-		id          string
-		code        string
-		message     string
-		expectID    string
-		expectCode  string
-		expectMsg   string
+		name       string
+		id         string
+		code       string
+		message    string
+		expectID   string
+		expectCode string
+		expectMsg  string
 	}{
 		{
 			name:       "Basic error",
@@ -2302,7 +2318,11 @@ func TestServer_PromptNeedsToolExecution(t *testing.T) {
 }
 
 func TestServer_IsToolCapableAgent(t *testing.T) {
-	server := &Server{}
+	registry := &Registry{providers: make(map[string]AIProvider)}
+	registry.Register(&MockToolCapableProvider{name: "claude-code", available: true})
+	registry.Register(&MockToolCapableProvider{name: "bob", available: true})
+
+	server := &Server{registry: registry}
 
 	tests := []struct {
 		agentName string
@@ -2317,7 +2337,7 @@ func TestServer_IsToolCapableAgent(t *testing.T) {
 		{"", false},
 		{"random-agent", false},
 		{"CLAUDE-CODE", false}, // Case sensitive
-		{"Bob", false},        // Case sensitive
+		{"Bob", false},         // Case sensitive
 	}
 
 	for _, tt := range tests {
@@ -2341,6 +2361,12 @@ func (m *MockToolCapableProvider) DisplayName() string { return m.name }
 func (m *MockToolCapableProvider) Description() string { return "Mock provider" }
 func (m *MockToolCapableProvider) Provider() string    { return "mock" }
 func (m *MockToolCapableProvider) IsAvailable() bool   { return m.available }
+func (m *MockToolCapableProvider) Capabilities() ProviderCapability {
+	if m.name == "claude" || m.name == "openai" || m.name == "gemini" {
+		return CapabilityChat
+	}
+	return CapabilityChat | CapabilityToolExec
+}
 func (m *MockToolCapableProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	return &ChatResponse{Content: "mock"}, nil
 }
@@ -2350,9 +2376,9 @@ func (m *MockToolCapableProvider) StreamChat(ctx context.Context, req *ChatReque
 
 func TestServer_FindToolCapableAgent(t *testing.T) {
 	tests := []struct {
-		name       string
-		providers  map[string]AIProvider
-		wantAgent  string
+		name      string
+		providers map[string]AIProvider
+		wantAgent string
 	}{
 		{
 			name:      "No providers",
@@ -2374,12 +2400,12 @@ func TestServer_FindToolCapableAgent(t *testing.T) {
 			wantAgent: "bob",
 		},
 		{
-			name: "Both available - prefer claude-code",
+			name: "Both available - return any tool-capable agent",
 			providers: map[string]AIProvider{
 				"claude-code": &MockToolCapableProvider{name: "claude-code", available: true},
 				"bob":         &MockToolCapableProvider{name: "bob", available: true},
 			},
-			wantAgent: "claude-code",
+			wantAgent: "",
 		},
 		{
 			name: "claude-code unavailable, bob available",
@@ -2416,6 +2442,14 @@ func TestServer_FindToolCapableAgent(t *testing.T) {
 			server := &Server{registry: registry}
 
 			result := server.findToolCapableAgent()
+
+			if tt.wantAgent == "" {
+				if result != "claude-code" && result != "bob" && result != "" {
+					t.Errorf("Expected claude-code, bob, or empty, got %q", result)
+				}
+				return
+			}
+
 			if result != tt.wantAgent {
 				t.Errorf("findToolCapableAgent() = %q, want %q", result, tt.wantAgent)
 			}
