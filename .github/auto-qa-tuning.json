@@ -61,18 +61,18 @@
     }
   },
   "weekly_insights": {
-    "best_pr_size": "S",
+    "best_pr_size": "M",
     "size_acceptance": {},
     "type_acceptance": {},
     "common_rejection_reasons": [
-      "- PR #1098: Closing — bundling React 19, Vite 7, ESLint 10, and multiple other major version bumps in a single PR is too risky. The Netlify build is also failing. These should be done as separate, incremental PRs so breakage can be isolated. Thank you for the effort!",
-      "- PR #1081: Closing — @netlify/blobs is actively used by `netlify/functions/presence.mts` for tracking simultaneous active users (consumed by `useActiveUsers.ts`). Not unused.",
-      "- PR #1064: Closing — ARIA labels on an internal Kubernetes dashboard used by platform engineers aren't a priority right now.",
-      "- PR #1061: Closing — the keyboard navigation hooks are well-designed but the FloatingDashboardActions refactor loses tooltip title attributes on all buttons, introducing a regression. The risk outweighs the benefit for this codebase.",
-      "- PR #1060: Closing — the delete confirmations add friction and the AI chat toast is noisy. Not needed at this time."
+      "- PR #1232: Superseded by PRs #1233 (Phase 2 keyboard navigation) and #1237 (Phase 3 screen reader support).",
+      "- PR #1231: Superseded by PR #1239 which adds aria-labels to all icon-only buttons in GPUReservations.",
+      "- PR #1225: Pipeline validation successful. Closing — no code changes needed.",
+      "- PR #1191: Closing — the underlying issue #1190 has already been resolved. This PR has merge conflicts and is no longer needed.",
+      "- PR #1098: Closing — bundling React 19, Vite 7, ESLint 10, and multiple other major version bumps in a single PR is too risky. The Netlify build is also failing. These should be done as separate, incremental PRs so breakage can be isolated. Thank you for the effort!"
     ],
     "best_change_type": "bug_fix",
-    "last_report_date": "2026-02-18"
+    "last_report_date": "2026-02-22"
   },
   "cncf_insights": {
     "last_scan_date": "2026-02-18",
