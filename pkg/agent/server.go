@@ -21,17 +21,17 @@ import (
 )
 
 const (
-	agentDefaultTimeout  = 30 * time.Second
-	agentExtendedTimeout = 60 * time.Second
-	agentCommandTimeout  = 45 * time.Second
-	healthCheckTimeout   = 2 * time.Second
-	registryTimeout      = 10 * time.Second
-	consoleHealthTimeout = 5 * time.Second
-	stabilizationDelay   = 3 * time.Second
-	startupDelay         = 500 * time.Millisecond
-	metricsHistoryTick   = 10 * time.Minute
-	agentFileMode           = 0600
-	defaultHealthCheckURL   = "http://127.0.0.1:8080/health"
+	agentDefaultTimeout   = 30 * time.Second
+	agentExtendedTimeout  = 60 * time.Second
+	agentCommandTimeout   = 45 * time.Second
+	healthCheckTimeout    = 2 * time.Second
+	registryTimeout       = 10 * time.Second
+	consoleHealthTimeout  = 5 * time.Second
+	stabilizationDelay    = 3 * time.Second
+	startupDelay          = 500 * time.Millisecond
+	metricsHistoryTick    = 10 * time.Minute
+	agentFileMode         = 0600
+	defaultHealthCheckURL = "http://127.0.0.1:8080/health"
 )
 
 // Version is set by ldflags during build
@@ -1818,8 +1818,26 @@ func (s *Server) handleChatMessageStreaming(conn *websocket.Conn, msg protocol.M
 		}
 	}
 
+	// Ensure we have a valid response object to avoid nil panics
+	if resp == nil {
+		resp = &ChatResponse{
+			Content:    "",
+			Agent:      agentName,
+			TokenUsage: &ProviderTokenUsage{},
+		}
+	}
+
 	// Track token usage
-	s.addTokenUsage(resp.TokenUsage)
+	if resp.TokenUsage != nil {
+		s.addTokenUsage(resp.TokenUsage)
+	}
+
+	var inputTokens, outputTokens, totalTokens int
+	if resp.TokenUsage != nil {
+		inputTokens = resp.TokenUsage.InputTokens
+		outputTokens = resp.TokenUsage.OutputTokens
+		totalTokens = resp.TokenUsage.TotalTokens
+	}
 
 	// Send final result
 	conn.WriteJSON(protocol.Message{
@@ -1831,9 +1849,9 @@ func (s *Server) handleChatMessageStreaming(conn *websocket.Conn, msg protocol.M
 			SessionID: req.SessionID,
 			Done:      true,
 			Usage: &protocol.ChatTokenUsage{
-				InputTokens:  resp.TokenUsage.InputTokens,
-				OutputTokens: resp.TokenUsage.OutputTokens,
-				TotalTokens:  resp.TokenUsage.TotalTokens,
+				InputTokens:  inputTokens,
+				OutputTokens: outputTokens,
+				TotalTokens:  totalTokens,
 			},
 		},
 	})
@@ -1908,8 +1926,25 @@ func (s *Server) handleChatMessage(msg protocol.Message, forceAgent string) prot
 		return s.errorResponse(msg.ID, "execution_error", fmt.Sprintf("Failed to execute %s: %s", agentName, err.Error()))
 	}
 
+	if resp == nil {
+		resp = &ChatResponse{
+			Content:    "",
+			Agent:      agentName,
+			TokenUsage: &ProviderTokenUsage{},
+		}
+	}
+
 	// Track token usage
-	s.addTokenUsage(resp.TokenUsage)
+	if resp.TokenUsage != nil {
+		s.addTokenUsage(resp.TokenUsage)
+	}
+
+	var inputTokens, outputTokens, totalTokens int
+	if resp.TokenUsage != nil {
+		inputTokens = resp.TokenUsage.InputTokens
+		outputTokens = resp.TokenUsage.OutputTokens
+		totalTokens = resp.TokenUsage.TotalTokens
+	}
 
 	// Return response in format compatible with both legacy and new clients
 	return protocol.Message{
@@ -1921,9 +1956,9 @@ func (s *Server) handleChatMessage(msg protocol.Message, forceAgent string) prot
 			SessionID: req.SessionID,
 			Done:      true,
 			Usage: &protocol.ChatTokenUsage{
-				InputTokens:  resp.TokenUsage.InputTokens,
-				OutputTokens: resp.TokenUsage.OutputTokens,
-				TotalTokens:  resp.TokenUsage.TotalTokens,
+				InputTokens:  inputTokens,
+				OutputTokens: outputTokens,
+				TotalTokens:  totalTokens,
 			},
 		},
 	}
@@ -2114,9 +2149,12 @@ User request: %s`, req.Prompt)
 		SessionID: sessionID,
 	}
 
+	var execContent string
+
 	execResp, err := execProvider.Chat(ctx, &execReq)
 	if err != nil {
 		log.Printf("[MixedMode] Execution agent error: %v", err)
+		execContent = fmt.Sprintf("Execution Error: %v", err)
 		conn.WriteJSON(protocol.Message{
 			ID:   msg.ID,
 			Type: "stream_chunk",
@@ -2127,6 +2165,9 @@ User request: %s`, req.Prompt)
 			},
 		})
 	} else {
+		if execResp != nil {
+			execContent = execResp.Content
+		}
 		conn.WriteJSON(protocol.Message{
 			ID:   msg.ID,
 			Type: "stream_chunk",
@@ -2154,7 +2195,7 @@ User request: %s`, req.Prompt)
 Original request: %s
 
 Command output:
-%s`, req.Prompt, execResp.Content)
+%s`, req.Prompt, execContent)
 
 	analysisReq := ChatRequest{
 		Prompt:    analysisPrompt,

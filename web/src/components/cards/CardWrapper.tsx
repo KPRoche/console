@@ -1336,7 +1336,6 @@ export function CardWrapper({
             {/* Chat button - feature not yet implemented
             <button
               data-tour="card-chat"
-              onClick={() => {}}
               className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
               title={t('common:buttons.askAI')}
             >

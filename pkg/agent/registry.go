@@ -164,11 +164,17 @@ func (r *Registry) ListAvailable() []ProviderInfo {
 
 // HasAvailableProviders returns true if at least one provider is available
 func (r *Registry) HasAvailableProviders() bool {
+	if r == nil {
+		return false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for _, provider := range r.providers {
-		if provider != nil && provider.IsAvailable() {
+		if provider == nil {
+			continue
+		}
+		if provider.IsAvailable() {
 			return true
 		}
 	}
