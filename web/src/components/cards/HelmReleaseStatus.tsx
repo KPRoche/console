@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { CheckCircle, AlertTriangle, XCircle, Clock, ChevronRight, Server } from 'lucide-react'
 import { useClusters, useHelmReleases } from '../../hooks/useMCP'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
+import { useDemoMode } from '../../hooks/useDemoMode'
 import { Skeleton } from '../ui/Skeleton'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import {
@@ -49,6 +50,7 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
   )
   const { isLoading: clustersLoading } = useClusters()
   const { drillToHelm } = useDrillDownActions()
+  const { isDemoMode: demoMode } = useDemoMode()
 
   const [selectedNamespace, setSelectedNamespace] = useState<string>(config?.namespace || '')
 
@@ -66,6 +68,7 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
     hasAnyData: allHelmReleases.length > 0,
     isFailed,
     consecutiveFailures,
+    isDemoData: demoMode,
   })
 
   // Transform API data to display format

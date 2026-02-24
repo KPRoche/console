@@ -3,6 +3,7 @@ import { Activity, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useGPUNodes } from '../../hooks/useMCP'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
+import { useDemoMode } from '../../hooks/useDemoMode'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { Skeleton } from '../ui/Skeleton'
 import { useCardData, commonComparators } from '../../lib/cards/cardHooks'
@@ -37,11 +38,13 @@ export function GPUStatus({ config }: GPUStatusProps) {
     isLoading: hookLoading,
   } = useGPUNodes(cluster)
   const { drillToCluster } = useDrillDownActions()
+  const { isDemoMode: demoMode } = useDemoMode()
 
   // Report loading state to CardWrapper for skeleton/refresh behavior
   const { showSkeleton, showEmptyState } = useCardLoadingState({
     isLoading: hookLoading,
     hasAnyData: rawNodes.length > 0,
+    isDemoData: demoMode,
   })
 
   // Card-specific GPU type filter (not handled by useCardData)

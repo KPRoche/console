@@ -3,6 +3,7 @@ import { CheckCircle, AlertTriangle, Clock, ChevronRight } from 'lucide-react'
 import { usePVCs } from '../../hooks/useMCP'
 import type { PVC } from '../../hooks/useMCP'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
+import { useDemoMode } from '../../hooks/useDemoMode'
 import { useCardLoadingState } from './CardDataContext'
 import { useCardData, commonComparators } from '../../lib/cards/cardHooks'
 import { CardSearchInput, CardControlsRow, CardPaginationFooter, CardAIActions } from '../../lib/cards/CardComponents'
@@ -72,6 +73,7 @@ function PVCStatusInternal() {
   const { t } = useTranslation()
   const { pvcs, isLoading, error, consecutiveFailures, isFailed } = usePVCs()
   const { drillToPVC } = useDrillDownActions()
+  const { isDemoMode: demoMode } = useDemoMode()
 
   // Report card data state
   const { showSkeleton, showEmptyState } = useCardLoadingState({
@@ -79,6 +81,7 @@ function PVCStatusInternal() {
     hasAnyData: pvcs.length > 0,
     isFailed,
     consecutiveFailures,
+    isDemoData: demoMode,
   })
 
   const {

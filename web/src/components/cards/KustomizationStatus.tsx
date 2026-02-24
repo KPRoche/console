@@ -102,6 +102,7 @@ export function KustomizationStatus({ config }: KustomizationStatusProps) {
   const { showSkeleton, showEmptyState } = useCardLoadingState({
     isLoading,
     hasAnyData: kustomizationData.length > 0,
+    isDemoData: demoMode,
   })
 
   // Auto-select first cluster in demo mode so card shows data immediately
