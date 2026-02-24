@@ -23,6 +23,7 @@ import { isCardExportable } from '../../lib/widgets/widgetRegistry'
 import { emitCardExpanded } from '../../lib/analytics'
 import { WidgetExportModal } from '../widgets/WidgetExportModal'
 import { FeatureRequestModal } from '../feedback/FeatureRequestModal'
+import { DynamicCardErrorBoundary } from './DynamicCardErrorBoundary'
 
 // Minimum duration to show spin animation (ensures at least one full rotation)
 const MIN_SPIN_DURATION = 500
@@ -1519,10 +1520,13 @@ export function CardWrapper({
                 {/* ALWAYS render children so they can report their data state via useCardLoadingState.
                     Hide visually when skeleton is showing, but keep mounted so useLayoutEffect runs.
                     This prevents the deadlock where CardWrapper waits for hasData but children never mount.
-                    Suspense catches lazy() chunk loading so it doesn't bubble up to Layout and blank the whole page. */}
+                    Suspense catches lazy() chunk loading so it doesn't bubble up to Layout and blank the whole page.
+                    DynamicCardErrorBoundary catches render errors so a single card crash doesn't blank the page. */}
                 <div className={shouldShowSkeleton ? 'hidden' : 'contents'}>
                   <Suspense fallback={<CardSkeleton type={effectiveSkeletonType} rows={skeletonRows || 3} showHeader={false} />}>
-                    {children}
+                    <DynamicCardErrorBoundary cardId={cardId || cardType}>
+                      {children}
+                    </DynamicCardErrorBoundary>
                   </Suspense>
                 </div>
               </>

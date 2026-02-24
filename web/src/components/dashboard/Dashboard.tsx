@@ -534,6 +534,7 @@ export function Dashboard() {
         (error instanceof Error && error.message.includes('Request timeout'))
       if (!isExpectedFailure) {
         console.error('Failed to load dashboard:', error)
+        showToast('Failed to load dashboard', 'error')
       }
       // Preserve local-only cards even on error, only add demo cards if needed
       setLocalCards((prevCards) => {
