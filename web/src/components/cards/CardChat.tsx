@@ -3,6 +3,7 @@ import { Send, Sparkles, Loader2, Bot, User, Copy, CheckCircle } from 'lucide-re
 import { cn } from '../../lib/cn'
 import { BaseModal } from '../../lib/modals'
 import { useTranslation } from 'react-i18next'
+import { useToast } from '../ui/Toast'
 
 export interface ChatMessage {
   id: string
@@ -76,6 +77,7 @@ export function CardChat({
   onApplyAction,
 }: CardChatProps) {
   const { t } = useTranslation(['cards', 'common'])
+  const { showToast } = useToast()
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -105,6 +107,7 @@ export function CardChat({
       }
     } catch (error) {
       console.error('Chat error:', error)
+      showToast('Failed to send message. Please try again.', 'error')
     } finally {
       setIsLoading(false)
     }

@@ -13,6 +13,7 @@ import {
   useModalAI,
   type ResourceContext,
 } from '../../modals'
+import { useToast } from '../../ui/Toast'
 
 interface Props {
   data: Record<string, unknown>
@@ -101,6 +102,7 @@ export function BuildpackDrillDown({ data }: Props) {
   const { isConnected: agentConnected } = useLocalAgent()
   const { drillToNamespace, drillToCluster } = useDrillDownActions()
   const { startMission } = useMissions()
+  const { showToast } = useToast()
 
   const [activeTab, setActiveTab] = useState<TabType>('overview')
 
@@ -192,6 +194,7 @@ export function BuildpackDrillDown({ data }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch image info:', error)
+      showToast('Failed to fetch image info', 'error')
     }
     setLoading(false)
   }
@@ -236,6 +239,7 @@ export function BuildpackDrillDown({ data }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch builds:', error)
+      showToast('Failed to fetch builds', 'error')
       setBuilds([])
     }
     setBuildsLoading(false)
@@ -290,6 +294,7 @@ export function BuildpackDrillDown({ data }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch logs:', error)
+      showToast('Failed to fetch logs', 'error')
       setLogs('Error fetching logs')
     }
 
