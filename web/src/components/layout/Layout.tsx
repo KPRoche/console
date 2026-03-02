@@ -366,7 +366,7 @@ export function Layout({ children }: LayoutProps) {
               </button>
               <button
                 onClick={() => isDemoModeForced ? setShowSetupDialog(true) : toggleDemoMode()}
-                className="ml-1 md:ml-2 p-1 hover:bg-yellow-500/20 rounded transition-colors"
+                className="ml-1 md:ml-2 p-2 min-h-11 min-w-11 hover:bg-yellow-500/20 rounded transition-colors"
                 aria-label={isDemoModeForced ? t('buttons.installConsole') : t('buttons.exitDemoMode')}
                 title={isDemoModeForced ? t('buttons.installConsole') : t('buttons.exitDemoMode')}
               >
@@ -413,7 +413,7 @@ export function Layout({ children }: LayoutProps) {
               </button>
               <button
                 onClick={() => setOfflineBannerDismissed(true)}
-                className="p-1 hover:bg-orange-500/20 rounded transition-colors"
+                className="p-2 min-h-11 min-w-11 hover:bg-orange-500/20 rounded transition-colors"
                 title="Dismiss"
               >
                 <X className="w-3.5 h-3.5 text-orange-400" />

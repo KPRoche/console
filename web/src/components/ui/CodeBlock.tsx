@@ -48,7 +48,7 @@ export function CodeBlock({ children, language = 'text', fontSize = 'sm' }: Code
       <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={handleCopy}
-          className="p-1.5 rounded bg-gray-200/80 dark:bg-gray-800/80 hover:bg-gray-300/80 dark:hover:bg-gray-700/80 transition-colors"
+          className="p-1.5 rounded bg-secondary/80 hover:bg-secondary/60 text-secondary-foreground transition-colors"
           title={copied ? 'Copied!' : copyFailed ? 'Copy failed' : 'Copy code'}
         >
           {copied ? (

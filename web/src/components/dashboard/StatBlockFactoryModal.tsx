@@ -519,7 +519,7 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
                             <button
                               onClick={() => setEditingBlockIcon(editingBlockIcon === idx ? null : idx)}
                               className={cn(
-                                'p-1.5 rounded-md border transition-colors',
+                                'p-1.5 min-h-11 min-w-11 rounded-md border transition-colors',
                                 editingBlockIcon === idx
                                   ? 'border-purple-500 bg-purple-500/10'
                                   : 'border-border bg-secondary/50 hover:border-purple-500/50',
@@ -802,7 +802,7 @@ export function StatBlockFactoryModal({ isOpen, onClose, onStatsCreated }: StatB
                   </div>
                   <button
                     onClick={() => setDeleteConfirmType(stats.type)}
-                    className="p-1.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors shrink-0"
+                    className="p-1.5 min-h-11 min-w-11 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors shrink-0"
                     title={t('dashboard.statFactory.deleteStatBlock')}
                   >
                     <Trash2 className="w-4 h-4" />

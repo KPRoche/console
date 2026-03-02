@@ -1117,7 +1117,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                   {node.id === 'github' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setAddingRepo(!addingRepo) }}
-                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                      className="p-2 min-h-11 min-w-11 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                       title="Add repository to watch"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1126,7 +1126,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                   {node.id === 'local' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setAddingPath(!addingPath) }}
-                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                      className="p-2 min-h-11 min-w-11 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                       title="Add file path to watch"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1212,7 +1212,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                           setWatchedRepos(updated)
                           saveWatchedRepos(updated)
                         }}
-                        className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
+                        className="p-2 min-h-11 min-w-11 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
                         title="Remove from watched"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -1239,7 +1239,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                           setWatchedPaths(updated)
                           saveWatchedPaths(updated)
                         }}
-                        className="p-1 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
+                        className="p-2 min-h-11 min-w-11 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors flex-shrink-0"
                         title="Remove from watched"
                       >
                         <Trash2 className="w-3 h-3" />

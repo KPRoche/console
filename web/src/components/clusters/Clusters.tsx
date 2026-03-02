@@ -619,7 +619,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
           <div className="border-l border-border/50 pl-2">
             {deployments.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('deployments')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('deployments')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('deployments') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-medium"><Layers className="w-3 h-3" />Deploy</span>
                   <span className="text-muted-foreground">({deployments.length})</span>
@@ -659,7 +659,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {podsByDeployment.standalone.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('pods')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('pods')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('pods') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium"><Box className="w-3 h-3" />{t('common.pod')}</span>
                   <span className="text-muted-foreground">Standalone ({podsByDeployment.standalone.length})</span>
@@ -681,7 +681,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {services.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('services')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('services')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('services') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium"><Network className="w-3 h-3" />Svc</span>
                   <span className="text-muted-foreground">({services.length})</span>
@@ -703,7 +703,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {jobs.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('jobs')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('jobs')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('jobs') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium"><Briefcase className="w-3 h-3" />Job</span>
                   <span className="text-muted-foreground">({jobs.length})</span>
@@ -725,7 +725,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {hpas.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('hpas')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('hpas')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('hpas') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-400 font-medium"><Activity className="w-3 h-3" />HPA</span>
                   <span className="text-muted-foreground">({hpas.length})</span>
@@ -747,7 +747,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {configmaps.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('configmaps')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('configmaps')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('configmaps') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-medium"><Settings className="w-3 h-3" />CM</span>
                   <span className="text-muted-foreground">({configmaps.length})</span>
@@ -769,7 +769,7 @@ function NamespaceResources({ clusterName, namespace }: NamespaceResourcesProps)
 
             {secrets.length > 0 && (
               <div className="mb-1">
-                <button onClick={() => toggleType('secrets')} className="flex items-center gap-1.5 py-1 hover:bg-card/30 rounded px-1 w-full text-left">
+                <button onClick={() => toggleType('secrets')} className="flex items-center gap-1.5 py-2 hover:bg-card/30 rounded px-2 w-full text-left min-h-11">
                   {expandedTypes.has('secrets') ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                   <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 font-medium"><Lock className="w-3 h-3" />Secret</span>
                   <span className="text-muted-foreground">({secrets.length})</span>

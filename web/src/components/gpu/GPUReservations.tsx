@@ -817,7 +817,7 @@ export function GPUReservations() {
                 const isNext = item === 'next'
                 return (
                   <button key={item} onClick={isNext ? nextMonth : prevMonth}
-                    className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
+                    className="p-2 min-h-11 min-w-11 rounded-lg hover:bg-secondary transition-colors"
                     aria-label={isNext ? 'Next month' : 'Previous month'}>
                     {isNext ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
                   </button>
