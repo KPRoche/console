@@ -23,6 +23,7 @@ import { isCardExportable } from '../../lib/widgets/widgetRegistry'
 import { emitCardExpanded } from '../../lib/analytics'
 import { WidgetExportModal } from '../widgets/WidgetExportModal'
 import { FeatureRequestModal } from '../feedback/FeatureRequestModal'
+import { LOADING_TIMEOUT_MS, SKELETON_DELAY_MS, INITIAL_RENDER_TIMEOUT_MS, TICK_INTERVAL_MS } from '../../lib/constants/network'
 import { DynamicCardErrorBoundary } from './DynamicCardErrorBoundary'
 
 
@@ -914,7 +915,7 @@ export function CardWrapper({
   useEffect(() => {
     // Only run timeout once on mount - don't reset when childDataState changes
     // Cards with cached data will report hasData: true quickly, hiding skeleton
-    const timer = setTimeout(() => setSkeletonTimedOut(true), 5000)
+    const timer = setTimeout(() => setSkeletonTimedOut(true), LOADING_TIMEOUT_MS)
     return () => clearTimeout(timer)
   }, []) // Empty deps - only run on mount
 
@@ -922,7 +923,7 @@ export function CardWrapper({
   // This prevents flicker when cache loads quickly from IndexedDB
   const [skeletonDelayPassed, setSkeletonDelayPassed] = useState(checkIsDemoMode)
   useEffect(() => {
-    const timer = setTimeout(() => setSkeletonDelayPassed(true), 100)
+    const timer = setTimeout(() => setSkeletonDelayPassed(true), SKELETON_DELAY_MS)
     return () => clearTimeout(timer)
   }, []) // Empty deps - only run on mount
 
@@ -931,7 +932,7 @@ export function CardWrapper({
   // This prevents blank cards while still giving reporting cards time to report
   const [initialRenderTimedOut, setInitialRenderTimedOut] = useState(checkIsDemoMode)
   useEffect(() => {
-    const timer = setTimeout(() => setInitialRenderTimedOut(true), 150)
+    const timer = setTimeout(() => setInitialRenderTimedOut(true), INITIAL_RENDER_TIMEOUT_MS)
     return () => clearTimeout(timer)
   }, []) // Empty deps - only run on mount
 
@@ -1132,7 +1133,7 @@ export function CardWrapper({
     }
 
     updateTime()
-    const interval = setInterval(updateTime, 1000)
+    const interval = setInterval(updateTime, TICK_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [pendingSwap, onSwap])
 
