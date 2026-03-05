@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useClusters } from './useMCP'
 import { useGlobalFilters } from './useGlobalFilters'
+import { MOCK_SYNC_DELAY_MS } from '../lib/constants/network'
 
 // Cache expiry time (5 minutes)
 const CACHE_EXPIRY_MS = 300000
@@ -405,6 +406,57 @@ export function useArgoCDHealth(): UseArgoCDHealthResult {
     lastRefresh,
     refetch: () => refetch(false),
   }
+}
+
+// ============================================================================
+// Hook: useArgoCDTriggerSync
+// ============================================================================
+
+export interface TriggerSyncResult {
+  success: boolean
+  /** Raw error message from the API (only set when success is false) */
+  error?: string
+}
+
+/**
+ * Returns a function to trigger an Argo CD application sync.
+ * In a real implementation this would call the ArgoCD API or run:
+ *   argocd app sync <name> --prune --force
+ * For now it simulates the action for UI demonstration.
+ */
+export function useArgoCDTriggerSync() {
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastResult, setLastResult] = useState<TriggerSyncResult | null>(null)
+
+  const triggerSync = useCallback(async (_appName: string, _namespace: string): Promise<TriggerSyncResult> => {
+    setIsSyncing(true)
+    setLastResult(null)
+    try {
+      // In a real implementation, call the ArgoCD API:
+      //   POST /api/v1/applications/{_appName}/sync
+      // or run: argocd app sync <_appName> -n <_namespace>
+      //
+      // NOTE: The Promise below never rejects — this is intentional for the
+      // mock/demo path. The catch block is kept so that the real API call
+      // (which can fail with network or permission errors) is handled correctly
+      // once the stub is replaced.
+      await new Promise(resolve => setTimeout(resolve, MOCK_SYNC_DELAY_MS))
+      const result: TriggerSyncResult = { success: true }
+      setLastResult(result)
+      return result
+    } catch (err) {
+      const result: TriggerSyncResult = {
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      }
+      setLastResult(result)
+      return result
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [])
+
+  return { triggerSync, isSyncing, lastResult }
 }
 
 // ============================================================================

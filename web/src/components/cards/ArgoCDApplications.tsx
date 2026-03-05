@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
-import { CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, ChevronRight, ExternalLink, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, Clock, AlertTriangle, ChevronRight, ExternalLink, AlertCircle, Play, Loader2 } from 'lucide-react'
 import { ClusterBadge } from '../ui/ClusterBadge'
 import { useDrillDownActions } from '../../hooks/useDrillDown'
 import { Skeleton } from '../ui/Skeleton'
-import { useArgoCDApplications, type ArgoApplication } from '../../hooks/useArgoCD'
+import { useArgoCDApplications, useArgoCDTriggerSync, type ArgoApplication } from '../../hooks/useArgoCD'
 import { useCardLoadingState } from './CardDataContext'
 import {
   useCardData,
@@ -68,6 +68,11 @@ function ArgoCDApplicationsInternal({ config }: ArgoCDApplicationsProps) {
     consecutiveFailures,
   } = useArgoCDApplications()
   const { drillToArgoApp } = useDrillDownActions()
+  const { triggerSync } = useArgoCDTriggerSync()
+  // Track per-app sync state with a Set to avoid shared-boolean race conditions
+  const [syncingApps, setSyncingApps] = useState<Set<string>>(new Set())
+  const addSyncingApp = (key: string) => setSyncingApps(prev => new Set(prev).add(key))
+  const removeSyncingApp = (key: string) => setSyncingApps(prev => { const next = new Set(prev); next.delete(key); return next })
 
   // Report loading state to CardWrapper for skeleton/refresh behavior
   const { showSkeleton, showEmptyState } = useCardLoadingState({
@@ -289,6 +294,8 @@ function ArgoCDApplicationsInternal({ config }: ArgoCDApplicationsProps) {
             const healthConfig = healthStatusConfig[app.healthStatus]
             const SyncIcon = syncConfig.icon
             const HealthIcon = healthConfig.icon
+            const appKey = `${app.cluster}/${app.namespace}/${app.name}`
+            const isThisAppSyncing = syncingApps.has(appKey)
 
             return (
               <div
@@ -311,7 +318,28 @@ function ArgoCDApplicationsInternal({ config }: ArgoCDApplicationsProps) {
                     </span>
                     <HealthIcon className={`w-4 h-4 ${healthConfig.color}`} aria-label={app.healthStatus} />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center gap-2">
+                    {app.syncStatus === 'OutOfSync' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          addSyncingApp(appKey)
+                          triggerSync(app.name, app.namespace).finally(() => removeSyncingApp(appKey))
+                        }}
+                        disabled={isThisAppSyncing}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title={t('argoCDApplications.syncNow')}
+                      >
+                        {isThisAppSyncing ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Play className="w-3 h-3" />
+                        )}
+                        {t('argoCDApplications.syncNow')}
+                      </button>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-2">
