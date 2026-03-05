@@ -9,6 +9,7 @@ import {
   STORAGE_KEY_PREDICTION_SETTINGS,
   STORAGE_KEY_TOKEN_SETTINGS,
   STORAGE_KEY_THEME,
+  STORAGE_KEY_CUSTOM_THEMES,
   STORAGE_KEY_ACCESSIBILITY,
   STORAGE_KEY_GITHUB_TOKEN,
   STORAGE_KEY_NOTIFICATION_CONFIG,
@@ -27,6 +28,7 @@ const LS_KEYS = {
   [STORAGE_KEY_PREDICTION_SETTINGS]: 'predictions',
   [STORAGE_KEY_TOKEN_SETTINGS]: 'tokenUsage',
   [STORAGE_KEY_THEME]: 'theme',
+  [STORAGE_KEY_CUSTOM_THEMES]: 'customThemes',
   [STORAGE_KEY_ACCESSIBILITY]: 'accessibility',
   [STORAGE_KEY_GITHUB_TOKEN]: 'githubToken',
   [STORAGE_KEY_NOTIFICATION_CONFIG]: 'notifications',
@@ -59,6 +61,16 @@ export function collectFromLocalStorage(): Partial<AllSettings> {
   // Theme (plain string)
   const theme = localStorage.getItem(STORAGE_KEY_THEME)
   if (theme) result.theme = theme
+
+  // Custom marketplace themes (JSON array of full theme objects).
+  // Corrupted data is ignored; the array will be repopulated on the next successful install.
+  const customThemes = localStorage.getItem(STORAGE_KEY_CUSTOM_THEMES)
+  if (customThemes) {
+    try {
+      const parsed = JSON.parse(customThemes)
+      if (Array.isArray(parsed) && parsed.length > 0) result.customThemes = parsed
+    } catch { /* corrupted data — skip and let the next save overwrite */ }
+  }
 
   // Accessibility (JSON)
   const accessibility = localStorage.getItem(STORAGE_KEY_ACCESSIBILITY)
@@ -104,6 +116,16 @@ export function restoreToLocalStorage(settings: AllSettings): void {
 
   if (settings.theme) {
     localStorage.setItem(STORAGE_KEY_THEME, settings.theme)
+  }
+
+  // Restore custom marketplace themes and notify theme-aware components.
+  // If the write fails (e.g. localStorage full), themes remain unavailable until the
+  // next successful sync — the same state as before the restore attempt.
+  if (Array.isArray(settings.customThemes) && settings.customThemes.length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEY_CUSTOM_THEMES, JSON.stringify(settings.customThemes))
+      window.dispatchEvent(new Event('kc-custom-themes-changed'))
+    } catch { /* localStorage unavailable — themes will reappear on next successful sync */ }
   }
 
   if (settings.accessibility) {
