@@ -80,8 +80,11 @@ useDefault = true
 # Allowlist paths that are expected to contain example/test secrets
 [allowlist]
   paths = [
+    '''\.env$''',
+    '''\.env\.local$''',
     '''\.env\.example$''',
     '''\.env\.template$''',
+    '''\.env\.\w+\.local$''',
     '''web/e2e/''',
     '''pkg/test/''',
     '''vendor/''',
