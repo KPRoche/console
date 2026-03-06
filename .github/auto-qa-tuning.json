@@ -1,42 +1,42 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-03-05T03:47:00Z",
+  "last_updated": "2026-03-06T03:46:36Z",
   "rolling_window_days": 30,
   "categories": {
     "other": {
-      "merged": 38,
-      "closed": 18,
-      "acceptance_rate": 0.68,
-      "status": "normal",
-      "last_evaluated": "2026-03-05T03:47:00Z"
-    },
-    "security": {
-      "merged": 9,
-      "closed": 5,
-      "acceptance_rate": 0.64,
-      "status": "normal",
-      "last_evaluated": "2026-02-28T03:35:47Z"
-    },
-    "resilience": {
-      "merged": 9,
-      "closed": 4,
+      "merged": 43,
+      "closed": 19,
       "acceptance_rate": 0.69,
       "status": "normal",
-      "last_evaluated": "2026-02-27T03:47:26Z"
+      "last_evaluated": "2026-03-06T03:46:36Z"
+    },
+    "security": {
+      "merged": 10,
+      "closed": 5,
+      "acceptance_rate": 0.67,
+      "status": "normal",
+      "last_evaluated": "2026-03-06T03:46:36Z"
+    },
+    "resilience": {
+      "merged": 11,
+      "closed": 4,
+      "acceptance_rate": 0.73,
+      "status": "normal",
+      "last_evaluated": "2026-03-06T03:46:36Z"
     },
     "performance": {
-      "merged": 3,
+      "merged": 4,
       "closed": 0,
       "acceptance_rate": 1,
       "status": "normal",
-      "last_evaluated": "2026-02-18T03:50:02Z"
+      "last_evaluated": "2026-03-06T03:46:36Z"
     },
     "consistency": {
-      "merged": 9,
+      "merged": 10,
       "closed": 1,
-      "acceptance_rate": 0.9,
+      "acceptance_rate": 0.91,
       "status": "boosted",
-      "last_evaluated": "2026-02-27T03:47:26Z"
+      "last_evaluated": "2026-03-06T03:46:36Z"
     },
     "dom-errors": {
       "merged": 4,
@@ -61,10 +61,10 @@
     },
     "testing": {
       "merged": 2,
-      "closed": 2,
-      "acceptance_rate": 0.5,
+      "closed": 3,
+      "acceptance_rate": 0.4,
       "status": "normal",
-      "last_evaluated": "2026-02-28T03:35:47Z"
+      "last_evaluated": "2026-03-06T03:46:36Z"
     }
   },
   "weekly_insights": {
@@ -220,18 +220,27 @@
       "categories_boosted": [
         "consistency"
       ]
+    },
+    {
+      "date": "2026-03-06",
+      "total_merged": 93,
+      "total_closed": 46,
+      "categories_blocked": [],
+      "categories_boosted": [
+        "consistency"
+      ]
     }
   ],
   "rotation_weights": {
-    "other": 1.02,
-    "security": 0.96,
-    "resilience": 1.03,
+    "other": 1.03,
+    "security": 1.01,
+    "resilience": 1.1,
     "performance": 1.5,
     "consistency": 2.0,
     "dom-errors": 1.5,
     "a11y": 0.6,
     "ui-design": 0.57,
-    "testing": 0.75
+    "testing": 0.6
   },
   "max_issues_override": 3,
   "pr_guidance": "Changes up to 200 lines (size M) are acceptable. Avoid PRs over 200 lines."
