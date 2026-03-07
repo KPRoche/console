@@ -38,6 +38,7 @@ import { useSidebarConfig, SidebarItem, DISCOVERABLE_DASHBOARDS } from '../../ho
 import { useDashboards, Dashboard } from '../../hooks/useDashboards'
 import { DASHBOARD_TEMPLATES, TEMPLATE_CATEGORIES, DashboardTemplate } from '../dashboard/templates'
 import { CreateDashboardModal } from '../dashboard/CreateDashboardModal'
+import { StatusBadge } from '../ui/StatusBadge'
 import { cn } from '../../lib/cn'
 import { formatCardTitle } from '../../lib/formatCardTitle'
 import { STORAGE_KEY_NAV_HISTORY } from '../../lib/constants'
@@ -570,7 +571,7 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                                     {route.name}
                                   </span>
                                   {isAlreadyAdded && (
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 flex-shrink-0 ml-auto">{t('sidebar.customizer.added')}</span>
+                                    <StatusBadge color="green" className="flex-shrink-0 ml-auto">{t('sidebar.customizer.added')}</StatusBadge>
                                   )}
                                 </div>
                               </button>
@@ -703,9 +704,7 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                         <LayoutDashboard className="w-3.5 h-3.5 text-muted-foreground" />
                         {dashboard.name}
                         {dashboard.is_default && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-                            {t('sidebar.customizer.default')}
-                          </span>
+                          <StatusBadge color="purple">{t('sidebar.customizer.default')}</StatusBadge>
                         )}
                       </div>
                       {dashboard.cards && dashboard.cards.length > 0 ? (
@@ -780,9 +779,7 @@ export function SidebarCustomizer({ isOpen, onClose }: SidebarCustomizerProps) {
                               <div className="text-xs text-muted-foreground truncate">{template.description}</div>
                             </div>
                             {isInSidebar ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 whitespace-nowrap">
-                                {t('sidebar.customizer.added')}
-                              </span>
+                              <StatusBadge color="green">{t('sidebar.customizer.added')}</StatusBadge>
                             ) : (
                               <button
                                 onClick={() => {
