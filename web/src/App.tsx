@@ -248,15 +248,21 @@ function SettingsSyncInit() {
  *  Redirect /missions/:missionId → /?mission=:missionId to open a specific mission.
  *  Preserves UTM and other query params so GA4 campaign attribution survives the redirect. */
 function IssueRedirect() {
-  const navigate = useNavigate()
   useEffect(() => {
-    // Navigate to home first, then dispatch event for FeatureRequestButton
-    navigate(ROUTES.HOME, { replace: true })
-    // Use setTimeout to ensure the dashboard is mounted before firing
     const MODAL_OPEN_DELAY_MS = 100
-    setTimeout(() => window.dispatchEvent(new CustomEvent('open-feedback')), MODAL_OPEN_DELAY_MS)
-  }, [navigate])
-  return null
+    const timer = setTimeout(() => window.dispatchEvent(new CustomEvent('open-feedback')), MODAL_OPEN_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  return <Navigate to={ROUTES.HOME} replace />
+}
+
+function FeatureRedirect() {
+  useEffect(() => {
+    const MODAL_OPEN_DELAY_MS = 100
+    const timer = setTimeout(() => window.dispatchEvent(new CustomEvent('open-feedback-feature')), MODAL_OPEN_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  return <Navigate to={ROUTES.HOME} replace />
 }
 
 function MissionBrowseLink() {
@@ -473,8 +479,13 @@ function App() {
               and the ?mission= param survives the OAuth round-trip. */}
           <Route path="/missions" element={<MissionBrowseLink />} />
           <Route path="/missions/:missionId" element={<MissionDeepLink />} />
-          {/* /issue opens the feedback modal on the dashboard */}
+          {/* /issue, /issues, /feedback open the feedback modal on the dashboard */}
           <Route path="/issue" element={<IssueRedirect />} />
+          <Route path="/issues" element={<IssueRedirect />} />
+          <Route path="/feedback" element={<IssueRedirect />} />
+          {/* /feature, /features open the feedback modal on the feature tab */}
+          <Route path="/feature" element={<FeatureRedirect />} />
+          <Route path="/features" element={<FeatureRedirect />} />
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
