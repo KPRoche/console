@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 // NOTE: Wildcard import is required for dynamic icon resolution
@@ -10,7 +10,7 @@ import { cn } from '../../lib/cn'
 import { SnoozedCards } from './SnoozedCards'
 import { useSidebarConfig, SidebarItem, PROTECTED_SIDEBAR_IDS, SIDEBAR_COLLAPSED_WIDTH_PX, SIDEBAR_DEFAULT_WIDTH_PX } from '../../hooks/useSidebarConfig'
 import { useMobile } from '../../hooks/useMobile'
-import { useClusters } from '../../hooks/useMCP'
+import { useClusters } from '../../hooks/mcp/clusters'
 import { useDashboardContextOptional } from '../../hooks/useDashboardContext'
 import type { SnoozedSwap } from '../../hooks/useSnoozedCards'
 import type { SnoozedRecommendation } from '../../hooks/useSnoozedRecommendations'
@@ -18,6 +18,11 @@ import type { SnoozedMission } from '../../hooks/useSnoozedMissions'
 import { useActiveUsers } from '../../hooks/useActiveUsers'
 import { ROUTES } from '../../config/routes'
 import { DASHBOARD_CONFIGS } from '../../config/dashboards/index'
+
+// Lazy-load SidebarCustomizer — it pulls in dnd-kit and heavy UI (~50 KB)
+const SidebarCustomizer = lazy(() =>
+  import('./SidebarCustomizer').then(m => ({ default: m.SidebarCustomizer }))
+)
 
 /** Sidebar resize limits in pixels */
 const SIDEBAR_MIN_WIDTH_PX = 180
@@ -90,6 +95,9 @@ export function Sidebar() {
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
   }, [config.width, setWidth])
+
+  // Sidebar customizer modal state
+  const [showCustomizer, setShowCustomizer] = useState(false)
 
   // Inline rename state for custom sidebar items
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
@@ -382,6 +390,17 @@ export function Sidebar() {
           {config.primaryNav.map(item => renderNavItem(item, 'primary'))}
         </nav>
 
+        {/* Add more dashboards */}
+        {!isCollapsed && (
+          <button
+            onClick={() => setShowCustomizer(true)}
+            className="w-full flex items-center gap-3 px-3 py-1.5 mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/30 rounded-lg transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t('sidebar.addMore', 'Add more...')}</span>
+          </button>
+        )}
+
         {/* Divider */}
         <div className="my-6 border-t border-border/50" />
 
@@ -482,6 +501,13 @@ export function Sidebar() {
           )}
           style={{ left: sidebarWidth - 3, width: 6 }}
         />
+      )}
+
+      {/* Sidebar customizer modal */}
+      {showCustomizer && (
+        <Suspense fallback={null}>
+          <SidebarCustomizer isOpen={showCustomizer} onClose={() => setShowCustomizer(false)} />
+        </Suspense>
       )}
     </>
   )
