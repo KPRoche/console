@@ -470,6 +470,16 @@ export function emitCardClusterFilterChanged(selectedCount: number, totalCount: 
   })
 }
 
+/** Fired when user navigates pages via pagination controls */
+export function emitCardPaginationUsed(page: number, totalPages: number, cardType: string) {
+  send('ksc_card_pagination_used', { page, total_pages: totalPages, card_type: cardType, page_path: window.location.pathname })
+}
+
+/** Fired when user clicks a list item row in a card */
+export function emitCardListItemClicked(cardType: string) {
+  send('ksc_card_list_item_clicked', { card_type: cardType, page_path: window.location.pathname })
+}
+
 // ── AI Missions ────────────────────────────────────────────────────
 
 export function emitMissionStarted(missionType: string, agentProvider: string) {
@@ -549,15 +559,31 @@ export function emitError(category: string, detail: string) {
 
 /** Track unhandled promise rejections and runtime errors globally */
 export function startGlobalErrorTracking() {
+  // Re-entrancy guard: if emitError() → send() triggers another error,
+  // the global handler must NOT call emitError() again (infinite recursion → max call stack)
+  let isEmitting = false
+
   window.addEventListener('unhandledrejection', (event) => {
-    const msg = event.reason?.message || String(event.reason || 'unknown')
-    emitError('unhandled_rejection', msg)
+    if (isEmitting) return
+    isEmitting = true
+    try {
+      const msg = event.reason?.message || String(event.reason || 'unknown')
+      emitError('unhandled_rejection', msg)
+    } finally {
+      isEmitting = false
+    }
   })
 
   window.addEventListener('error', (event) => {
     // Skip errors from cross-origin scripts (no useful info)
     if (!event.message || event.message === 'Script error.') return
-    emitError('runtime', event.message)
+    if (isEmitting) return
+    isEmitting = true
+    try {
+      emitError('runtime', event.message)
+    } finally {
+      isEmitting = false
+    }
   })
 }
 
@@ -587,6 +613,47 @@ export function emitMarketplaceInstall(itemType: string, itemName: string) {
 
 export function emitMarketplaceRemove(itemType: string) {
   send('ksc_marketplace_remove', { item_type: itemType })
+}
+
+/** Fired when a marketplace install attempt fails */
+export function emitMarketplaceInstallFailed(itemType: string, itemName: string, error: string) {
+  send('ksc_marketplace_install_failed', { item_type: itemType, item_name: itemName, error_detail: error.slice(0, 100) })
+}
+
+// ── Theme ─────────────────────────────────────────────────────────
+
+/** Fired when user changes theme via settings dropdown or navbar toggle */
+export function emitThemeChanged(themeId: string, source: string) {
+  send('ksc_theme_changed', { theme_id: themeId, source })
+}
+
+// ── Language ──────────────────────────────────────────────────────
+
+/** Fired when user changes UI language */
+export function emitLanguageChanged(langCode: string) {
+  send('ksc_language_changed', { language: langCode })
+}
+
+// ── AI Settings ───────────────────────────────────────────────────
+
+/** Fired when user changes AI mode (low/medium/high) */
+export function emitAIModeChanged(mode: string) {
+  send('ksc_ai_mode_changed', { mode })
+}
+
+/** Fired when user toggles AI predictions on/off */
+export function emitAIPredictionsToggled(enabled: boolean) {
+  send('ksc_ai_predictions_toggled', { enabled: String(enabled) })
+}
+
+/** Fired when user changes prediction confidence threshold */
+export function emitConfidenceThresholdChanged(value: number) {
+  send('ksc_confidence_threshold_changed', { threshold: value })
+}
+
+/** Fired when user toggles consensus (multi-provider) mode */
+export function emitConsensusModeToggled(enabled: boolean) {
+  send('ksc_consensus_mode_toggled', { enabled: String(enabled) })
 }
 
 // ── GitHub Token ───────────────────────────────────────────────────
@@ -620,6 +687,33 @@ export function emitAgentConnected(version: string, clusterCount: number) {
 
 export function emitAgentDisconnected() {
   send('ksc_agent_disconnected')
+}
+
+/**
+ * Emitted when cluster inventory changes. Sends only aggregate counts —
+ * NEVER cluster names, IPs, servers, or any identifiable information.
+ */
+export function emitClusterInventory(counts: {
+  total: number
+  healthy: number
+  unhealthy: number
+  unreachable: number
+  distributions: Record<string, number>
+}) {
+  // Flatten distribution counts into safe GA4 params (e.g., dist_eks: 2)
+  const distParams: Record<string, string | number> = {}
+  for (const [dist, count] of Object.entries(counts.distributions)) {
+    distParams[`dist_${dist}`] = count
+  }
+  send('ksc_cluster_inventory', {
+    cluster_count: counts.total,
+    healthy_count: counts.healthy,
+    unhealthy_count: counts.unhealthy,
+    unreachable_count: counts.unreachable,
+    ...distParams,
+  })
+  // Set as user property so GA4 can compute averages across users
+  userProperties.cluster_count = String(counts.total)
 }
 
 // ── Agent Provider Detection ────────────────────────────────────
@@ -852,6 +946,160 @@ export function emitUpdateChecked() {
 /** Fired when user clicks "Update Now" to trigger an update */
 export function emitUpdateTriggered() {
   send('ksc_update_triggered')
+}
+
+/** Fired when kc-agent reports the update completed successfully */
+export function emitUpdateCompleted(durationMs: number) {
+  send('ksc_update_completed', { duration_ms: durationMs })
+}
+
+/** Fired when kc-agent reports the update failed */
+export function emitUpdateFailed(error: string) {
+  send('ksc_update_failed', { error_detail: error.slice(0, 100) })
+}
+
+/** Fired when user clicks "Refresh to load new version" after a successful update */
+export function emitUpdateRefreshed() {
+  send('ksc_update_refreshed')
+}
+
+/** Fired when the stale-update timeout fires (no WebSocket progress within threshold) */
+export function emitUpdateStalled() {
+  send('ksc_update_stalled')
+}
+
+// ── Drill-Down ───────────────────────────────────────────────────
+
+/** Fired when user opens a drill-down view (pod, cluster, namespace, etc.) */
+export function emitDrillDownOpened(viewType: string) {
+  send('ksc_drill_down_opened', { view_type: viewType })
+}
+
+/** Fired when user closes the drill-down modal */
+export function emitDrillDownClosed(viewType: string, depth: number) {
+  send('ksc_drill_down_closed', { view_type: viewType, depth })
+}
+
+// ── Card Refresh ─────────────────────────────────────────────────
+
+/** Fired when user clicks the manual refresh button on a card */
+export function emitCardRefreshed(cardType: string) {
+  send('ksc_card_refreshed', { card_type: cardType })
+}
+
+// ── Global Filters ───────────────────────────────────────────────
+
+/** Fired when user changes global cluster filter */
+export function emitGlobalClusterFilterChanged(selectedCount: number, totalCount: number) {
+  send('ksc_global_cluster_filter_changed', { selected_count: selectedCount, total_count: totalCount })
+}
+
+/** Fired when user changes global severity filter */
+export function emitGlobalSeverityFilterChanged(selectedCount: number) {
+  send('ksc_global_severity_filter_changed', { selected_count: selectedCount })
+}
+
+/** Fired when user changes global status filter */
+export function emitGlobalStatusFilterChanged(selectedCount: number) {
+  send('ksc_global_status_filter_changed', { selected_count: selectedCount })
+}
+
+// ── Prediction Feedback ──────────────────────────────────────────
+
+/** Fired when user gives thumbs up/down on a prediction */
+export function emitPredictionFeedbackSubmitted(feedback: string, predictionType: string, provider?: string) {
+  send('ksc_prediction_feedback', { feedback, prediction_type: predictionType, provider: provider ?? 'unknown' })
+}
+
+// ── Snooze ───────────────────────────────────────────────────────
+
+/** Fired when user snoozes a card, alert, mission, or recommendation */
+export function emitSnoozed(targetType: string, duration?: string) {
+  send('ksc_snoozed', { target_type: targetType, duration: duration ?? 'default' })
+}
+
+/** Fired when user unsnoozes an item */
+export function emitUnsnoozed(targetType: string) {
+  send('ksc_unsnoozed', { target_type: targetType })
+}
+
+// ── Dashboard CRUD ───────────────────────────────────────────────
+
+/** Fired when user creates a new dashboard */
+export function emitDashboardCreated(name: string) {
+  send('ksc_dashboard_created', { dashboard_name: name })
+}
+
+/** Fired when user deletes a dashboard */
+export function emitDashboardDeleted() {
+  send('ksc_dashboard_deleted')
+}
+
+/** Fired when user renames a dashboard */
+export function emitDashboardRenamed() {
+  send('ksc_dashboard_renamed')
+}
+
+/** Fired when user imports a dashboard */
+export function emitDashboardImported() {
+  send('ksc_dashboard_imported')
+}
+
+/** Fired when user exports a dashboard */
+export function emitDashboardExported() {
+  send('ksc_dashboard_exported')
+}
+
+// ── Data Export ──────────────────────────────────────────────────
+
+/** Fired when user downloads or copies data from a drill-down view */
+export function emitDataExported(exportType: string, resourceType?: string) {
+  send('ksc_data_exported', { export_type: exportType, resource_type: resourceType ?? '' })
+}
+
+// ── User Management ──────────────────────────────────────────────
+
+/** Fired when admin changes a user's role */
+export function emitUserRoleChanged(newRole: string) {
+  send('ksc_user_role_changed', { new_role: newRole })
+}
+
+/** Fired when admin removes a user */
+export function emitUserRemoved() {
+  send('ksc_user_removed')
+}
+
+// ── Marketplace Browsing ─────────────────────────────────────────
+
+/** Fired when user views a marketplace item detail */
+export function emitMarketplaceItemViewed(itemType: string, itemName: string) {
+  send('ksc_marketplace_item_viewed', { item_type: itemType, item_name: itemName })
+}
+
+// ── Insights ─────────────────────────────────────────────────────
+
+/** Fired when user views an insight card detail */
+export function emitInsightViewed(insightCategory: string) {
+  send('ksc_insight_viewed', { insight_category: insightCategory })
+}
+
+// ── Arcade Games ────────────────────────────────────────────────
+
+/** Fired when user starts or restarts an arcade game */
+export function emitGameStarted(gameName: string) {
+  send('ksc_game_started', { game_name: gameName })
+}
+
+/** Fired when a game ends (win, loss, or completion) */
+export function emitGameEnded(gameName: string, outcome: string, score: number) {
+  send('ksc_game_ended', { game_name: gameName, outcome, score })
+}
+
+// ── Sidebar Navigation ──────────────────────────────────────────
+
+/** Fired when user clicks a sidebar navigation item */
+export function emitSidebarNavigated(destination: string) {
+  send('ksc_sidebar_navigated', { destination })
 }
 
 // ── Local Cluster ─────────────────────────────────────────────────
