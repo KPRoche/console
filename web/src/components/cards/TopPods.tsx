@@ -115,6 +115,8 @@ export function TopPods({ config }: TopPodsProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<(typeof rawPods)[0], SortByOption>(rawPods, {
     filter: {
       searchFields: ['name', 'namespace', 'cluster', 'status'],
@@ -223,7 +225,7 @@ export function TopPods({ config }: TopPodsProps) {
           No pods found
         </div>
       ) : (
-        <div className="flex-1 space-y-2 overflow-y-auto min-h-card-content">
+        <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto min-h-card-content" style={containerStyle}>
           {pods.map((pod, index) => {
             const effectivePerPage = typeof itemsPerPage === 'number' ? itemsPerPage : 5
             const displayIndex = (currentPage - 1) * effectivePerPage + index + 1

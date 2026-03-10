@@ -120,6 +120,8 @@ export function CRDHealth({ config: _config }: CRDHealthProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<CRD, SortByOption>(groupFilteredCRDs, {
     filter: {
       searchFields: ['name', 'group', 'cluster'] as (keyof CRD)[],
@@ -301,7 +303,7 @@ export function CRDHealth({ config: _config }: CRDHealthProps) {
           </div>
 
           {/* CRDs list */}
-          <div className="flex-1 space-y-2 overflow-y-auto">
+          <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
             {crds.map((crd) => {
               const StatusIcon = getStatusIcon(crd.status)
               const color = getStatusColor(crd.status)

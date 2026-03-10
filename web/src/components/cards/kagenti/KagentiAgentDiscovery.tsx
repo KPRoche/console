@@ -50,6 +50,8 @@ export function KagentiAgentDiscovery({ config }: KagentiAgentDiscoveryProps) {
     goToPage,
     needsPagination,
     itemsPerPage,
+    containerRef,
+    containerStyle,
   } = useCardData(cards, {
     filter: {
       searchFields: ['name', 'agentName', 'namespace', 'cluster'],
@@ -112,7 +114,7 @@ export function KagentiAgentDiscovery({ config }: KagentiAgentDiscoveryProps) {
         }
       />
 
-      <div className="space-y-1">
+      <div ref={containerRef} className="space-y-1" style={containerStyle}>
         {paginatedItems.map(card => (
           <div
             key={`${card.cluster}-${card.namespace}-${card.name}`}

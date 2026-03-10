@@ -162,6 +162,8 @@ export function ServiceExports({ config: _config }: ServiceExportsProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<ServiceExport, SortByOption>(DEMO_EXPORTS, {
     filter: {
       searchFields: ['name', 'namespace', 'cluster', 'serviceName', 'status'],
@@ -300,7 +302,7 @@ export function ServiceExports({ config: _config }: ServiceExportsProps) {
       />
 
       {/* Exports list */}
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div ref={containerRef} className="flex-1 overflow-y-auto space-y-2" style={containerStyle}>
         {filteredExports.map((exp, idx) => {
           const Icon = getStatusIcon(exp.status)
           const colors = getStatusColors(exp.status)

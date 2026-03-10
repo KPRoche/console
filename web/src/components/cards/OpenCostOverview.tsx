@@ -72,6 +72,8 @@ function OpenCostOverviewInternal({ config: _config }: OpenCostOverviewProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<NamespaceCost, SortByOption>(DEMO_NAMESPACE_COSTS, {
     filter: {
       searchFields: ['namespace'],
@@ -165,7 +167,7 @@ function OpenCostOverviewInternal({ config: _config }: OpenCostOverviewProps) {
       </div>
 
       {/* Namespace costs */}
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div ref={containerRef} className="flex-1 overflow-y-auto space-y-2" style={containerStyle}>
         <p className="text-xs text-muted-foreground font-medium mb-2">Cost by Namespace</p>
         {filteredCosts.map(ns => (
           <div

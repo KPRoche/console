@@ -69,6 +69,8 @@ export function KagentiBuildPipeline({ config }: KagentiBuildPipelineProps) {
     goToPage,
     needsPagination,
     itemsPerPage,
+    containerRef,
+    containerStyle,
   } = useCardData(builds, {
     filter: {
       searchFields: ['name', 'namespace', 'source', 'pipeline', 'status', 'cluster'],
@@ -137,7 +139,7 @@ export function KagentiBuildPipeline({ config }: KagentiBuildPipelineProps) {
         }
       />
 
-      <div className="space-y-1">
+      <div ref={containerRef} className="space-y-1" style={containerStyle}>
         {paginatedItems.map(build => (
           <div
             key={`${build.cluster}-${build.namespace}-${build.name}`}

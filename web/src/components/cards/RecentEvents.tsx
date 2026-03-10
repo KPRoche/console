@@ -69,6 +69,8 @@ export function RecentEvents() {
     setItemsPerPage,
     filters,
     sorting,
+    containerRef,
+    containerStyle,
   } = useCardData<ClusterEvent, SortByOption>(recentEventsCandidates, {
     filter: {
       searchFields: ['reason', 'object', 'message', 'namespace'],
@@ -174,7 +176,7 @@ export function RecentEvents() {
           <p className="text-sm text-muted-foreground">No events in the last hour</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div ref={containerRef} className="space-y-2" style={containerStyle}>
           {paginatedItems.map((event, i) => (
             <div
               key={`${event.object}-${event.reason}-${i}`}

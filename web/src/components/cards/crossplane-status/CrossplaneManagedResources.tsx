@@ -85,7 +85,9 @@ export function CrossplaneManagedResources() {
     needsPagination,
     setItemsPerPage,
     filters: { search, setSearch },
-    sorting: { sortBy, setSortBy, sortDirection, setSortDirection }
+    sorting: { sortBy, setSortBy, sortDirection, setSortDirection },
+    containerRef,
+    containerStyle,
   } = useCardData<ManagedResourceView, SortByOption>(viewResources, {
     filter: {
       searchFields: ['name', 'kind', 'namespace'],
@@ -175,7 +177,7 @@ export function CrossplaneManagedResources() {
         <StatBox label={t('crossplaneManagedResources.synced')} value={syncedCount} color="blue" />
       </div>
       {/* List */}
-      <div className="flex-1 space-y-2 overflow-y-auto">
+      <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
         {items.map(resource => {
           const ready = resource.ready
           const error = resource.error

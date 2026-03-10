@@ -118,6 +118,8 @@ export function Tier1CardRuntime({ cardDefinition }: Tier1Props) {
     needsPagination,
     itemsPerPage,
     filters,
+    containerRef,
+    containerStyle,
   } = useCardData(data, {
     filter: {
       searchFields,
@@ -198,7 +200,7 @@ export function Tier1CardRuntime({ cardDefinition }: Tier1Props) {
 
       {/* List */}
       {showList && (
-        <div className="flex-1 overflow-y-auto">
+        <div ref={containerRef} className="flex-1 overflow-y-auto" style={containerStyle}>
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <Database className="w-6 h-6 text-muted-foreground/40 mb-2" />

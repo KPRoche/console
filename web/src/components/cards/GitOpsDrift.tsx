@@ -151,6 +151,8 @@ export function GitOpsDrift({ config }: GitOpsDriftProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<GitOpsDriftType, SortByOption>(severityFilteredDrifts, {
     filter: {
       searchFields: ['resource', 'kind', 'cluster', 'namespace'],
@@ -266,7 +268,7 @@ export function GitOpsDrift({ config }: GitOpsDriftProps) {
           </p>
         </div>
       ) : (
-        <div className="flex-1 space-y-2 overflow-y-auto">
+        <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
           {displayDrifts.map((drift, index) => (
             <DriftItem key={`${drift.cluster}-${drift.namespace}-${drift.resource}-${index}`} drift={drift} />
           ))}

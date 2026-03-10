@@ -119,6 +119,8 @@ export function ClusterHealth() {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<ClusterInfo, SortByOption>(rawClusters, {
     filter: {
       searchFields: ['name', 'context', 'server'],
@@ -312,7 +314,7 @@ export function ClusterHealth() {
       </div>
 
       {/* Cluster list */}
-      <div className="flex-1 space-y-2 overflow-y-auto">
+      <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
         {clusters.map((cluster, idx) => {
           const clusterUnreachable = isClusterUnreachable(cluster)
           const clusterTokenExpired = isClusterTokenExpired(cluster)

@@ -99,6 +99,8 @@ export function ChartVersions({ config: _config }: ChartVersionsProps) {
       sortDirection,
       setSortDirection,
     },
+    containerRef,
+    containerStyle,
   } = useCardData<ChartInfo, SortByOption>(allCharts, {
     filter: {
       searchFields: ['name', 'chart', 'namespace', 'version'],
@@ -192,7 +194,7 @@ export function ChartVersions({ config: _config }: ChartVersionsProps) {
           </div>
 
           {/* Charts list */}
-          <div className="flex-1 space-y-2 overflow-y-auto">
+          <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
             {charts.length === 0 ? (
               <div className="flex items-center justify-center text-muted-foreground text-sm py-4">
                 No Helm releases found

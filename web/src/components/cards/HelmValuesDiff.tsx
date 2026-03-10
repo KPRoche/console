@@ -255,6 +255,8 @@ export function HelmValuesDiff({ config }: HelmValuesDiffProps) {
     setItemsPerPage,
     filters,
     sorting,
+    containerRef,
+    containerStyle,
   } = useCardData<ValueEntry, SortByOption>(rawValueEntries, {
     filter: {
       searchFields: ['path', 'value'],
@@ -444,7 +446,7 @@ export function HelmValuesDiff({ config }: HelmValuesDiffProps) {
           </div>
 
           {/* Values list */}
-          <div className="flex-1 space-y-1 overflow-y-auto font-mono text-xs">
+          <div ref={containerRef} className="flex-1 space-y-1 overflow-y-auto font-mono text-xs" style={containerStyle}>
             {valueEntries.length === 0 ? (
               <div className="flex items-center justify-center text-muted-foreground text-sm py-4">
                 No custom values set (using chart defaults)

@@ -497,6 +497,8 @@ export function NamespaceQuotas({ config }: NamespaceQuotasProps) {
     setItemsPerPage: quotaSetItemsPerPage,
     filters: quotaFilters,
     sorting: quotaSorting,
+    containerRef,
+    containerStyle,
   } = useCardData<QuotaUsage, SortByOption>(quotaUsages, {
     filter: {
       searchFields: ['resource', 'rawResource', 'cluster', 'namespace', 'quotaName'] as (keyof QuotaUsage)[],
@@ -700,7 +702,7 @@ export function NamespaceQuotas({ config }: NamespaceQuotasProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 space-y-3 overflow-y-auto">
+          <div ref={containerRef} className="flex-1 space-y-3 overflow-y-auto" style={containerStyle}>
             {isFetchingData && activePagination.items.length === 0 ? (
               <>
                 <Skeleton variant="rounded" height={70} />

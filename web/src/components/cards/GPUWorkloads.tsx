@@ -144,6 +144,8 @@ export function GPUWorkloads({ config: _config }: GPUWorkloadsProps) {
     setItemsPerPage,
     filters,
     sorting,
+    containerRef,
+    containerStyle,
   } = useCardData<PodInfo, SortByOption>(gpuWorkloadSource, {
     filter: {
       searchFields: ['name', 'namespace', 'cluster', 'node'] as (keyof PodInfo)[],
@@ -292,7 +294,7 @@ export function GPUWorkloads({ config: _config }: GPUWorkloadsProps) {
       </div>
 
       {/* Workload list */}
-      <div className="flex-1 space-y-2 overflow-y-auto">
+      <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto" style={containerStyle}>
         {displayWorkloads.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             {t('gpuWorkloads.noGPUWorkloadsFound')}
