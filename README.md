@@ -34,6 +34,14 @@ Restart with `./startup-oauth.sh` (local dev) or pass `--github-oauth` to `deplo
 
 To enable feedback and GitHub-powered features (nightly E2E status, community activity), go to **Settings** in the console sidebar and add a GitHub personal access token under **GitHub Token**.
 
+The console can also create GitHub issues programmatically via the `/issue` page. To enable this, add a [Personal Access Token](https://github.com/settings/tokens) to `.env`:
+
+```
+FEEDBACK_GITHUB_TOKEN=your-github-personal-access-token
+```
+
+The token needs a classic `repo` scope **or** a fine-grained token with **Issues: Read & Write**. Without it, issue submission returns `503 Issue submission is not available`.
+
 ## How It Works
 
 1. **Onboarding** — Sign in with GitHub, answer role questions, get a personalized dashboard
