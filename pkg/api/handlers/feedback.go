@@ -181,6 +181,15 @@ func (h *FeedbackHandler) CreateFeatureRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "Issue submission is not available: FEEDBACK_GITHUB_TOKEN is not configured. Add FEEDBACK_GITHUB_TOKEN=<your-pat> to your .env file (requires a GitHub personal access token with repo scope).")
 	}
 
+	// Determine target repo — default to console if not specified or invalid
+	targetRepo := input.TargetRepo
+	if targetRepo != models.TargetRepoConsole && targetRepo != models.TargetRepoDocs {
+		targetRepo = models.TargetRepoConsole
+	}
+
+	// Resolve the actual GitHub repo name based on target
+	targetRepoName := h.resolveRepoName(targetRepo)
+
 	// Get user info for the issue
 	user, err := h.store.GetUser(userID)
 	if err != nil || user == nil {
@@ -193,6 +202,7 @@ func (h *FeedbackHandler) CreateFeatureRequest(c *fiber.Ctx) error {
 		Title:       input.Title,
 		Description: input.Description,
 		RequestType: input.RequestType,
+		TargetRepo:  targetRepo,
 		Status:      models.RequestStatusOpen,
 	}
 
@@ -200,8 +210,8 @@ func (h *FeedbackHandler) CreateFeatureRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to create feature request")
 	}
 
-	// Create GitHub issue
-	issueNumber, _, err := h.createGitHubIssue(request, user)
+	// Create GitHub issue (route to the correct repo)
+	issueNumber, _, err := h.createGitHubIssueInRepo(request, user, h.repoOwner, targetRepoName)
 	if err != nil {
 		log.Printf("Failed to create GitHub issue: %v", err)
 		// Clean up the orphaned database record
@@ -217,7 +227,7 @@ func (h *FeedbackHandler) CreateFeatureRequest(c *fiber.Ctx) error {
 	actionURL := ""
 	if request.GitHubIssueNumber != nil {
 		notifTitle = fmt.Sprintf("Issue #%d Created", *request.GitHubIssueNumber)
-		actionURL = fmt.Sprintf("https://github.com/%s/%s/issues/%d", h.repoOwner, h.repoName, *request.GitHubIssueNumber)
+		actionURL = fmt.Sprintf("https://github.com/%s/%s/issues/%d", h.repoOwner, targetRepoName, *request.GitHubIssueNumber)
 	}
 	notification := &models.Notification{
 		UserID:           userID,
@@ -707,7 +717,7 @@ func (h *FeedbackHandler) CloseRequest(c *fiber.Ctx) error {
 
 		// Close the GitHub issue
 		if h.getEffectiveToken() != "" {
-			go h.closeGitHubIssue(issueNum)
+			go h.closeGitHubIssue(issueNum, h.repoName)
 		}
 
 		// Return a minimal response for GitHub items
@@ -744,7 +754,7 @@ func (h *FeedbackHandler) CloseRequest(c *fiber.Ctx) error {
 
 	// Close the GitHub issue if we have one
 	if h.getEffectiveToken() != "" && request.GitHubIssueNumber != nil {
-		go h.closeGitHubIssue(*request.GitHubIssueNumber)
+		go h.closeGitHubIssue(*request.GitHubIssueNumber, h.resolveRepoName(request.TargetRepo))
 	}
 
 	// Refresh and return the updated request
@@ -766,7 +776,7 @@ func (h *FeedbackHandler) RequestUpdate(c *fiber.Ctx) error {
 
 		// Add a comment to the GitHub issue requesting an update
 		if h.getEffectiveToken() != "" {
-			go h.addIssueComment(issueNum, "The user has requested an update on this issue.")
+			go h.addIssueComment(issueNum, "The user has requested an update on this issue.", h.repoName)
 		}
 
 		// Return a minimal response for GitHub items
@@ -797,14 +807,25 @@ func (h *FeedbackHandler) RequestUpdate(c *fiber.Ctx) error {
 
 	// Add a comment to the GitHub issue requesting an update
 	if h.getEffectiveToken() != "" && request.GitHubIssueNumber != nil {
-		go h.addIssueComment(*request.GitHubIssueNumber, "The user has requested an update on this issue.")
+		go h.addIssueComment(*request.GitHubIssueNumber, "The user has requested an update on this issue.", h.resolveRepoName(request.TargetRepo))
 	}
 
 	return c.JSON(request)
 }
 
-// closeGitHubIssue closes an issue on GitHub
-func (h *FeedbackHandler) closeGitHubIssue(issueNumber int) {
+// docsRepoName is the GitHub repository name for console documentation issues.
+const docsRepoName = "docs"
+
+// resolveRepoName returns the GitHub repo name for the given target repo.
+func (h *FeedbackHandler) resolveRepoName(target models.TargetRepo) string {
+	if target == models.TargetRepoDocs {
+		return docsRepoName
+	}
+	return h.repoName
+}
+
+// closeGitHubIssue closes an issue on GitHub in the specified repo
+func (h *FeedbackHandler) closeGitHubIssue(issueNumber int, repoName string) {
 	payload := map[string]string{"state": "closed"}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -813,7 +834,7 @@ func (h *FeedbackHandler) closeGitHubIssue(issueNumber int) {
 	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d",
-		h.repoOwner, h.repoName, issueNumber)
+		h.repoOwner, repoName, issueNumber)
 
 	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -842,8 +863,8 @@ func (h *FeedbackHandler) closeGitHubIssue(issueNumber int) {
 	}
 }
 
-// addIssueComment adds a comment to a GitHub issue
-func (h *FeedbackHandler) addIssueComment(issueNumber int, comment string) {
+// addIssueComment adds a comment to a GitHub issue in the specified repo
+func (h *FeedbackHandler) addIssueComment(issueNumber int, comment string, repoName string) {
 	payload := map[string]string{"body": comment}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -852,7 +873,7 @@ func (h *FeedbackHandler) addIssueComment(issueNumber int, comment string) {
 	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/comments",
-		h.repoOwner, h.repoName, issueNumber)
+		h.repoOwner, repoName, issueNumber)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -1156,7 +1177,7 @@ func (h *FeedbackHandler) handleAIProcessingComplete(issueNumber int, issueURL s
 	h.store.UpdateFeatureRequestStatus(request.ID, models.RequestStatusUnableToFix)
 
 	// Get the most recent bot comment to summarize the status
-	summary := h.getLatestBotComment(issueNumber)
+	summary := h.getLatestBotComment(issueNumber, h.resolveRepoName(request.TargetRepo))
 	if summary == "" {
 		summary = "AI analysis complete. A human developer will review this issue."
 	}
@@ -1213,14 +1234,14 @@ func (h *FeedbackHandler) handleIssueClosed(issueNumber int, issueURL string, is
 	return nil
 }
 
-// getLatestBotComment fetches the most recent bot comment from the issue
-func (h *FeedbackHandler) getLatestBotComment(issueNumber int) string {
+// getLatestBotComment fetches the most recent bot comment from the issue in the specified repo
+func (h *FeedbackHandler) getLatestBotComment(issueNumber int, repoName string) string {
 	if h.getEffectiveToken() == "" {
 		return ""
 	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/comments?per_page=10&sort=created&direction=desc",
-		h.repoOwner, h.repoName, issueNumber)
+		h.repoOwner, repoName, issueNumber)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -1418,17 +1439,44 @@ func (h *FeedbackHandler) handleDeploymentStatus(payload map[string]interface{})
 
 // createGitHubIssue creates an issue on GitHub
 func (h *FeedbackHandler) createGitHubIssue(request *models.FeatureRequest, user *models.User) (int, string, error) {
-	// Determine labels based on request type
-	labels := []string{"ai-fix-requested", "needs-triage"}
-	if request.RequestType == models.RequestTypeBug {
-		labels = append(labels, "bug")
+	return h.createGitHubIssueInRepo(request, user, h.repoOwner, h.repoName)
+}
+
+// createGitHubIssueInRepo creates a GitHub issue in the specified repository.
+// For documentation issues (target_repo=docs), it uses documentation-appropriate
+// labels instead of the AI fix pipeline labels.
+func (h *FeedbackHandler) createGitHubIssueInRepo(request *models.FeatureRequest, user *models.User, repoOwner, repoName string) (int, string, error) {
+	// Determine labels based on request type and target repo
+	var labels []string
+	isDocs := request.TargetRepo == models.TargetRepoDocs
+
+	if isDocs {
+		// Documentation issues get doc-specific labels (no AI pipeline)
+		labels = []string{"console-docs"}
+		if request.RequestType == models.RequestTypeBug {
+			labels = append(labels, "bug")
+		} else {
+			labels = append(labels, "enhancement")
+		}
 	} else {
-		labels = append(labels, "enhancement")
+		// Console issues get the AI fix pipeline labels
+		labels = []string{"ai-fix-requested", "needs-triage"}
+		if request.RequestType == models.RequestTypeBug {
+			labels = append(labels, "bug")
+		} else {
+			labels = append(labels, "enhancement")
+		}
+	}
+
+	repoLabel := "Console Application"
+	if isDocs {
+		repoLabel = "Console Documentation"
 	}
 
 	issueBody := fmt.Sprintf(`## User Request
 
 **Type:** %s
+**Target:** %s
 **Submitted by:** @%s
 **Console Request ID:** %s
 
@@ -1438,7 +1486,7 @@ func (h *FeedbackHandler) createGitHubIssue(request *models.FeatureRequest, user
 
 ---
 *This issue was automatically created from the KubeStellar Console.*
-`, request.RequestType, user.GitHubLogin, request.ID.String(), request.Description)
+`, request.RequestType, repoLabel, user.GitHubLogin, request.ID.String(), request.Description)
 
 	payload := map[string]interface{}{
 		"title":  request.Title,
@@ -1450,7 +1498,7 @@ func (h *FeedbackHandler) createGitHubIssue(request *models.FeatureRequest, user
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to marshal issue payload: %w", err)
 	}
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues", h.repoOwner, h.repoName)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues", repoOwner, repoName)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
