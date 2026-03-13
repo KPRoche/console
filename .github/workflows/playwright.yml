@@ -89,10 +89,7 @@ jobs:
           npx wait-on http://localhost:4173 --timeout 60000
 
       - name: Run Playwright tests
-        run: |
-          npx playwright test \
-            --project=chromium \
-            --reporter=blob
+        run: npx playwright test --project=chromium
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:4173
 

@@ -179,6 +179,8 @@ const KagentiTopology = lazy(() => _kagentiBundle.then(m => ({ default: m.Kagent
 const CrossplaneManagedResources = lazy(() => import('./crossplane-status/CrossplaneManagedResources').then(m => ({ default: m.CrossplaneManagedResources })))
 // Cloud Native Buildpacks card
 const BuildpacksStatus = lazy(() => import('./buildpacks-status').then(m => ({ default: m.BuildpacksStatus })))
+// Flatcar Container Linux card
+const FlatcarStatus = lazy(() => import('./flatcar_status').then(m => ({ default: m.FlatcarStatus })))
 // CoreDNS card
 const CoreDNSStatus = lazy(() => import('./coredns_status').then(m => ({ default: m.CoreDNSStatus })))
 
@@ -435,6 +437,8 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   quota_heatmap: QuotaHeatmap,
   // Cloud Native Buildpacks
   buildpacks_status: BuildpacksStatus,
+  // Flatcar Container Linux
+  flatcar_status: FlatcarStatus,
   // CoreDNS
   coredns_status: CoreDNSStatus,
 
@@ -773,7 +777,7 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
  */
 export function prefetchCardChunks(cardTypes: string[]): void {
   for (const type of cardTypes) {
-    CARD_CHUNK_PRELOADERS[type]?.()?.catch(() => { })
+    CARD_CHUNK_PRELOADERS[type]?.()?.catch(() => {})
   }
 }
 
@@ -812,7 +816,7 @@ export function prefetchDemoCardChunks(): void {
     () => import('./kagenti/KagentiTopology'),
     () => import('./crossplane-status/CrossplaneManagedResources'),
   ]
-  startupChunks.forEach(load => load().catch(() => { }))
+  startupChunks.forEach(load => load().catch(() => {}))
 }
 
 /**

@@ -1,13 +1,12 @@
 import { useCache } from '../../../lib/cache'
 import { useCardLoadingState } from '../CardDataContext'
 import { FLATCAR_DEMO_DATA, type FlatcarDemoData } from './demoData'
-import { FETCH_DEFAULT_TIMEOUT_MS } from '../../../lib/constants'
 import { compareFlatcarVersions } from './versionUtils'
+import { FETCH_DEFAULT_TIMEOUT_MS } from '../../../lib/constants/network'
 
 export interface FlatcarStatus {
   totalNodes: number
   versions: Record<string, number>
-  updatingNodes: number
   outdatedNodes: number
   health: 'healthy' | 'degraded'
   lastCheckTime: string
@@ -16,7 +15,6 @@ export interface FlatcarStatus {
 const INITIAL_DATA: FlatcarStatus = {
   totalNodes: 0,
   versions: {},
-  updatingNodes: 0,
   outdatedNodes: 0,
   health: 'healthy',
   lastCheckTime: new Date().toISOString(),
@@ -25,25 +23,25 @@ const INITIAL_DATA: FlatcarStatus = {
 const CACHE_KEY = 'flatcar-status'
 
 /**
- * NodeInfo shape returned by the console backend at GET /api/mcp/nodes.
- * Only the fields we need for Flatcar detection are typed here.
+ * Shape of each item returned by GET /api/mcp/flatcar/nodes.
+ * The backend filters for Flatcar nodes, so every item here is a Flatcar node.
  */
-interface BackendNodeInfo {
-  osImage?: string
-  conditions?: Array<{ type?: string; status?: string }>
+interface FlatcarNodeInfo {
+  nodeName: string
+  cluster: string
+  osImage: string
+  kernelVersion: string
 }
 
 /**
- * Fetch Flatcar Container Linux node status via the console backend proxy.
+ * Fetch Flatcar Container Linux node status via the dedicated backend endpoint.
  *
- * Uses GET /api/mcp/nodes which proxies through the backend to all connected
- * clusters. The backend returns { nodes: NodeInfo[], source: string } where
- * NodeInfo includes osImage from node.Status.NodeInfo.OSImage.
- *
- * Flatcar nodes are identified by osImage containing "Flatcar".
+ * GET /api/mcp/flatcar/nodes returns { nodes: FlatcarNodeInfo[], source: string }.
+ * The backend already filters to only Flatcar nodes (OSImage containing "flatcar"),
+ * so no client-side filtering is needed.
  */
 async function fetchFlatcarStatus(): Promise<FlatcarStatus> {
-  const resp = await fetch('/api/mcp/nodes', {
+  const resp = await fetch('/api/mcp/flatcar/nodes', {
     headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(FETCH_DEFAULT_TIMEOUT_MS),
   })
@@ -52,18 +50,12 @@ async function fetchFlatcarStatus(): Promise<FlatcarStatus> {
     throw new Error(`HTTP ${resp.status}`)
   }
 
-  const body: { nodes?: BackendNodeInfo[] } = await resp.json()
+  const body: { nodes?: FlatcarNodeInfo[] } = await resp.json()
   const items = Array.isArray(body?.nodes) ? body.nodes : []
 
-  // Filter for Flatcar nodes only
-  const flatcarNodes = items.filter((n) =>
-    n.osImage?.toLowerCase().includes('flatcar'),
-  )
-
-  // Aggregate version distribution
-  // Gracefully handles "unknown" if the version cannot be parsed
+  // Aggregate version distribution from the pre-filtered Flatcar node list
   const versions: Record<string, number> = {}
-  for (const node of flatcarNodes) {
+  for (const node of items) {
     const osImage = node.osImage ?? ''
     // Extract semver from osImage e.g. "Flatcar Container Linux by Kinvolk 3815.2.5 (…)"
     const versionMatch = osImage.match(/(\d+\.\d+\.\d+)/)
@@ -77,33 +69,26 @@ async function fetchFlatcarStatus(): Promise<FlatcarStatus> {
     .sort(compareFlatcarVersions)
   const latestVersion = sortedVersions[0]
 
-  let updatingNodes = 0
   let outdatedNodes = 0
 
-  for (const node of flatcarNodes) {
+  for (const node of items) {
     const osImage = node.osImage ?? ''
     const versionMatch = osImage.match(/(\d+\.\d+\.\d+)/)
     const nodeVersion = versionMatch?.[1]
 
-    const isUpdating = node.conditions?.some(
-      (c) => c.type === 'NodeUpdateInProgress' && c.status === 'True',
-    )
-
-    if (isUpdating) {
-      updatingNodes++
-    } else if (nodeVersion && latestVersion && nodeVersion !== latestVersion) {
+    // The backend does not expose a NodeUpdateInProgress condition in FlatcarNodeInfo,
+    // so we conservatively flag nodes whose version differs from the fleet latest.
+    if (nodeVersion && latestVersion && nodeVersion !== latestVersion) {
       outdatedNodes++
     }
-    // nodes with version "unknown" are neither counted as updating nor outdated
   }
 
   const health: 'healthy' | 'degraded' =
-    outdatedNodes === 0 && updatingNodes === 0 ? 'healthy' : 'degraded'
+    outdatedNodes === 0 ? 'healthy' : 'degraded'
 
   return {
-    totalNodes: flatcarNodes.length,
+    totalNodes: items.length,
     versions,
-    updatingNodes,
     outdatedNodes,
     health,
     lastCheckTime: new Date().toISOString(),
@@ -114,7 +99,6 @@ function toDemoStatus(demo: FlatcarDemoData): FlatcarStatus {
   return {
     totalNodes: demo.totalNodes,
     versions: demo.versions,
-    updatingNodes: demo.updatingNodes,
     outdatedNodes: demo.outdatedNodes,
     health: demo.health,
     lastCheckTime: demo.lastCheckTime,
