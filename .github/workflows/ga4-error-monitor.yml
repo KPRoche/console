@@ -87,15 +87,15 @@ jobs:
             });
             const analyticsData = google.analyticsdata({ version: 'v1beta', auth });
 
-            // ── Query GA4 for errors in the last N hours ──
-            // GA4 Data API doesn't support hourly granularity in dateRanges,
-            // so we query the last 2 days and filter by hour dimension.
+            // ── Query GA4 for errors in the lookback window ──
+            // GA4 dateHour dimension uses the property's timezone (America/New_York),
+            // not UTC — so we query by date range and aggregate totals directly.
+            // The threshold + dedup + hourly cadence prevent noise.
             const now = new Date();
-            const startDate = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
-            const startDateStr = startDate.toISOString().split('T')[0];
-            const startHour = startDate.getUTCHours();
+            const daysBack = Math.max(1, Math.ceil(lookbackHours / 24));
+            const startDateStr = `${daysBack}daysAgo`;
 
-            core.info(`Querying GA4 property ${propertyId} for ksc_error events (last ${lookbackHours}h, threshold: ${threshold})`);
+            core.info(`Querying GA4 property ${propertyId} for ksc_error events (last ${daysBack} day(s), threshold: ${threshold})`);
 
             const { data } = await analyticsData.properties.runReport({
               property: `properties/${propertyId}`,
@@ -104,7 +104,6 @@ jobs:
                 dimensions: [
                   { name: 'customEvent:error_category' },
                   { name: 'customEvent:error_page' },
-                  { name: 'dateHour' },
                 ],
                 metrics: [{ name: 'eventCount' }],
                 dimensionFilter: {
@@ -123,17 +122,13 @@ jobs:
               return;
             }
 
-            // ── Filter to lookback window and aggregate by category+page ──
-            const cutoffHour = `${startDateStr.replace(/-/g, '')}${String(startHour).padStart(2, '0')}`;
+            // ── Aggregate by category+page ──
             const aggregated = new Map();
 
             for (const row of data.rows) {
               const category = row.dimensionValues[0].value || 'uncategorized';
               const page = row.dimensionValues[1].value || '/';
-              const dateHour = row.dimensionValues[2].value;
               const count = parseInt(row.metricValues[0].value);
-
-              if (dateHour < cutoffHour) continue;
 
               const key = `${category}::${page === '(not set)' ? '/' : page}`;
               aggregated.set(key, (aggregated.get(key) || 0) + count);
