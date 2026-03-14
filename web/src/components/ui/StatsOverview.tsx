@@ -107,10 +107,10 @@ function getAvailableModes(blockId: string, data: StatBlockValue): StatDisplayMo
 const MINI_BAR_HEIGHT_PX = 6
 
 /** Size of the circular ring indicator in pixels */
-const RING_SIZE_PX = 44
+const RING_SIZE_PX = 64
 
 /** Stroke width of the circular ring indicator in pixels */
-const RING_STROKE_PX = 5
+const RING_STROKE_PX = 6
 
 /**
  * Value and metadata for a single stat block
