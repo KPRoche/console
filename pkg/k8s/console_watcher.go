@@ -120,12 +120,15 @@ func (w *ConsoleWatcher) watchResource(ctx context.Context, gvr schema.GroupVers
 		if err != nil {
 			log.Printf("[ConsoleWatcher] Watch error for %s: %v, retrying in %v", resourceType, err, backoff)
 
+			timer := time.NewTimer(backoff)
 			select {
 			case <-w.stopCh:
+				timer.Stop()
 				return
 			case <-ctx.Done():
+				timer.Stop()
 				return
-			case <-time.After(backoff):
+			case <-timer.C:
 			}
 
 			// Exponential backoff
