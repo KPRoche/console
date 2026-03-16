@@ -10,6 +10,7 @@ on:
         required: true
 
 safe-outputs:
+  report-failure-as-issue: false
   assign-to-agent:
   add-comment:
     max: 2
