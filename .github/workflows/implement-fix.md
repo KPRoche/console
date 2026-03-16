@@ -9,9 +9,6 @@ on:
         description: Issue number to work on
         required: true
 
-sandbox:
-  agent: false
-
 safe-outputs:
   assign-to-agent:
   add-comment:

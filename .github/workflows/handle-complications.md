@@ -10,11 +10,6 @@ on:
   issue_comment:
     types: [created]
 
-strict: false
-
-sandbox:
-  agent: false
-
 safe-outputs:
   add-comment:
     max: 5
