@@ -190,6 +190,8 @@ const CoreDNSStatus = lazy(() => import('./coredns_status').then(m => ({ default
 const KedaStatus = lazy(() => import('./keda_status').then(m => ({ default: m.KedaStatus })))
 // Fluentd log collector card
 const FluentdStatus = lazy(() => import('./fluentd_status').then(m => ({ default: m.FluentdStatus })))
+// CRI-O container runtime card
+const CrioStatus = lazy(() => import('./crio_status').then(m => ({ default: m.CrioStatus })))
 // Lima VM card
 const LimaStatus = lazy(() => import('./lima_status').then(m => ({ default: m.LimaStatus })))
 // CloudEvents monitoring card
@@ -458,6 +460,8 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   keda_status: KedaStatus,
   // Fluentd log collector
   fluentd_status: FluentdStatus,
+  // CRI-O container runtime
+  crio_status: CrioStatus,
   // Lima VM
   lima_status: LimaStatus,
   // CloudEvents messaging
@@ -801,6 +805,8 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   keda_status: () => import('./keda_status'),
   // CloudEvents
   cloudevents_status: () => import('./cloudevents_status'),
+  // CRI-O
+  crio_status: () => import('./crio_status'),
   // Strimzi
   strimzi_status: () => import('./strimzi_status'),
   // KubeVela application delivery
@@ -910,6 +916,7 @@ export const LIVE_DATA_CARDS = new Set([
   'dns_health',
   'coredns_status',
   'keda_status',
+  'crio_status',
   'strimzi_status',
   'kubevela_status',
   'network_policies',
@@ -1010,6 +1017,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   dns_health: 4,
   coredns_status: 6,
   keda_status: 6,
+  crio_status: 6,
   strimzi_status: 6,
   etcd_status: 4,
   network_policies: 6,
