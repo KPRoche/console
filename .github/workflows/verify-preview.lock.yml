@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"597940338f8895216346c8998a473f45bf33d0869913e473ba8da3fec9d30b78","compiler_version":"v0.58.3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"00257d51a3cca94c3aab17ba1b060028e07d6e94b0db97fcfadbb35b08fb836c","compiler_version":"v0.58.3","strict":true}
 
 name: "Preview Verification Workflow"
 "on":
@@ -1053,7 +1053,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_GROUP_REPORTS: "false"
-          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "false"
           GH_AW_TIMEOUT_MINUTES: "20"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

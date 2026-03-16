@@ -22,7 +22,7 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"90719d3ac51f4d1a7394774e386d51d247ab27c87175cb7df473a9df7f7352d8","compiler_version":"v0.58.3","strict":true}
+# gh-aw-metadata: {"schema_version":"v2","frontmatter_hash":"6dd95ae6dd3979f73fc3307a64dacde806069f32057d90df207ce19ed4116a28","compiler_version":"v0.58.3","strict":true}
 
 name: "Stuck Detection Workflow"
 "on":
@@ -1049,7 +1049,7 @@ jobs:
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_GROUP_REPORTS: "false"
-          GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "false"
           GH_AW_TIMEOUT_MINUTES: "20"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

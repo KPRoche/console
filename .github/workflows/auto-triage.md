@@ -5,6 +5,7 @@ on:
     types: [assigned]
 
 safe-outputs:
+  report-failure-as-issue: false
   add-labels:
     max: 3
 ---

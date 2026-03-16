@@ -11,6 +11,7 @@ on:
         default: "false"
 
 safe-outputs:
+  report-failure-as-issue: false
   add-comment:
     max: 5
   add-labels:
