@@ -15,3 +15,28 @@ jobs:
   greet:
     uses: kubestellar/infra/.github/workflows/reusable-greetings.yml@main
     secrets: inherit
+    with:
+      pr_message: |
+        👋 Welcome to the KubeStellar Console community! 💖
+
+        Thanks and congrats 🎉 for your first PR! Before merge, please ensure:
+        - ✅ **DCO Sign-off** — `git commit -s` ([DCO](https://developercertificate.org/))
+        - ✅ **PR Title** — Starts with emoji: ✨ feature | 🐛 bug fix | 📖 docs | 🌱 other
+
+        📬 Using KubeStellar Console? Please [add yourself to our Adopters list](https://github.com/kubestellar/console/edit/main/ADOPTERS.md) — it really helps! 🙏
+
+        📖 [Console Docs](https://kubestellar.io/docs/console/overview/introduction) | 🖥️ [Live Demo](https://console.kubestellar.io) | 🤝 [Contributor Handbook](https://kubestellar.io/contribute-handbook) | 💬 [Slack](https://cloud-native.slack.com/archives/C097094RZ3M)
+
+        🌟 If you like KubeStellar Console, please ⭐ **star** our repo to support it! 🌟
+      issue_message: |
+        👋 Welcome to the KubeStellar Console community! 💖
+
+        Thanks and congrats 🎉 for opening your first issue! Every issue helps make the Console better.
+
+        **Want to work on this?** Comment `/assign` to claim it.
+
+        📬 Using KubeStellar Console? Please [add yourself to our Adopters list](https://github.com/kubestellar/console/edit/main/ADOPTERS.md) — it really helps! 🙏
+
+        📖 [Console Docs](https://kubestellar.io/docs/console/overview/introduction) | 🖥️ [Live Demo](https://console.kubestellar.io) | 🤝 [Contributor Handbook](https://kubestellar.io/contribute-handbook) | 💬 [Slack](https://cloud-native.slack.com/archives/C097094RZ3M)
+
+        🌟 If you like KubeStellar Console, please ⭐ **star** our repo to support it! 🌟
