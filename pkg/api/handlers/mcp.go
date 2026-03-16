@@ -39,10 +39,12 @@ func waitWithDeadline(wg *sync.WaitGroup, deadline time.Duration) bool {
 		wg.Wait()
 		close(done)
 	}()
+	timer := time.NewTimer(deadline)
+	defer timer.Stop()
 	select {
 	case <-done:
 		return false
-	case <-time.After(deadline):
+	case <-timer.C:
 		return true
 	}
 }
