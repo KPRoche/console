@@ -34,24 +34,6 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps chromium
 
-      - name: Start local preview server
-        working-directory: web
-        timeout-minutes: 2
-        run: |
-          # Start vite preview in background so Copilot can test against localhost
-          npx vite preview --host 0.0.0.0 --port 4173 &
-          PREVIEW_PID=$!
-          echo "Preview server starting (PID $PREVIEW_PID) on http://localhost:4173"
-          # Wait up to 20s for it to be ready, then move on regardless
-          for i in $(seq 1 10); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 2>/dev/null | grep -q 200; then
-              echo "Preview server is ready"
-              break
-            fi
-            sleep 2
-          done
-          echo "Setup complete — preview server running in background"
-
       # --- Go / Backend ---
       - name: Setup Go 1.23
         uses: actions/setup-go@v5
