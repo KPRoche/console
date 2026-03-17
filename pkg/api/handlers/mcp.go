@@ -2,12 +2,17 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/kubestellar/console/pkg/k8s"
 	"github.com/kubestellar/console/pkg/mcp"
 )
@@ -2368,6 +2373,223 @@ func (h *MCPHandlers) GetNetworkPolicies(c *fiber.Ctx) error {
 	}
 
 	return c.Status(503).JSON(fiber.Map{"error": "No cluster access available"})
+}
+
+// podNetworkStatsTimeout is the per-cluster timeout for network stats queries.
+// Kept short because kubelet stats/summary can be slow on large clusters.
+const podNetworkStatsTimeout = 10 * time.Second
+
+// networkStatsPollIntervalSec is the expected frontend polling interval in seconds.
+// Used to estimate per-second rates from cumulative kubelet byte counters.
+const networkStatsPollIntervalSec int64 = 15
+
+// multiTenancyLabels are the app-label values for multi-tenancy infrastructure pods
+// whose network stats we want to collect.
+var multiTenancyLabels = []string{"virt-launcher", "k3s", "ovnkube-node"}
+
+// InterfaceStats describes byte-rate counters for a single network interface.
+type InterfaceStats struct {
+	Name          string `json:"name"`
+	RxBytes       int64  `json:"rxBytes"`
+	TxBytes       int64  `json:"txBytes"`
+	RxBytesPerSec int64  `json:"rxBytesPerSec"`
+	TxBytesPerSec int64  `json:"txBytesPerSec"`
+}
+
+// PodNetworkStats holds the network throughput data for one pod.
+type PodNetworkStats struct {
+	PodName    string           `json:"podName"`
+	Namespace  string           `json:"namespace"`
+	Component  string           `json:"component"`
+	Interfaces []InterfaceStats `json:"interfaces"`
+}
+
+// classifyComponent maps a pod's app label to a topology component name.
+func classifyComponent(labels map[string]string) string {
+	app, ok := labels["app"]
+	if !ok {
+		return ""
+	}
+	switch {
+	case app == "virt-launcher":
+		return "kubevirt"
+	case app == "k3s":
+		return "k3s"
+	case app == "ovnkube-node":
+		return "ovn"
+	default:
+		return ""
+	}
+}
+
+// GetPodNetworkStats returns network interface stats for pods with
+// multi-tenancy labels (KubeVirt virt-launcher, K3s server, OVN).
+// Data comes from the kubelet stats/summary API via the Kubernetes proxy.
+// When stats are unavailable, the handler returns an empty list so the
+// frontend can fall back to demo values.
+func (h *MCPHandlers) GetPodNetworkStats(c *fiber.Ctx) error {
+	// Demo mode: return realistic sample data immediately
+	if isDemoMode(c) {
+		return demoResponse(c, "stats", getDemoPodNetworkStats())
+	}
+
+	if h.k8sClient == nil {
+		return c.Status(503).JSON(fiber.Map{"error": "No cluster access available"})
+	}
+
+	clusters, _, err := h.k8sClient.HealthyClusters(c.Context())
+	if err != nil {
+		log.Printf("internal error listing healthy clusters for network stats: %v", err)
+		return c.Status(500).JSON(fiber.Map{"error": "internal server error"})
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	allStats := make([]PodNetworkStats, 0)
+
+	for _, cl := range clusters {
+		wg.Add(1)
+		go func(clusterName string) {
+			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), podNetworkStatsTimeout)
+			defer cancel()
+
+			client, clientErr := h.k8sClient.GetClient(clusterName)
+			if clientErr != nil {
+				log.Printf("network stats: cannot get client for %s: %v", clusterName, clientErr)
+				return
+			}
+
+			// Query pods matching each multi-tenancy label in all namespaces
+			for _, label := range multiTenancyLabels {
+				pods, listErr := client.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("app=%s", label),
+				})
+				if listErr != nil {
+					// 401/403 — permissions issue, skip silently
+					if statusErr, ok := listErr.(*k8sErrors.StatusError); ok {
+						code := statusErr.ErrStatus.Code
+						if code == 401 || code == 403 {
+							continue
+						}
+					}
+					log.Printf("network stats: list pods (app=%s) on %s: %v", label, clusterName, listErr)
+					continue
+				}
+
+				for _, pod := range pods.Items {
+					component := classifyComponent(pod.Labels)
+					if component == "" {
+						continue
+					}
+
+					// Try kubelet stats/summary API for this pod's node
+					nodeName := pod.Spec.NodeName
+					if nodeName == "" {
+						continue
+					}
+
+					ifaceStats := fetchPodInterfaceStats(ctx, client, nodeName, pod.Namespace, pod.Name)
+					if len(ifaceStats) == 0 {
+						continue
+					}
+
+					stat := PodNetworkStats{
+						PodName:    pod.Name,
+						Namespace:  pod.Namespace,
+						Component:  component,
+						Interfaces: ifaceStats,
+					}
+
+					mu.Lock()
+					allStats = append(allStats, stat)
+					mu.Unlock()
+				}
+			}
+		}(cl.Name)
+	}
+
+	waitWithDeadline(&wg, maxResponseDeadline)
+	return c.JSON(fiber.Map{"stats": allStats, "source": "k8s"})
+}
+
+// kubeletStatsSummary is a minimal representation of the kubelet /stats/summary response.
+// We only extract the pod-level network interface data.
+type kubeletStatsSummary struct {
+	Pods []kubeletPodStats `json:"pods"`
+}
+
+type kubeletPodStats struct {
+	PodRef struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"podRef"`
+	Network *kubeletNetworkStats `json:"network,omitempty"`
+}
+
+type kubeletNetworkStats struct {
+	Interfaces []kubeletInterfaceStats `json:"interfaces"`
+}
+
+type kubeletInterfaceStats struct {
+	Name    string `json:"name"`
+	RxBytes *int64 `json:"rxBytes,omitempty"`
+	TxBytes *int64 `json:"txBytes,omitempty"`
+}
+
+// fetchPodInterfaceStats queries the kubelet stats/summary API via the Kubernetes
+// API server proxy and extracts per-interface byte counters for the given pod.
+// Returns an empty slice if the kubelet endpoint is unavailable or the pod is not found.
+func fetchPodInterfaceStats(
+	ctx context.Context,
+	client kubernetes.Interface,
+	nodeName, podNamespace, podName string,
+) []InterfaceStats {
+	// Proxy request: GET /api/v1/nodes/{node}/proxy/stats/summary
+	raw, err := client.CoreV1().RESTClient().Get().
+		AbsPath(fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", nodeName)).
+		DoRaw(ctx)
+	if err != nil {
+		// Don't log 401/403 — this is expected on locked-down clusters
+		return nil
+	}
+
+	var summary kubeletStatsSummary
+	if jsonErr := json.Unmarshal(raw, &summary); jsonErr != nil {
+		log.Printf("network stats: failed to parse kubelet summary from node %s: %v", nodeName, jsonErr)
+		return nil
+	}
+
+	// Find the target pod in the summary
+	for _, ps := range summary.Pods {
+		if ps.PodRef.Name == podName && ps.PodRef.Namespace == podNamespace && ps.Network != nil {
+			result := make([]InterfaceStats, 0, len(ps.Network.Interfaces))
+			for _, iface := range ps.Network.Interfaces {
+				var rxBytes, txBytes int64
+				if iface.RxBytes != nil {
+					rxBytes = *iface.RxBytes
+				}
+				if iface.TxBytes != nil {
+					txBytes = *iface.TxBytes
+				}
+				result = append(result, InterfaceStats{
+					Name:    iface.Name,
+					RxBytes: rxBytes,
+					TxBytes: txBytes,
+					// Rate estimation: the kubelet stats/summary gives cumulative
+					// byte counters, not per-second rates. The frontend computes
+					// deltas between successive polls.  We provide a rough estimate
+					// here by dividing by the expected poll interval.
+					RxBytesPerSec: rxBytes / networkStatsPollIntervalSec,
+					TxBytesPerSec: txBytes / networkStatsPollIntervalSec,
+				})
+			}
+			return result
+		}
+	}
+
+	return nil
 }
 
 // GetResourceYAML returns the YAML representation of a Kubernetes resource.

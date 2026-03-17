@@ -14,6 +14,7 @@ import { useMissions } from '../../../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from '../../console-missions/shared'
 import { useKubevirtStatus } from './useKubevirtStatus'
 import { KUBEVIRT_INSTALL_PROMPT } from '../shared'
+import { loadMissionPrompt } from '../missionLoader'
 
 // ============================================================================
 // Constants
@@ -117,14 +118,15 @@ export function KubevirtStatus() {
         <p className="text-xs text-center max-w-xs">{t('kubevirtStatus.notDetectedHint')}</p>
         <button
           onClick={() =>
-            checkKeyAndRun(() =>
+            checkKeyAndRun(async () => {
+              const prompt = await loadMissionPrompt('kubevirt', KUBEVIRT_INSTALL_PROMPT)
               startMission({
                 title: 'Install KubeVirt',
                 description: 'Install KubeVirt for VM-based data-plane tenant isolation',
                 type: 'deploy',
-                initialPrompt: KUBEVIRT_INSTALL_PROMPT,
-              }),
-            )
+                initialPrompt: prompt,
+              })
+            })
           }
           className="mt-1 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/30 transition-colors"
         >

@@ -669,6 +669,7 @@ func (s *Server) setupRoutes() {
 	api.Get("/mcp/cronjobs", mcpHandlers.GetCronJobs)
 	api.Get("/mcp/ingresses", mcpHandlers.GetIngresses)
 	api.Get("/mcp/networkpolicies", mcpHandlers.GetNetworkPolicies)
+	api.Get("/mcp/pod-network-stats", mcpHandlers.GetPodNetworkStats)
 	api.Get("/mcp/resource-yaml", mcpHandlers.GetResourceYAML)
 
 	// SSE streaming variants — stream per-cluster results as they arrive

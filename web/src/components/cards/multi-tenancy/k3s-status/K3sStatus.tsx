@@ -14,6 +14,7 @@ import { useMissions } from '../../../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from '../../console-missions/shared'
 import { useK3sStatus } from './useK3sStatus'
 import { K3S_INSTALL_PROMPT } from '../shared'
+import { loadMissionPrompt } from '../missionLoader'
 
 // ============================================================================
 // Constants
@@ -97,14 +98,15 @@ export function K3sStatus() {
         <p className="text-xs text-center max-w-xs">{t('k3sStatus.notDetectedHint')}</p>
         <button
           onClick={() =>
-            checkKeyAndRun(() =>
+            checkKeyAndRun(async () => {
+              const prompt = await loadMissionPrompt('k3s', K3S_INSTALL_PROMPT)
               startMission({
                 title: 'Deploy K3s Clusters',
                 description: 'Deploy K3s lightweight Kubernetes for multi-tenant control planes',
                 type: 'deploy',
-                initialPrompt: K3S_INSTALL_PROMPT,
-              }),
-            )
+                initialPrompt: prompt,
+              })
+            })
           }
           className="mt-1 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/30 transition-colors"
         >

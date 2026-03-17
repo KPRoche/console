@@ -1,15 +1,18 @@
 /**
- * useTenantTopology — Aggregates the 4 technology hooks to determine
- * component detection status for each topology node.
+ * useTenantTopology — Aggregates the 4 technology hooks plus network stats
+ * to determine component detection status and live throughput for each
+ * topology node.
  *
- * Returns simple detected/healthy booleans per component, plus a combined
- * isDemoData flag that the card uses for the Demo badge via useCardLoadingState.
+ * Returns simple detected/healthy booleans per component, per-connection
+ * throughput rates (bytes/sec), and a combined isDemoData flag that the card
+ * uses for the Demo badge via useCardLoadingState.
  */
 import { useMemo } from 'react'
 import { useOvnStatus } from '../ovn-status/useOvnStatus'
 import { useKubeFlexStatus } from '../kubeflex-status/useKubeflexStatus'
 import { useK3sStatus } from '../k3s-status/useK3sStatus'
 import { useKubevirtStatus } from '../kubevirt-status/useKubevirtStatus'
+import { useNetworkStats } from './useNetworkStats'
 
 export interface TenantTopologyData {
   ovnDetected: boolean
@@ -20,6 +23,14 @@ export interface TenantTopologyData {
   k3sHealthy: boolean
   kubevirtDetected: boolean
   kubevirtHealthy: boolean
+  /** Combined rx+tx bytes/sec: KubeVirt eth0 -> L3 UDN (data-plane) */
+  kvEth0Rate: number
+  /** Combined rx+tx bytes/sec: KubeVirt eth1 -> L2 UDN (control-plane) */
+  kvEth1Rate: number
+  /** Combined rx+tx bytes/sec: K3s eth0 -> Default Net -> KubeFlex (management) */
+  k3sEth0Rate: number
+  /** Combined rx+tx bytes/sec: K3s eth1 -> L2 UDN (control-plane) */
+  k3sEth1Rate: number
   isLoading: boolean
   isDemoData: boolean
 }
@@ -29,6 +40,7 @@ export function useTenantTopology(): TenantTopologyData {
   const kubeflexResult = useKubeFlexStatus()
   const k3sResult = useK3sStatus()
   const kubevirtResult = useKubevirtStatus()
+  const netStats = useNetworkStats()
 
   const ovn = ovnResult.data
   const kubeflex = kubeflexResult.data
@@ -51,6 +63,10 @@ export function useTenantTopology(): TenantTopologyData {
       k3sHealthy: k3s.health === 'healthy',
       kubevirtDetected: kubevirt.detected,
       kubevirtHealthy: kubevirt.health === 'healthy',
+      kvEth0Rate: netStats.kvEth0Rate,
+      kvEth1Rate: netStats.kvEth1Rate,
+      k3sEth0Rate: netStats.k3sEth0Rate,
+      k3sEth1Rate: netStats.k3sEth1Rate,
       isLoading,
       isDemoData,
     }),
@@ -59,6 +75,8 @@ export function useTenantTopology(): TenantTopologyData {
       kubeflex.detected, kubeflex.health,
       k3s.detected, k3s.health,
       kubevirt.detected, kubevirt.health,
+      netStats.kvEth0Rate, netStats.kvEth1Rate,
+      netStats.k3sEth0Rate, netStats.k3sEth1Rate,
       isLoading, isDemoData,
     ],
   )

@@ -14,6 +14,7 @@ import { useMissions } from '../../../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from '../../console-missions/shared'
 import { useKubeFlexStatus } from './useKubeflexStatus'
 import { KUBEFLEX_INSTALL_PROMPT } from '../shared'
+import { loadMissionPrompt } from '../missionLoader'
 
 // ============================================================================
 // Constants
@@ -94,14 +95,15 @@ export function KubeFlexStatus() {
         <p className="text-xs text-center max-w-xs">{t('kubeFlexStatus.notDetectedHint')}</p>
         <button
           onClick={() =>
-            checkKeyAndRun(() =>
+            checkKeyAndRun(async () => {
+              const prompt = await loadMissionPrompt('kubeflex', KUBEFLEX_INSTALL_PROMPT)
               startMission({
                 title: 'Install KubeFlex',
                 description: 'Install KubeFlex for dedicated per-tenant control planes',
                 type: 'deploy',
-                initialPrompt: KUBEFLEX_INSTALL_PROMPT,
-              }),
-            )
+                initialPrompt: prompt,
+              })
+            })
           }
           className="mt-1 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/30 transition-colors"
         >

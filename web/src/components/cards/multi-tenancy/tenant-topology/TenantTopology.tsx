@@ -7,6 +7,11 @@
  * the KubeFlex controller, with animated connection paths and live status
  * indicators driven by real hook data.
  *
+ * Network throughput data drives:
+ * - Particle animation speed (faster = higher throughput)
+ * - Particle size (bigger = higher throughput)
+ * - Throughput labels on each connection (e.g., "15.0 KB/s")
+ *
  * Follows the LLMdFlow.tsx SVG pattern: viewBox coordinates, framer-motion
  * animations, and named constants for all positions/sizes/colors.
  */
@@ -115,20 +120,44 @@ const FONT_SIZE_LABEL = 3.2
 const FONT_SIZE_BADGE = 2.5
 const FONT_SIZE_LEGEND = 2.8
 const FONT_SIZE_TENANT = 5
+/** Font size for throughput labels on connections */
+const FONT_SIZE_THROUGHPUT = 2.2
 
 /** Interface badge dimensions */
 const BADGE_W = 12
 const BADGE_H = 5
 const BADGE_CORNER_RADIUS = 1.5
 
-/** Animation duration for flow particles (seconds) */
-const FLOW_ANIMATION_DURATION_S = 2.5
-
 /** Animation duration for pulse effect (seconds) */
 const PULSE_ANIMATION_DURATION_S = 2
 
 /** Dash array for undetected/dashed connections */
 const DASHED_PATTERN = '2,2'
+
+// ============================================================================
+// Throughput Animation Constants
+// ============================================================================
+
+/** Maximum throughput (bytes/sec) that maps to fastest animation / largest particle.
+ *  Values above this cap are treated the same. 100 KB/s combined rx+tx. */
+const MAX_THROUGHPUT_BYTES_PER_SEC = 102400
+
+/** Slowest particle animation duration when throughput is near zero (seconds) */
+const FLOW_DURATION_MAX_S = 3.5
+
+/** Fastest particle animation duration at MAX_THROUGHPUT (seconds) */
+const FLOW_DURATION_MIN_S = 0.8
+
+/** Minimum particle radius (viewBox units) for low throughput */
+const PARTICLE_RADIUS_MIN = 0.8
+
+/** Maximum particle radius (viewBox units) for high throughput */
+const PARTICLE_RADIUS_MAX = 2.0
+
+/** Throughput label pill dimensions */
+const THROUGHPUT_PILL_W = 18
+const THROUGHPUT_PILL_H = 4
+const THROUGHPUT_PILL_RX = 1.5
 
 // ============================================================================
 // Color Constants
@@ -176,6 +205,49 @@ const TEXT_PRIMARY = 'rgba(248, 250, 252, 0.9)'
 const TEXT_SECONDARY = 'rgba(148, 163, 184, 0.8)'
 const TEXT_MUTED = 'rgba(148, 163, 184, 0.5)'
 
+/** Throughput label background */
+const THROUGHPUT_PILL_FILL = 'rgba(15, 23, 42, 0.85)'
+const THROUGHPUT_PILL_STROKE = 'rgba(100, 116, 139, 0.25)'
+
+// ============================================================================
+// Throughput Helpers
+// ============================================================================
+
+/** Bytes per kilobyte */
+const BYTES_PER_KB = 1024
+/** Bytes per megabyte */
+const BYTES_PER_MB = 1024 * 1024
+
+/**
+ * Format a bytes-per-second value into a human-readable string.
+ * Uses KB/s for most values, MB/s for very high throughput.
+ */
+function formatBytesPerSec(bytesPerSec: number): string {
+  if (bytesPerSec >= BYTES_PER_MB) return `${(bytesPerSec / BYTES_PER_MB).toFixed(1)} MB/s`
+  if (bytesPerSec >= BYTES_PER_KB) return `${(bytesPerSec / BYTES_PER_KB).toFixed(1)} KB/s`
+  return `${Math.round(bytesPerSec)} B/s`
+}
+
+/**
+ * Calculate particle animation duration from throughput.
+ * Higher throughput = shorter (faster) duration.
+ */
+function getFlowDuration(throughputBytesPerSec: number): number {
+  if (throughputBytesPerSec <= 0) return FLOW_DURATION_MAX_S
+  const ratio = Math.min(throughputBytesPerSec / MAX_THROUGHPUT_BYTES_PER_SEC, 1)
+  return FLOW_DURATION_MAX_S - ratio * (FLOW_DURATION_MAX_S - FLOW_DURATION_MIN_S)
+}
+
+/**
+ * Calculate particle radius from throughput.
+ * Higher throughput = bigger particle.
+ */
+function getParticleRadius(throughputBytesPerSec: number): number {
+  if (throughputBytesPerSec <= 0) return PARTICLE_RADIUS_MIN
+  const ratio = Math.min(throughputBytesPerSec / MAX_THROUGHPUT_BYTES_PER_SEC, 1)
+  return PARTICLE_RADIUS_MIN + ratio * (PARTICLE_RADIUS_MAX - PARTICLE_RADIUS_MIN)
+}
+
 // ============================================================================
 // Connection Path Definitions
 // ============================================================================
@@ -190,6 +262,19 @@ interface ConnectionDef {
   active: boolean
   /** Label for the connection */
   label: string
+  /** Combined rx+tx throughput in bytes/sec */
+  throughputBytesPerSec: number
+  /** Midpoint X for the throughput label placement */
+  labelX: number
+  /** Midpoint Y for the throughput label placement */
+  labelY: number
+}
+
+interface ThroughputRates {
+  kvEth0Rate: number
+  kvEth1Rate: number
+  k3sEth0Rate: number
+  k3sEth1Rate: number
 }
 
 function buildConnections(
@@ -197,6 +282,7 @@ function buildConnections(
   kubeflexDetected: boolean,
   k3sDetected: boolean,
   kubevirtDetected: boolean,
+  rates: ThroughputRates,
 ): ConnectionDef[] {
   /** Center X of KubeVirt pod */
   const kvCx = KUBEVIRT_X + KUBEVIRT_W / 2
@@ -238,22 +324,31 @@ function buildConnections(
       color: L3_UDN_CONNECTION_COLOR,
       active: kubevirtDetected && ovnDetected,
       label: 'eth0',
+      throughputBytesPerSec: rates.kvEth0Rate,
+      labelX: (kvCx + l3Cx) / 2 - 2,
+      labelY: (kvBy + l3Ty) / 2 + 2,
     },
     {
       // KubeVirt eth1 -> L2 UDN (Secondary) — control-plane traffic (green)
       id: 'kv-eth1-l2',
-      d: `M ${kvRx} ${KUBEVIRT_Y + 8} L ${kvRx + 5} ${KUBEVIRT_Y + 8} L ${kvRx + 5} ${l2By + 2} Q ${kvRx + 5} ${l2By} ${l2Cx - 25} ${l2By}`,
+      d: `M ${kvRx + 2} ${KUBEVIRT_Y + KUBEVIRT_H / 2} L ${kvRx + 8} ${KUBEVIRT_Y + KUBEVIRT_H / 2} L ${kvRx + 8} ${l2By + 2} Q ${kvRx + 8} ${l2By} ${l2Cx - 25} ${l2By}`,
       color: L2_UDN_CONNECTION_COLOR,
       active: kubevirtDetected && ovnDetected,
       label: 'eth1',
+      throughputBytesPerSec: rates.kvEth1Rate,
+      labelX: kvRx + 9,
+      labelY: (KUBEVIRT_Y + KUBEVIRT_H / 2 + l2By) / 2,
     },
     {
       // K3s eth1 -> L2 UDN (Secondary) — control-plane traffic (green)
       id: 'k3s-eth1-l2',
-      d: `M ${K3S_X} ${K3S_Y + 8} L ${K3S_X - 5} ${K3S_Y + 8} L ${K3S_X - 5} ${l2By + 2} Q ${K3S_X - 5} ${l2By} ${l2Cx + 25} ${l2By}`,
+      d: `M ${K3S_X - 2} ${K3S_Y + KUBEVIRT_H / 2} L ${K3S_X - 8} ${K3S_Y + KUBEVIRT_H / 2} L ${K3S_X - 8} ${l2By + 2} Q ${K3S_X - 8} ${l2By} ${l2Cx + 25} ${l2By}`,
       color: L2_UDN_CONNECTION_COLOR,
       active: k3sDetected && ovnDetected,
       label: 'eth1',
+      throughputBytesPerSec: rates.k3sEth1Rate,
+      labelX: K3S_X - 9 - THROUGHPUT_PILL_W,
+      labelY: (K3S_Y + KUBEVIRT_H / 2 + l2By) / 2,
     },
     {
       // K3s eth0 -> Default K8s Network -> KubeFlex Controller
@@ -262,6 +357,9 @@ function buildConnections(
       color: DEFAULT_NET_CONNECTION_COLOR,
       active: k3sDetected && kubeflexDetected,
       label: 'eth0',
+      throughputBytesPerSec: rates.k3sEth0Rate,
+      labelX: (k3sCx + defCx) / 2 + 2,
+      labelY: (k3sBy + defTy) / 2 - 1,
     },
   ]
 }
@@ -270,19 +368,34 @@ function buildConnections(
 // Sub-Components
 // ============================================================================
 
-/** Animated flow particle along a connection path */
-function FlowParticle({ pathId, color, active }: { pathId: string; color: string; active: boolean }) {
+/** Animated flow particle along a connection path, sized and paced by throughput */
+function FlowParticle({
+  pathId,
+  color,
+  active,
+  throughputBytesPerSec,
+}: {
+  pathId: string
+  color: string
+  active: boolean
+  throughputBytesPerSec: number
+}) {
   if (!active) return null
+
+  // When throughput is zero, show a slow default animation so the connection
+  // still looks alive.  Real throughput > 0 speeds the particle up.
+  const duration = getFlowDuration(throughputBytesPerSec)
+  const radius = getParticleRadius(throughputBytesPerSec)
 
   return (
     <motion.circle
-      r={1.2}
+      r={radius}
       fill={color}
       filter="url(#glow)"
       initial={{ offsetDistance: '0%' }}
       animate={{ offsetDistance: '100%' }}
       transition={{
-        duration: FLOW_ANIMATION_DURATION_S,
+        duration,
         repeat: Infinity,
         ease: 'linear',
       }}
@@ -293,10 +406,53 @@ function FlowParticle({ pathId, color, active }: { pathId: string; color: string
       <animate
         attributeName="opacity"
         values="0;1;1;0"
-        dur={`${FLOW_ANIMATION_DURATION_S}s`}
+        dur={`${duration}s`}
         repeatCount="indefinite"
       />
     </motion.circle>
+  )
+}
+
+/** Throughput label pill displayed near a connection */
+function ThroughputLabel({
+  x,
+  y,
+  bytesPerSec,
+  color,
+  active,
+}: {
+  x: number
+  y: number
+  bytesPerSec: number
+  color: string
+  active: boolean
+}) {
+  if (!active || bytesPerSec <= 0) return null
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={THROUGHPUT_PILL_W}
+        height={THROUGHPUT_PILL_H}
+        rx={THROUGHPUT_PILL_RX}
+        fill={THROUGHPUT_PILL_FILL}
+        stroke={THROUGHPUT_PILL_STROKE}
+        strokeWidth={0.3}
+      />
+      <text
+        x={x + THROUGHPUT_PILL_W / 2}
+        y={y + THROUGHPUT_PILL_H / 2 + 0.8}
+        textAnchor="middle"
+        fill={color}
+        fontSize={FONT_SIZE_THROUGHPUT}
+        fontFamily="monospace"
+        opacity={0.9}
+      >
+        {formatBytesPerSec(bytesPerSec)}
+      </text>
+    </g>
   )
 }
 
@@ -415,8 +571,17 @@ export function TenantTopology() {
         data.kubeflexDetected,
         data.k3sDetected,
         data.kubevirtDetected,
+        {
+          kvEth0Rate: data.kvEth0Rate,
+          kvEth1Rate: data.kvEth1Rate,
+          k3sEth0Rate: data.k3sEth0Rate,
+          k3sEth1Rate: data.k3sEth1Rate,
+        },
       ),
-    [data.ovnDetected, data.kubeflexDetected, data.k3sDetected, data.kubevirtDetected],
+    [
+      data.ovnDetected, data.kubeflexDetected, data.k3sDetected, data.kubevirtDetected,
+      data.kvEth0Rate, data.kvEth1Rate, data.k3sEth0Rate, data.k3sEth1Rate,
+    ],
   )
 
   return (
@@ -693,6 +858,19 @@ export function TenantTopology() {
             pathId={conn.id}
             color={conn.color}
             active={conn.active}
+            throughputBytesPerSec={conn.throughputBytesPerSec}
+          />
+        ))}
+
+        {/* Throughput labels on active connections */}
+        {(connections || []).map((conn) => (
+          <ThroughputLabel
+            key={`throughput-${conn.id}`}
+            x={conn.labelX}
+            y={conn.labelY}
+            bytesPerSec={conn.throughputBytesPerSec}
+            color={conn.color}
+            active={conn.active}
           />
         ))}
 
@@ -737,9 +915,9 @@ export function TenantTopology() {
           >
             {t('tenantTopology.kubevirtVm', 'VM Workload')}
           </text>
-          {/* Interface badges */}
+          {/* Interface badges — eth0 centered bottom, eth1 right side mid-height */}
           <InterfaceBadge x={KUBEVIRT_X + KUBEVIRT_W / 2 - BADGE_W / 2} y={KUBEVIRT_Y + KUBEVIRT_H - 8} label="eth0" />
-          <InterfaceBadge x={KUBEVIRT_X + KUBEVIRT_W - BADGE_W - 2} y={KUBEVIRT_Y + 4} label="eth1" />
+          <InterfaceBadge x={KUBEVIRT_X + KUBEVIRT_W - BADGE_W + 2} y={KUBEVIRT_Y + KUBEVIRT_H / 2 - BADGE_H / 2} label="eth1" />
           {/* Status dot */}
           <StatusDot
             x={KUBEVIRT_X + KUBEVIRT_W - STATUS_DOT_OFFSET_X}
@@ -786,9 +964,9 @@ export function TenantTopology() {
           >
             {t('tenantTopology.k3sCluster', 'Control Plane')}
           </text>
-          {/* Interface badges */}
+          {/* Interface badges — eth0 centered bottom, eth1 left side mid-height */}
           <InterfaceBadge x={K3S_X + K3S_W / 2 - BADGE_W / 2} y={K3S_Y + K3S_H - 8} label="eth0" />
-          <InterfaceBadge x={K3S_X + 2} y={K3S_Y + 4} label="eth1" />
+          <InterfaceBadge x={K3S_X - 2} y={K3S_Y + KUBEVIRT_H / 2 - BADGE_H / 2} label="eth1" />
           {/* Status dot */}
           <StatusDot
             x={K3S_X + K3S_W - STATUS_DOT_OFFSET_X}

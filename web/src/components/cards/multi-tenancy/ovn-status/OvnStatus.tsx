@@ -14,6 +14,7 @@ import { useMissions } from '../../../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from '../../console-missions/shared'
 import { useOvnStatus } from './useOvnStatus'
 import { OVN_INSTALL_PROMPT } from '../shared'
+import { loadMissionPrompt } from '../missionLoader'
 
 // ============================================================================
 // Constants
@@ -97,14 +98,15 @@ export function OvnStatus() {
         <p className="text-xs text-center max-w-xs">{t('ovnStatus.notDetectedHint')}</p>
         <button
           onClick={() =>
-            checkKeyAndRun(() =>
+            checkKeyAndRun(async () => {
+              const prompt = await loadMissionPrompt('ovn', OVN_INSTALL_PROMPT)
               startMission({
                 title: 'Install OVN-Kubernetes',
                 description: 'Install OVN-Kubernetes with UDN support for tenant network isolation',
                 type: 'deploy',
-                initialPrompt: OVN_INSTALL_PROMPT,
-              }),
-            )
+                initialPrompt: prompt,
+              })
+            })
           }
           className="mt-1 px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/30 transition-colors"
         >

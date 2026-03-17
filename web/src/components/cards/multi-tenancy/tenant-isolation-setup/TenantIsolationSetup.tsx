@@ -22,6 +22,7 @@ import {
   K3S_INSTALL_PROMPT,
   KUBEVIRT_INSTALL_PROMPT,
 } from './missionPrompts'
+import { loadMissionPrompt } from '../missionLoader'
 
 import type { ComponentReadiness, IsolationLevel, IsolationStatus } from './useTenantIsolationSetup'
 
@@ -125,22 +126,23 @@ export function TenantIsolationSetup() {
     isDemoData: data.isDemoData,
   })
 
-  // Launch the combined multi-tenancy setup mission
+  // Launch the combined multi-tenancy setup mission (loads from console-kb)
   const handleConfigureAll = useCallback(() => {
-    checkKeyAndRun(() => {
+    checkKeyAndRun(async () => {
+      const prompt = await loadMissionPrompt('multi-tenancy', MULTI_TENANCY_SETUP_PROMPT)
       startMission({
         title: 'Configure Multi-Tenancy',
         description: 'Set up OVN, KubeFlex, K3s, and KubeVirt for tenant isolation',
         type: 'deploy',
-        initialPrompt: MULTI_TENANCY_SETUP_PROMPT,
+        initialPrompt: prompt,
       })
     })
   }, [checkKeyAndRun, startMission])
 
-  // Launch per-component install mission
+  // Launch per-component install mission (loads from console-kb)
   const handleInstallComponent = useCallback((key: string) => {
-    const prompt = INSTALL_PROMPTS[key]
-    if (!prompt) return
+    const fallbackPrompt = INSTALL_PROMPTS[key]
+    if (!fallbackPrompt) return
 
     const componentNames: Record<string, string> = {
       ovn: 'OVN-Kubernetes',
@@ -149,7 +151,8 @@ export function TenantIsolationSetup() {
       kubevirt: 'KubeVirt',
     }
 
-    checkKeyAndRun(() => {
+    checkKeyAndRun(async () => {
+      const prompt = await loadMissionPrompt(key, fallbackPrompt)
       startMission({
         title: `Install ${componentNames[key] || key}`,
         description: `Install and configure ${componentNames[key] || key} for multi-tenancy`,
