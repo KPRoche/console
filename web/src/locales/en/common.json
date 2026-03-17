@@ -96,7 +96,7 @@
     "customizer": {
       "title": "Customize Sidebar",
       "description": "Add, remove, or reorder menu items",
-      "addItem": "Add Item",
+      "addItem": "Add Dashboard",
       "newDashboard": "New Dashboard",
       "reset": "Reset",
       "generateFromBehavior": "Generate from Behavior",
