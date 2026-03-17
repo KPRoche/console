@@ -77,7 +77,7 @@ export const multiTenancyDashboardConfig: UnifiedDashboardConfig = {
 
   cards: [
     { id: 'mt-0', cardType: 'tenant_topology', position: { w: 6, h: 6, x: 0, y: 0 } },
-    { id: 'mt-1', cardType: 'tenant_isolation_setup', position: { w: 12, h: 3, x: 0, y: 6 } },
+    { id: 'mt-1', cardType: 'tenant_isolation_setup', position: { w: 6, h: 6, x: 6, y: 0 } },
     { id: 'mt-2', cardType: 'multi_tenancy_overview', position: { w: 6, h: 3, x: 0, y: 9 } },
     { id: 'mt-3', cardType: 'ovn_status', position: { w: 6, h: 3, x: 6, y: 9 } },
     { id: 'mt-4', cardType: 'kubeflex_status', position: { w: 6, h: 3, x: 0, y: 12 } },

@@ -1070,7 +1070,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   k3s_status: 6,
   kubevirt_status: 6,
   multi_tenancy_overview: 6,
-  tenant_isolation_setup: 12,
+  tenant_isolation_setup: 6,
   tenant_topology: 6,
 
   // Event dashboard cards

@@ -571,7 +571,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     category: 'security',
     cards: [
       { card_type: 'tenant_topology', position: { w: 6, h: 6 } },
-      { card_type: 'tenant_isolation_setup', position: { w: 12, h: 3 } },
+      { card_type: 'tenant_isolation_setup', position: { w: 6, h: 6 } },
       { card_type: 'multi_tenancy_overview', position: { w: 6, h: 3 } },
       { card_type: 'ovn_status', position: { w: 6, h: 3 } },
       { card_type: 'kubeflex_status', position: { w: 6, h: 3 } },

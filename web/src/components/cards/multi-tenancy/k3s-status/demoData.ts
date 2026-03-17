@@ -43,8 +43,8 @@ const DEMO_HEALTHY_PODS = 9
 const DEMO_UNHEALTHY_PODS = 0
 
 export const K3S_DEMO_DATA: K3sStatusDemoData = {
-  detected: true,
-  health: 'healthy',
+  detected: false,
+  health: 'not-installed',
   podCount: DEMO_POD_COUNT,
   healthyPods: DEMO_HEALTHY_PODS,
   unhealthyPods: DEMO_UNHEALTHY_PODS,
