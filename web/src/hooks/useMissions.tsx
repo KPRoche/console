@@ -561,10 +561,14 @@ Install the console locally with the KubeStellar Console agent to use AI mission
       const payload = message.payload as AgentsListPayload
       setAgents(payload.agents)
       setDefaultAgent(payload.defaultAgent)
-      // Prefer persisted selection if the agent is still available
+      // Prefer persisted selection if the agent is still available.
+      // If persisted is 'none' but an agent IS available, auto-select it
+      // so AI mode is on by default when the agent is present.
       const persisted = localStorage.getItem(SELECTED_AGENT_KEY)
-      const persistedAvailable = persisted && payload.agents.some(a => a.name === persisted && a.available)
-      const resolved = persistedAvailable ? persisted : (payload.selected || payload.defaultAgent)
+      const hasAvailableAgent = payload.agents.some(a => a.available)
+      const persistedAvailable = persisted && persisted !== 'none' && payload.agents.some(a => a.name === persisted && a.available)
+      const firstAvailable = hasAvailableAgent ? (payload.agents.find(a => a.available)?.name || null) : null
+      const resolved = persistedAvailable ? persisted : (payload.selected || payload.defaultAgent || firstAvailable)
       setSelectedAgent(resolved)
       // If we restored a persisted agent that differs from the server's selection, tell the server
       if (persistedAvailable && persisted !== payload.selected && wsRef.current?.readyState === WebSocket.OPEN) {

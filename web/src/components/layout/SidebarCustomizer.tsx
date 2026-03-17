@@ -140,7 +140,7 @@ const KNOWN_ROUTES: KnownRoute[] = [
   { href: '/llm-d-benchmarks', name: 'llm-d Benchmarks', description: 'LLM inference benchmarks — throughput, latency, and GPU utilization across clouds and accelerators', icon: 'TrendingUp', category: 'Core Dashboards' },
   { href: '/compliance', name: 'Compliance', description: 'Regulatory compliance, audit logs, and policy enforcement', icon: 'ClipboardCheck', category: 'Core Dashboards' },
   { href: '/cluster-admin', name: 'Cluster Admin', description: 'Multi-cluster operations, control plane health, node debugging, and infrastructure management', icon: 'ShieldAlert', category: 'Core Dashboards' },
-  { href: '/multi-tenancy', name: 'Multi-Tenancy', description: 'Tenant isolation with OVN-Kubernetes, KubeFlex, K3s, and KubeVirt', icon: 'Shield', category: 'Core Dashboards' },
+  { href: '/multi-tenancy', name: 'Multi-Tenancy', description: 'Tenant isolation with OVN-Kubernetes, KubeFlex, K3s, and KubeVirt', icon: 'Orbit', category: 'Core Dashboards' },
   // Resource Pages
   { href: '/namespaces', name: 'Namespaces', description: 'Namespace management and resource allocation', icon: 'FolderTree', category: 'Resources' },
   { href: '/nodes', name: 'Nodes', description: 'Cluster node health and resource usage', icon: 'HardDrive', category: 'Resources' },

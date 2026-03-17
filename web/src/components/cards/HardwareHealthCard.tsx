@@ -433,9 +433,26 @@ export function HardwareHealthCard() {
         </button>
       </div>
 
-      {/* View Mode Toggle */}
+      {/* View Mode Toggle — Inventory first (default), Alerts second */}
       <div className="flex gap-2 mb-3">
         <div className="flex flex-1 bg-muted/30 rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('inventory')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+              viewMode === 'inventory'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <List className="w-3.5 h-3.5" />
+            Inventory
+            {deduplicatedInventory.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-2xs font-semibold rounded-full bg-muted text-muted-foreground">
+                {deduplicatedInventory.length}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setViewMode('alerts')}
             className={cn(
@@ -455,23 +472,6 @@ export function HardwareHealthCard() {
                   : 'bg-yellow-500/20 text-yellow-400'
               )}>
                 {activeAlertCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setViewMode('inventory')}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-              viewMode === 'inventory'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <List className="w-3.5 h-3.5" />
-            Inventory
-            {deduplicatedInventory.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-2xs font-semibold rounded-full bg-muted text-muted-foreground">
-                {deduplicatedInventory.length}
               </span>
             )}
           </button>

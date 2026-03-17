@@ -58,7 +58,7 @@ const DEFAULT_PRIMARY_NAV: SidebarItem[] = [
   { id: 'ai-ml', name: 'AI/ML', icon: 'Sparkles', href: '/ai-ml', type: 'link', order: 4 },
   { id: 'ai-agents', name: 'AI Agents', icon: 'Bot', href: '/ai-agents', type: 'link', order: 5 },
   { id: 'ci-cd', name: 'CI/CD', icon: 'GitMerge', href: '/ci-cd', type: 'link', order: 6 },
-  { id: 'multi-tenancy', name: 'Multi-Tenancy', icon: 'Shield', href: '/multi-tenancy', type: 'link', order: 6.5 },
+  { id: 'multi-tenancy', name: 'Multi-Tenancy', icon: 'Orbit', href: '/multi-tenancy', type: 'link', order: 6.5 },
   { id: 'alerts', name: 'Alerts', icon: 'Bell', href: '/alerts', type: 'link', order: 7 },
   { id: 'arcade', name: 'Arcade', icon: 'Gamepad2', href: '/arcade', type: 'link', order: 8 },
 ]
