@@ -1,26 +1,34 @@
 /**
  * Demo data for the Tenant Topology card.
  *
- * Mixed state: OVN and KubeFlex detected, K3s and KubeVirt not installed.
- * K3s/KubeVirt nodes appear grayed out with dashed borders. No throughput
- * on connections to missing components.
+ * All components detected and healthy with realistic throughput rates.
+ * Animated flow particles show active data transfer on all connections.
  */
 
 import type { TenantTopologyData } from './useTenantTopology'
+
+/** Demo KubeVirt eth0 combined throughput — 15 KB/s data-plane traffic */
+const DEMO_KV_ETH0_RATE = 15360
+/** Demo KubeVirt eth1 combined throughput — 3.8 KB/s control-plane traffic */
+const DEMO_KV_ETH1_RATE = 3840
+/** Demo K3s eth0 combined throughput — 7.5 KB/s management traffic */
+const DEMO_K3S_ETH0_RATE = 7680
+/** Demo K3s eth1 combined throughput — 1.9 KB/s control-plane traffic */
+const DEMO_K3S_ETH1_RATE = 1920
 
 export const DEMO_TENANT_TOPOLOGY: TenantTopologyData = {
   ovnDetected: true,
   ovnHealthy: true,
   kubeflexDetected: true,
   kubeflexHealthy: true,
-  k3sDetected: false,
-  k3sHealthy: false,
-  kubevirtDetected: false,
-  kubevirtHealthy: false,
-  kvEth0Rate: 0,
-  kvEth1Rate: 0,
-  k3sEth0Rate: 0,
-  k3sEth1Rate: 0,
+  k3sDetected: true,
+  k3sHealthy: true,
+  kubevirtDetected: true,
+  kubevirtHealthy: true,
+  kvEth0Rate: DEMO_KV_ETH0_RATE,
+  kvEth1Rate: DEMO_KV_ETH1_RATE,
+  k3sEth0Rate: DEMO_K3S_ETH0_RATE,
+  k3sEth1Rate: DEMO_K3S_ETH1_RATE,
   isLoading: false,
   isDemoData: true,
 }

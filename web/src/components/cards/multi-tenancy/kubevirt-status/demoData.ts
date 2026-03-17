@@ -46,8 +46,8 @@ const DEMO_UNHEALTHY_PODS = 0
 const DEMO_TENANT_COUNT = 3
 
 export const KUBEVIRT_DEMO_DATA: KubevirtStatusDemoData = {
-  detected: false,
-  health: 'not-installed',
+  detected: true,
+  health: 'healthy',
   podCount: DEMO_POD_COUNT,
   healthyPods: DEMO_HEALTHY_PODS,
   unhealthyPods: DEMO_UNHEALTHY_PODS,
