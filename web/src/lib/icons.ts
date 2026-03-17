@@ -502,6 +502,37 @@ export const iconRegistry: Record<string, LucideIcon> = {
 }
 
 /**
+ * Kubernetes helm wheel icon — used for Multi-Tenancy dashboard sidebar.
+ * Simplified 7-spoke wheel matching the K8s logo.
+ * Uses createElement since this is a .ts file (no JSX).
+ */
+import { createElement, type SVGProps } from 'react'
+
+const KubernetesWheel: LucideIcon = Object.assign(
+  (props: SVGProps<SVGSVGElement> & { size?: number | string }) => {
+    const { size: s = 24, className, ...rest } = props
+    return createElement('svg', {
+      viewBox: '0 0 24 24', width: s, height: s, className,
+      fill: 'none', stroke: 'currentColor', strokeWidth: '1.5',
+      strokeLinecap: 'round', strokeLinejoin: 'round', ...rest,
+    },
+      createElement('circle', { cx: 12, cy: 12, r: 10 }),
+      createElement('circle', { cx: 12, cy: 12, r: 3 }),
+      createElement('line', { x1: 12, y1: 2, x2: 12, y2: 9 }),
+      createElement('line', { x1: 12, y1: 15, x2: 12, y2: 22 }),
+      createElement('line', { x1: 2.93, y1: 7.5, x2: 9.46, y2: 10.5 }),
+      createElement('line', { x1: 14.54, y1: 13.5, x2: 21.07, y2: 16.5 }),
+      createElement('line', { x1: 2.93, y1: 16.5, x2: 9.46, y2: 13.5 }),
+      createElement('line', { x1: 14.54, y1: 10.5, x2: 21.07, y2: 7.5 }),
+    )
+  },
+  { displayName: 'KubernetesWheel' },
+) as unknown as LucideIcon
+
+// Add custom icons to registry
+iconRegistry.KubernetesWheel = KubernetesWheel
+
+/**
  * Resolve an icon component by name, falling back to HelpCircle if not found.
  */
 export function getIcon(name: string): LucideIcon {
