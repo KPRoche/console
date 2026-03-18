@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-03-17T03:47:54Z",
+  "last_updated": "2026-03-18T03:51:40Z",
   "rolling_window_days": 30,
   "categories": {
     "other": {
-      "merged": 58,
+      "merged": 60,
       "closed": 75,
       "acceptance_rate": 0.44,
       "status": "normal",
-      "last_evaluated": "2026-03-17T03:47:54Z"
+      "last_evaluated": "2026-03-18T03:51:39Z"
     },
     "security": {
       "merged": 12,
@@ -18,18 +18,18 @@
       "last_evaluated": "2026-03-17T03:47:54Z"
     },
     "resilience": {
-      "merged": 13,
+      "merged": 14,
       "closed": 24,
-      "acceptance_rate": 0.35,
+      "acceptance_rate": 0.37,
       "status": "normal",
-      "last_evaluated": "2026-03-17T03:47:54Z"
+      "last_evaluated": "2026-03-18T03:51:40Z"
     },
     "performance": {
-      "merged": 4,
+      "merged": 5,
       "closed": 2,
-      "acceptance_rate": 0.67,
+      "acceptance_rate": 0.71,
       "status": "normal",
-      "last_evaluated": "2026-03-15T03:57:40Z"
+      "last_evaluated": "2026-03-18T03:51:40Z"
     },
     "consistency": {
       "merged": 12,
@@ -46,11 +46,11 @@
       "last_evaluated": "2026-03-17T03:47:54Z"
     },
     "a11y": {
-      "merged": 10,
+      "merged": 14,
       "closed": 12,
-      "acceptance_rate": 0.45,
+      "acceptance_rate": 0.54,
       "status": "normal",
-      "last_evaluated": "2026-03-11T03:46:33Z"
+      "last_evaluated": "2026-03-18T03:51:40Z"
     },
     "ui-design": {
       "merged": 3,
@@ -61,10 +61,10 @@
     },
     "testing": {
       "merged": 11,
-      "closed": 10,
-      "acceptance_rate": 0.52,
+      "closed": 11,
+      "acceptance_rate": 0.5,
       "status": "normal",
-      "last_evaluated": "2026-03-17T03:47:54Z"
+      "last_evaluated": "2026-03-18T03:51:40Z"
     }
   },
   "weekly_insights": {
@@ -297,18 +297,25 @@
       "total_closed": 159,
       "categories_blocked": [],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-03-18",
+      "total_merged": 135,
+      "total_closed": 160,
+      "categories_blocked": [],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
     "other": 0.66,
     "security": 0.69,
-    "resilience": 0.52,
-    "performance": 1.01,
+    "resilience": 0.55,
+    "performance": 1.07,
     "consistency": 0.78,
     "dom-errors": 1.01,
-    "a11y": 0.68,
+    "a11y": 0.81,
     "ui-design": 0.38,
-    "testing": 0.78
+    "testing": 0.75
   },
   "max_issues_override": 2,
   "pr_guidance": "Keep changes under 50 lines (size S) for best acceptance rate. Split larger fixes into multiple PRs."
