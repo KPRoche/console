@@ -146,6 +146,7 @@ function calculateScore(lines: number, level: number): number {
 }
 
 function ContainerTetrisInternal(_props: CardComponentProps) {
+  const { t } = useTranslation('cards')
   const { isExpanded } = useCardExpanded()
 
   const [board, setBoard] = useState<Board>(createBoard)
@@ -433,11 +434,11 @@ function ContainerTetrisInternal(_props: CardComponentProps) {
           {/* Controls hint */}
           {isExpanded && (
             <div className="text-xs text-muted-foreground space-y-1">
-              <div>← → Move</div>
-              <div>↓ Soft drop</div>
-              <div>↑ Rotate</div>
-              <div>Space Hard drop</div>
-              <div>P Pause</div>
+              <div>{t('containerTetris.moveControl')}</div>
+              <div>{t('containerTetris.softDrop')}</div>
+              <div>{t('containerTetris.rotate')}</div>
+              <div>{t('containerTetris.hardDrop')}</div>
+              <div>{t('containerTetris.pause')}</div>
             </div>
           )}
         </div>
@@ -490,7 +491,6 @@ function ContainerTetrisInternal(_props: CardComponentProps) {
 }
 
 export function ContainerTetris(props: CardComponentProps) {
-  const { t: _t } = useTranslation()
   useReportCardDataState({ hasData: true, isFailed: false, consecutiveFailures: 0, isDemoData: false })
   return (
     <DynamicCardErrorBoundary cardId="ContainerTetris">
