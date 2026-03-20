@@ -10,7 +10,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useClusters, useGPUNodes, useNVIDIAOperators, ClusterInfo, refreshSingleCluster } from '../../hooks/useMCP'
+import { useClusters, useGPUNodes, useNVIDIAOperators, refreshSingleCluster } from '../../hooks/useMCP'
 import { AddCardModal } from '../dashboard/AddCardModal'
 import { TemplatesModal } from '../dashboard/TemplatesModal'
 import { FloatingDashboardActions } from '../dashboard/FloatingDashboardActions'
@@ -30,7 +30,7 @@ import {
   CardConfigModal,
   type ClusterLayoutMode,
 } from './components'
-import { isClusterUnreachable } from './utils'
+import { isClusterUnreachable, isClusterHealthy } from './utils'
 import { useRefreshIndicator } from '../../hooks/useRefreshIndicator'
 import { useMissions } from '../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from '../cards/console-missions/shared'
@@ -245,13 +245,13 @@ export function Clusters() {
     }
 
     // Apply local health filter
-    // Unreachable = no nodes (can't connect)
-    // Healthy = has nodes and healthy flag is true
-    // Unhealthy = has nodes but healthy flag is false
+    // Healthy = not unreachable and (healthy flag OR has reporting nodes) — uses shared isClusterHealthy
+    // Unhealthy = not unreachable and not healthy (healthy flag false AND no reporting nodes)
+    // Unreachable = reachable explicitly false, or confirmed connection error (timeout/network/cert/auth)
     if (filter === 'healthy') {
-      result = result.filter(c => !isClusterUnreachable(c) && c.healthy)
+      result = result.filter(c => !isClusterUnreachable(c) && isClusterHealthy(c))
     } else if (filter === 'unhealthy') {
-      result = result.filter(c => !isClusterUnreachable(c) && !c.healthy)
+      result = result.filter(c => !isClusterUnreachable(c) && !isClusterHealthy(c))
     } else if (filter === 'unreachable') {
       result = result.filter(c => isClusterUnreachable(c))
     }
@@ -270,8 +270,8 @@ export function Clusters() {
           cmp = (a.podCount || 0) - (b.podCount || 0)
           break
         case 'health': {
-          const aHealth = isClusterUnreachable(a) ? 0 : a.healthy ? 2 : 1
-          const bHealth = isClusterUnreachable(b) ? 0 : b.healthy ? 2 : 1
+          const aHealth = isClusterUnreachable(a) ? 0 : isClusterHealthy(a) ? 2 : 1
+          const bHealth = isClusterUnreachable(b) ? 0 : isClusterHealthy(b) ? 2 : 1
           cmp = aHealth - bHealth
           break
         }
@@ -342,12 +342,10 @@ export function Clusters() {
     const unreachable = globalFilteredClusters.filter(c => isClusterUnreachable(c)).length
     // Stale contexts = never connected since console started (kubeconfig entries for deleted clusters)
     const staleContexts = globalFilteredClusters.filter(c => (c as unknown as Record<string, unknown>).neverConnected === true).length
-    // Helper: A cluster is healthy if it has nodes OR if healthy flag is explicitly true
-    const isHealthy = (c: ClusterInfo) => (c.nodeCount && c.nodeCount > 0) || c.healthy === true
-    // Healthy = not unreachable and (has nodes OR healthy flag)
-    const healthy = globalFilteredClusters.filter(c => !isClusterUnreachable(c) && isHealthy(c)).length
+    // Healthy = not unreachable and (has nodes OR healthy flag) — uses shared isClusterHealthy
+    const healthy = globalFilteredClusters.filter(c => !isClusterUnreachable(c) && isClusterHealthy(c)).length
     // Unhealthy = not unreachable and not healthy
-    const unhealthy = globalFilteredClusters.filter(c => !isClusterUnreachable(c) && !isHealthy(c)).length
+    const unhealthy = globalFilteredClusters.filter(c => !isClusterUnreachable(c) && !isClusterHealthy(c)).length
     // Loading = initial load only (no data yet), not during refresh
     const loadingCount = globalFilteredClusters.filter(c =>
       c.nodeCount === undefined && c.reachable === undefined
