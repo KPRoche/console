@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { isDemoModeForced } from './useDemoMode'
+import { setDemoMode } from '../lib/demoMode'
 import { LOCAL_AGENT_HTTP_URL } from '../lib/constants'
 import { FETCH_DEFAULT_TIMEOUT_MS, TRANSITION_DELAY_MS } from '../lib/constants/network'
 import { emitAgentConnected, emitAgentDisconnected, emitAgentProvidersDetected, emitConversionStep } from '../lib/analytics'
@@ -234,6 +235,8 @@ class AgentManager {
             status: 'connected',
             error: null,
           })
+          // Agent is live — exit demo mode (respects explicit user preference)
+          setDemoMode(false)
           emitAgentConnected(data.version || 'unknown', data.clusters || 0)
           emitAgentProvidersDetected(data.availableProviders || [])
         } else if (wasConnecting) {
@@ -245,6 +248,8 @@ class AgentManager {
             status: 'connected',
             error: null,
           })
+          // Agent is live — exit demo mode (respects explicit user preference)
+          setDemoMode(false)
           emitAgentConnected(data.version || 'unknown', data.clusters || 0)
           emitAgentProvidersDetected(data.availableProviders || [])
           // Stamp the first-ever agent connection for time-based nudges
@@ -285,6 +290,8 @@ class AgentManager {
           health: DEMO_DATA,
           error: 'Local agent not available',
         })
+        // Agent gone — fall back to demo mode (respects explicit user preference)
+        setDemoMode(true)
         // Slow down polling when disconnected to avoid spamming console errors
         this.adjustPollInterval(DISCONNECTED_POLL_INTERVAL)
       }
