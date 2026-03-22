@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-03-21T03:43:32Z",
+  "last_updated": "2026-03-22T03:49:08Z",
   "rolling_window_days": 30,
   "categories": {
     "other": {
       "merged": 69,
-      "closed": 82,
-      "acceptance_rate": 0.46,
+      "closed": 86,
+      "acceptance_rate": 0.45,
       "status": "normal",
-      "last_evaluated": "2026-03-21T03:43:32Z"
+      "last_evaluated": "2026-03-22T03:49:08Z"
     },
     "security": {
       "merged": 14,
-      "closed": 14,
-      "acceptance_rate": 0.5,
+      "closed": 15,
+      "acceptance_rate": 0.48,
       "status": "normal",
-      "last_evaluated": "2026-03-21T03:43:32Z"
+      "last_evaluated": "2026-03-22T03:49:08Z"
     },
     "resilience": {
       "merged": 16,
@@ -33,10 +33,10 @@
     },
     "consistency": {
       "merged": 13,
-      "closed": 13,
-      "acceptance_rate": 0.5,
+      "closed": 14,
+      "acceptance_rate": 0.48,
       "status": "normal",
-      "last_evaluated": "2026-03-21T03:43:32Z"
+      "last_evaluated": "2026-03-22T03:49:08Z"
     },
     "dom-errors": {
       "merged": 4,
@@ -61,10 +61,10 @@
     },
     "testing": {
       "merged": 12,
-      "closed": 12,
-      "acceptance_rate": 0.5,
+      "closed": 13,
+      "acceptance_rate": 0.48,
       "status": "normal",
-      "last_evaluated": "2026-03-21T03:43:32Z"
+      "last_evaluated": "2026-03-22T03:49:08Z"
     }
   },
   "weekly_insights": {
@@ -313,18 +313,25 @@
       "total_closed": 175,
       "categories_blocked": [],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-03-22",
+      "total_merged": 153,
+      "total_closed": 182,
+      "categories_blocked": [],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
-    "other": 0.69,
-    "security": 0.75,
+    "other": 0.68,
+    "security": 0.72,
     "resilience": 0.55,
     "performance": 0.95,
-    "consistency": 0.75,
+    "consistency": 0.72,
     "dom-errors": 1.01,
     "a11y": 0.86,
     "ui-design": 0.43,
-    "testing": 0.75
+    "testing": 0.72
   },
   "max_issues_override": 2,
   "pr_guidance": "Keep changes under 50 lines (size S) for best acceptance rate. Split larger fixes into multiple PRs."
