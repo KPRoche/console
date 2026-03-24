@@ -206,14 +206,15 @@ jobs:
                     core.info(`  Issue #${linkedIssueNumber}: added ai-pr-active`);
                   }
 
-                  // Remove ai-queued and ai-processing if still present
-                  for (const staleLabel of ['ai-queued', 'ai-processing']) {
+                  // Clean up stale pipeline labels
+                  for (const staleLabel of ['ai-queued', 'ai-processing', 'ai-awaiting-fix', 'triage/needed', 'needs-triage']) {
                     if (issueLabels.includes(staleLabel)) {
                       await github.rest.issues.removeLabel({
                         ...context.repo,
                         issue_number: linkedIssueNumber,
                         name: staleLabel,
                       }).catch(() => {});
+                      core.info(`  Issue #${linkedIssueNumber}: removed ${staleLabel}`);
                     }
                   }
                 }
