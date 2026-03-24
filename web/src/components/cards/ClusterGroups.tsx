@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import {
   Server,
@@ -40,6 +40,7 @@ interface ClusterGroupsProps {
 }
 
 const DEMO_GROUPS: ClusterGroup[] = [
+  { name: 'all-healthy-clusters', kind: 'dynamic', clusters: ['eks-prod-us-east-1', 'openshift-prod', 'do-nyc1-prod', 'gke-staging', 'aks-dev-westeu', 'k3s-edge', 'kind-local', 'minikube'], color: 'green', builtIn: true, query: { filters: [{ field: 'healthy', operator: 'eq', value: 'true' }] } },
   { name: 'production', kind: 'static', clusters: ['eks-prod-us-east-1', 'openshift-prod', 'do-nyc1-prod'], color: 'green' },
   { name: 'staging', kind: 'static', clusters: ['gke-staging', 'aks-dev-westeu'], color: 'blue' },
   { name: 'edge', kind: 'dynamic', clusters: ['k3s-edge', 'kind-local', 'minikube'], color: 'purple', query: { filters: [{ field: 'nodeCount', operator: 'lte', value: '3' }] } },
@@ -118,7 +119,18 @@ export function ClusterGroups(_props: ClusterGroupsProps) {
   const { groups: liveGroups, createGroup, updateGroup, deleteGroup, evaluateGroup, isPersisted } = useClusterGroups()
   const { deduplicatedClusters: clusters, isLoading, isRefreshing } = useClusters()
   const { isDemoMode: demoMode } = useDemoMode()
-  const groups = demoMode ? DEMO_GROUPS : liveGroups
+
+  // Build the built-in "all-healthy-clusters" group from current cluster state for live mode
+  const builtInGroup = useMemo<ClusterGroup>(() => ({
+    name: 'all-healthy-clusters',
+    kind: 'dynamic',
+    clusters: clusters.filter(c => c.healthy).map(c => c.name),
+    color: 'green',
+    builtIn: true,
+    query: { filters: [{ field: 'healthy', operator: 'eq', value: 'true' }] },
+  }), [clusters])
+
+  const groups = demoMode ? DEMO_GROUPS : [builtInGroup, ...liveGroups]
   const [isCreating, setIsCreating] = useState(false)
 
   // Report loading state to CardWrapper for skeleton/refresh behavior
@@ -209,7 +221,7 @@ export function ClusterGroups(_props: ClusterGroupsProps) {
       ) : (
         <div className="space-y-2">
           {groups.map((group) => (
-            editingGroup === group.name ? (
+            editingGroup === group.name && !group.builtIn ? (
               <EditGroupForm
                 key={group.name}
                 group={group}
@@ -355,6 +367,7 @@ function DroppableGroup({ group, isExpanded, isRefreshing, clusterHealthMap, onT
         )}
 
         {/* Actions */}
+        {!group.builtIn && (
         <div className="flex items-center gap-1">
           <button
             onClick={onEdit}
@@ -371,6 +384,7 @@ function DroppableGroup({ group, isExpanded, isRefreshing, clusterHealthMap, onT
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
+        )}
       </div>
 
       {/* Expanded: cluster list + query info for dynamic groups */}
