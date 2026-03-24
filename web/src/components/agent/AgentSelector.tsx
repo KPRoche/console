@@ -1,16 +1,18 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Check, Loader2, Sparkles, Play, BookOpen } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ChevronDown, Check, Loader2, Sparkles, Play, BookOpen, X } from 'lucide-react'
 import { useMissions } from '../../hooks/useMissions'
 import { useDemoMode, getDemoMode } from '../../hooks/useDemoMode'
 import { useKagentBackend } from '../../hooks/useKagentBackend'
 import { AgentIcon } from './AgentIcon'
 import type { AgentInfo } from '../../types/agent'
+import type { MissionExport } from '../../lib/missions/types'
 import { cn } from '../../lib/cn'
 import { useModalState } from '../../lib/modals'
 import { safeGetItem, safeSetItem } from '../../lib/utils/localStorage'
 import { AgentApprovalDialog, hasApprovedAgents } from './AgentApprovalDialog'
+import { MissionDetailView } from '../missions/MissionDetailView'
 
 interface AgentSelectorProps {
   compact?: boolean
@@ -19,7 +21,6 @@ interface AgentSelectorProps {
 
 export function AgentSelector({ compact = false, className = '' }: AgentSelectorProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { agents, selectedAgent, agentsLoading, selectAgent, connectToAgent, startMission } = useMissions()
   const { isDemoMode: isDemoModeHook } = useDemoMode()
   const { kagentAvailable, kagentiAvailable, selectedKagentAgent, selectedKagentiAgent } = useKagentBackend()
@@ -34,6 +35,10 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
   const [showApproval, setShowApproval] = useState(false)
   // Stash the agent name the user intended to select when approval was triggered
   const pendingAgentRef = useRef<string | null>(null)
+  // Install guide modal state
+  const [installGuide, setInstallGuide] = useState<{ mission: MissionExport; raw: string } | null>(null)
+  const [installGuideLoading, setInstallGuideLoading] = useState(false)
+  const [installGuideShowRaw, setInstallGuideShowRaw] = useState(false)
 
   // Merge local agents with in-cluster backends (kagent, kagenti)
   // Always show kagent/kagenti — when not installed, they appear with an install link
@@ -62,6 +67,43 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
 
   // Check if any CLI agent is available (can run install missions)
   const hasCliAgent = useMemo(() => agents.some(a => a.available), [agents])
+
+  // Known KB paths for install missions
+  const INSTALL_MISSION_PATHS: Record<string, string[]> = {
+    'install-kagent': ['solutions/cncf-install/install-kagent.json'],
+    'install-kagenti': ['solutions/platform-install/install-kagenti.json'],
+  }
+
+  const openInstallGuide = useCallback(async (missionId: string) => {
+    closeDropdown()
+    setInstallGuideLoading(true)
+    const paths = INSTALL_MISSION_PATHS[missionId] || [`solutions/cncf-install/${missionId}.json`, `solutions/platform-install/${missionId}.json`]
+    for (const path of paths) {
+      try {
+        const res = await fetch(`/api/missions/file?path=${encodeURIComponent(path)}`, { signal: AbortSignal.timeout(5000) })
+        if (!res.ok) continue
+        const raw = await res.text()
+        const parsed = JSON.parse(raw)
+        const nested = parsed.mission || {}
+        const mission: MissionExport = {
+          version: parsed.version || '1.0',
+          title: nested.title || parsed.title || missionId,
+          description: nested.description || parsed.description || '',
+          type: nested.type || parsed.type || 'deploy',
+          steps: nested.steps || parsed.steps || [],
+          uninstall: nested.uninstall || parsed.uninstall,
+          upgrade: nested.upgrade || parsed.upgrade,
+          troubleshooting: nested.troubleshooting || parsed.troubleshooting,
+          tags: nested.tags || parsed.tags,
+          missionClass: 'install',
+        }
+        setInstallGuide({ mission, raw })
+        setInstallGuideLoading(false)
+        return
+      } catch { continue }
+    }
+    setInstallGuideLoading(false)
+  }, [closeDropdown])
 
   const handleInstallMission = useCallback((missionId: string, displayName: string) => {
     startMission({
@@ -303,7 +345,7 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
                     {!agent.available && agent.installMissionId && (
                       <div className="flex items-center gap-2 mt-1">
                         <button
-                          onClick={(e) => { e.stopPropagation(); closeDropdown(); navigate(`/?mission=${agent.installMissionId}`) }}
+                          onClick={(e) => { e.stopPropagation(); openInstallGuide(agent.installMissionId!) }}
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
                         >
                           <BookOpen className="w-3 h-3" />
@@ -368,6 +410,48 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
         pendingAgentRef.current = null
       }}
     />
+    {/* Install guide modal */}
+    {(installGuide || installGuideLoading) && createPortal(
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-2xl"
+        onClick={(e) => { if (e.target === e.currentTarget) { setInstallGuide(null); setInstallGuideLoading(false) } }}
+        onKeyDown={(e) => { if (e.key === 'Escape') { setInstallGuide(null); setInstallGuideLoading(false) } }}
+        tabIndex={-1}
+        ref={(el) => el?.focus()}
+      >
+        <div className="relative bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col w-[900px] max-h-[85vh]">
+          <button
+            onClick={() => { setInstallGuide(null); setInstallGuideLoading(false) }}
+            className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex-1 overflow-y-auto scroll-enhanced p-6">
+            {installGuideLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : installGuide ? (
+              <MissionDetailView
+                mission={installGuide.mission}
+                rawContent={installGuide.raw}
+                showRaw={installGuideShowRaw}
+                onToggleRaw={() => setInstallGuideShowRaw(prev => !prev)}
+                onImport={() => {
+                  const missionId = installGuide.mission.title.toLowerCase().includes('kagenti') ? 'install-kagenti' : 'install-kagent'
+                  handleInstallMission(missionId, installGuide.mission.title)
+                  setInstallGuide(null)
+                }}
+                onBack={() => setInstallGuide(null)}
+                importLabel="Run"
+                hideBackButton
+              />
+            ) : null}
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
     </>
   )
 }
