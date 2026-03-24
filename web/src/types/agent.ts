@@ -33,6 +33,8 @@ export interface AgentInfo {
   provider: AgentProvider
   available: boolean
   capabilities?: number // bitmask of capabilities
+  installUrl?: string // shown when agent is not available
+  installMissionId?: string // AI mission ID for automated install
 }
 
 export interface AgentState {
