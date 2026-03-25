@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useAlertsContext } from '../contexts/AlertsContext'
+import { useState, useEffect, useCallback, useContext } from 'react'
+import { AlertsContext } from '../contexts/AlertsContext'
 import type {
   Alert,
   AlertRule,
@@ -40,9 +40,36 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
+// Default empty stats returned when AlertsProvider is absent
+const _defaultAlertStats: AlertStats = { total: 0, firing: 0, resolved: 0, critical: 0, warning: 0, info: 0, acknowledged: 0 }
+
+// Fully-populated safe AlertRule returned by the no-provider createRule fallback
+const _emptyAlertRule: AlertRule = {
+  id: '',
+  name: '',
+  description: '',
+  enabled: false,
+  condition: { type: 'custom' },
+  severity: 'info',
+  channels: [],
+  aiDiagnose: false,
+  createdAt: '',
+  updatedAt: '',
+}
+
 // Hook for managing alert rules - uses shared context
 export function useAlertRules() {
-  const { rules, createRule, updateRule, deleteRule, toggleRule } = useAlertsContext()
+  const context = useContext(AlertsContext)
+  if (!context) {
+    return {
+      rules: [] as AlertRule[],
+      createRule: (() => ({ ..._emptyAlertRule })) as unknown as (rule: Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>) => AlertRule,
+      updateRule: (_id: string, _updates: Partial<AlertRule>) => {},
+      deleteRule: (_id: string) => {},
+      toggleRule: (_id: string) => {},
+    }
+  }
+  const { rules, createRule, updateRule, deleteRule, toggleRule } = context
 
   return {
     rules,
@@ -88,6 +115,23 @@ export function useSlackWebhooks() {
 
 // Hook for managing alerts - uses shared context
 export function useAlerts() {
+  const context = useContext(AlertsContext)
+  if (!context) {
+    return {
+      alerts: [] as Alert[],
+      activeAlerts: [] as Alert[],
+      acknowledgedAlerts: [] as Alert[],
+      stats: _defaultAlertStats,
+      acknowledgeAlert: () => {},
+      acknowledgeAlerts: () => {},
+      resolveAlert: () => {},
+      deleteAlert: () => {},
+      runAIDiagnosis: (() => null) as (alertId: string) => string | null,
+      evaluateConditions: () => {},
+      isLoadingData: false,
+      dataError: null as string | null,
+    }
+  }
   const {
     alerts,
     activeAlerts,
@@ -101,7 +145,7 @@ export function useAlerts() {
     evaluateConditions,
     isLoadingData,
     dataError,
-  } = useAlertsContext()
+  } = context
 
   return {
     alerts,
