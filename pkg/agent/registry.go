@@ -265,6 +265,7 @@ func InitializeProviders() error {
 	registry.Register(NewCodexProvider())
 	registry.Register(NewGeminiCLIProvider())
 	registry.Register(NewAntigravityProvider())
+	registry.Register(NewGooseProvider())
 
 	// Register copilot-cli LAST among tool-capable agents.
 	// copilot-cli suggests commands as text rather than executing them,
