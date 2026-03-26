@@ -19,6 +19,8 @@ export type AgentProvider =
   | 'raycast'         // Raycast
   | 'open-webui'      // Open WebUI
   | 'bob'             // Bob (discovery-only)
+  | 'block'           // Goose (Block Inc)
+  | 'github-cli'      // GitHub Copilot CLI
   | 'kagent'          // Kagent (in-cluster)
   | 'kagenti'         // Kagenti (in-cluster)
 

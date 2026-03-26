@@ -6,7 +6,7 @@ import { useMissions } from '../../hooks/useMissions'
 import { useDemoMode, getDemoMode } from '../../hooks/useDemoMode'
 import { useKagentBackend } from '../../hooks/useKagentBackend'
 import { AgentIcon } from './AgentIcon'
-import type { AgentInfo } from '../../types/agent'
+import type { AgentInfo, AgentProvider } from '../../types/agent'
 import type { MissionExport } from '../../lib/missions/types'
 import { cn } from '../../lib/cn'
 import { useModalState } from '../../lib/modals'
@@ -44,10 +44,42 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
   // Cluster selection for AI install
   const [pendingInstall, setPendingInstall] = useState<{ missionId: string; displayName: string; mission: MissionExport } | null>(null)
 
-  // Merge local agents with in-cluster backends (kagent, kagenti)
-  // Always show kagent/kagenti — when not installed, they appear with an install link
+  // Providers that are cluster-based (rendered in bottom section)
+  const CLUSTER_PROVIDERS: Set<AgentProvider> = useMemo(() => new Set(['kagent', 'kagenti'] as AgentProvider[]), [])
+
+  // Always-show CLI agents (appear grayed out when not detected)
+  const ALWAYS_SHOW_CLI: AgentInfo[] = useMemo(() => [
+    {
+      name: 'goose',
+      displayName: 'Goose',
+      description: 'Open-source AI agent by Block with MCP support',
+      provider: 'block',
+      available: false,
+      installUrl: 'https://github.com/block/goose',
+    },
+    {
+      name: 'copilot-cli',
+      displayName: 'Copilot CLI',
+      description: 'GitHub Copilot in the terminal',
+      provider: 'github-cli',
+      available: false,
+      installUrl: 'https://docs.github.com/en/copilot/github-copilot-in-the-cli',
+    },
+  ], [])
+
+  // Merge local agents with always-show CLI agents and in-cluster backends
   const visibleAgents = useMemo(() => {
-    const local = agents.filter(a => a.available)
+    // Start with all agents from backend; hide Bob unless detected
+    const merged = agents.filter(a => a.name !== 'bob' || a.available)
+
+    // Add always-show CLI agents if not already present from backend
+    for (const stub of ALWAYS_SHOW_CLI) {
+      if (!merged.some(a => a.name === stub.name || a.provider === stub.provider)) {
+        merged.push(stub)
+      }
+    }
+
+    // Add in-cluster backends
     const inCluster: AgentInfo[] = [
       {
         name: 'kagenti',
@@ -66,8 +98,8 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
         installMissionId: kagentAvailable ? undefined : 'install-kagent',
       },
     ]
-    return [...local, ...inCluster]
-  }, [agents, kagentAvailable, kagentiAvailable, selectedKagentAgent, selectedKagentiAgent])
+    return [...merged, ...inCluster]
+  }, [agents, ALWAYS_SHOW_CLI, kagentAvailable, kagentiAvailable, selectedKagentAgent, selectedKagentiAgent])
 
   // Check if any CLI agent is available (can run install missions)
   const hasCliAgent = useMemo(() => agents.some(a => a.available), [agents])
@@ -143,21 +175,36 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
     setPendingInstall({ missionId, displayName, mission: missionData })
   }, [closeDropdown, startMission])
 
-  // Sort: selected agent first, then available agents, then unavailable
-  const sortedAgents = useMemo(() => {
-    return [...visibleAgents].sort((a, b) => {
-      // Selected agent first
-      if (a.name === selectedAgent && b.name !== selectedAgent) return -1
-      if (b.name === selectedAgent && a.name !== selectedAgent) return 1
-      // Available before unavailable
+  // Split agents into sections: selected at top, then CLI, then Cluster
+  const { selectedAgentInfo, cliAgents, clusterAgents } = useMemo(() => {
+    const sectionSort = (a: AgentInfo, b: AgentInfo) => {
       if (a.available && !b.available) return -1
       if (!a.available && b.available) return 1
-      // Kagenti before kagent, then alphabetical
+      return a.displayName.localeCompare(b.displayName)
+    }
+
+    const selected = visibleAgents.find(a => a.name === selectedAgent) || null
+    const rest = visibleAgents.filter(a => a.name !== selectedAgent)
+
+    const cli = rest.filter(a => !CLUSTER_PROVIDERS.has(a.provider as AgentProvider)).sort(sectionSort)
+    const cluster = rest.filter(a => CLUSTER_PROVIDERS.has(a.provider as AgentProvider)).sort((a, b) => {
+      if (a.available && !b.available) return -1
+      if (!a.available && b.available) return 1
       if (a.provider === 'kagenti' && b.provider === 'kagent') return -1
       if (a.provider === 'kagent' && b.provider === 'kagenti') return 1
       return a.displayName.localeCompare(b.displayName)
     })
-  }, [visibleAgents, selectedAgent])
+
+    return { selectedAgentInfo: selected, cliAgents: cli, clusterAgents: cluster }
+  }, [visibleAgents, selectedAgent, CLUSTER_PROVIDERS])
+
+  // Flat list for keyboard navigation and length checks
+  const sortedAgents = useMemo(() => {
+    const list: AgentInfo[] = []
+    if (selectedAgentInfo) list.push(selectedAgentInfo)
+    list.push(...cliAgents, ...clusterAgents)
+    return list
+  }, [selectedAgentInfo, cliAgents, clusterAgents])
 
   const currentAgent = visibleAgents.find(a => a.name === selectedAgent) || visibleAgents[0]
   const hasAvailableAgents = visibleAgents.some(a => a.available)
@@ -240,6 +287,78 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
     selectAgent(agentName)
     closeDropdown()
   }
+
+  const renderAgentRow = (agent: AgentInfo) => (
+    <div
+      key={agent.name}
+      role="option"
+      aria-selected={agent.name === selectedAgent}
+      aria-disabled={!agent.available}
+      tabIndex={agent.available ? 0 : -1}
+      className={cn(
+        'w-full flex items-start gap-3 px-3 py-2 text-left transition-colors',
+        agent.available
+          ? 'hover:bg-secondary cursor-pointer'
+          : 'cursor-default',
+        agent.name === selectedAgent && 'bg-primary/10'
+      )}
+      onClick={() => agent.available && handleSelect(agent.name)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (agent.available) handleSelect(agent.name) } }}
+    >
+      <AgentIcon provider={agent.provider} className={cn('w-5 h-5 mt-0.5 flex-shrink-0', !agent.available && 'opacity-40')} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'text-sm font-medium',
+            agent.name === selectedAgent ? 'text-primary' : agent.available ? 'text-foreground' : 'text-muted-foreground'
+          )}>
+            {agent.displayName}
+          </span>
+          {agent.name === selectedAgent && (
+            <Check className="w-4 h-4 text-primary flex-shrink-0" />
+          )}
+        </div>
+        <p className={cn('text-xs', agent.available ? 'text-muted-foreground' : 'text-muted-foreground/60')}>
+          {agent.description}
+        </p>
+        {!agent.available && agent.installMissionId && (
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); openInstallGuide(agent.installMissionId!) }}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              <BookOpen className="w-3 h-3" />
+              Install guide
+            </button>
+            {hasCliAgent && (
+              <>
+                <span className="text-xs text-muted-foreground/40">|</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleInstallMission(agent.installMissionId!, agent.displayName) }}
+                  className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  <Play className="w-3 h-3" />
+                  Install with AI
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {!agent.available && agent.installUrl && !agent.installMissionId && (
+          <a
+            href={agent.installUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors mt-1"
+          >
+            <BookOpen className="w-3 h-3" />
+            Install
+          </a>
+        )}
+      </div>
+    </div>
+  )
 
   // Always show the dropdown trigger — never a standalone gear.
   // When no agents are available, show a generic agent icon; settings gear
@@ -339,65 +458,28 @@ export function AgentSelector({ compact = false, className = '' }: AgentSelector
           </div>
           {sortedAgents.length > 0 && (
             <div className="py-1 overflow-y-auto min-h-0">
-              {sortedAgents.map((agent: AgentInfo) => (
-                <div
-                  key={agent.name}
-                  role="option"
-                  aria-selected={agent.name === selectedAgent}
-                  aria-disabled={!agent.available}
-                  tabIndex={agent.available ? 0 : -1}
-                  className={cn(
-                    'w-full flex items-start gap-3 px-3 py-2 text-left transition-colors',
-                    agent.available
-                      ? 'hover:bg-secondary cursor-pointer'
-                      : 'cursor-default',
-                    agent.name === selectedAgent && 'bg-primary/10'
-                  )}
-                  onClick={() => agent.available && handleSelect(agent.name)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (agent.available) handleSelect(agent.name) } }}
-                >
-                  <AgentIcon provider={agent.provider} className={cn('w-5 h-5 mt-0.5 flex-shrink-0', !agent.available && 'opacity-40')} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        'text-sm font-medium',
-                        agent.name === selectedAgent ? 'text-primary' : agent.available ? 'text-foreground' : 'text-muted-foreground'
-                      )}>
-                        {agent.displayName}
-                      </span>
-                      {agent.name === selectedAgent && (
-                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className={cn('text-xs', agent.available ? 'text-muted-foreground' : 'text-muted-foreground/60')}>
-                      {agent.description}
-                    </p>
-                    {!agent.available && agent.installMissionId && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openInstallGuide(agent.installMissionId!) }}
-                          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
-                        >
-                          <BookOpen className="w-3 h-3" />
-                          Install guide
-                        </button>
-                        {hasCliAgent && (
-                          <>
-                            <span className="text-xs text-muted-foreground/40">|</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleInstallMission(agent.installMissionId!, agent.displayName) }}
-                              className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                            >
-                              <Play className="w-3 h-3" />
-                              Install with AI
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+              {/* Selected agent at the very top */}
+              {selectedAgentInfo && renderAgentRow(selectedAgentInfo)}
+
+              {/* CLI Agents section */}
+              {cliAgents.length > 0 && (
+                <>
+                  <div className="px-3 pt-2 pb-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">CLI Agents</span>
                   </div>
-                </div>
-              ))}
+                  {cliAgents.map(renderAgentRow)}
+                </>
+              )}
+
+              {/* Cluster Agents section */}
+              {clusterAgents.length > 0 && (
+                <>
+                  <div className="px-3 pt-2 pb-1 border-t border-border/50 mt-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Cluster Agents</span>
+                  </div>
+                  {clusterAgents.map(renderAgentRow)}
+                </>
+              )}
             </div>
           )}
           {sortedAgents.length === 0 && (
