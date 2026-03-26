@@ -25,6 +25,9 @@ func TestScaleWorkload(t *testing.T) {
 				"name":      "dep1",
 				"namespace": "default",
 			},
+			"spec": map[string]interface{}{
+				"replicas": int64(1),
+			},
 		},
 	}
 
@@ -45,6 +48,21 @@ func TestScaleWorkload(t *testing.T) {
 	}
 	if !resp.Success {
 		t.Error("Expected success")
+	}
+
+	// Verify that spec.replicas was actually updated to 5
+	updated, err := fakeDyn.Resource(schema.GroupVersionResource{
+		Group: "apps", Version: "v1", Resource: "deployments",
+	}).Namespace("default").Get(context.Background(), "dep1", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get deployment after scaling: %v", err)
+	}
+	replicas, found, err := unstructured.NestedInt64(updated.Object, "spec", "replicas")
+	if err != nil || !found {
+		t.Fatal("spec.replicas not found in updated deployment")
+	}
+	if replicas != 5 {
+		t.Errorf("Expected spec.replicas=5 after scaling, got %d", replicas)
 	}
 }
 
