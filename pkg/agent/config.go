@@ -296,6 +296,8 @@ func getEnvKeyForProvider(provider string) string {
 		return "RAYCAST_API_KEY"
 	case "open-webui":
 		return "OPEN_WEBUI_API_KEY"
+	case "goose":
+		return "GOOSE_PROVIDER"
 	default:
 		return ""
 	}
@@ -315,6 +317,8 @@ func getModelEnvKeyForProvider(provider string) string {
 		return "CODEIUM_MODEL"
 	case "open-webui":
 		return "OPEN_WEBUI_MODEL"
+	case "goose":
+		return "GOOSE_MODEL"
 	default:
 		return ""
 	}
