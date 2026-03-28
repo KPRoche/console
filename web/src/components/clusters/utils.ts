@@ -1,4 +1,5 @@
 import { ClusterInfo } from '../../hooks/useMCP'
+import { safeGetItem, safeSetItem } from '../../lib/utils/localStorage'
 
 // Helper to determine if cluster is unreachable vs just unhealthy
 // IMPORTANT: Only mark as unreachable with CORROBORATED evidence
@@ -76,7 +77,7 @@ const CLUSTERS_CARDS_KEY = 'kubestellar-clusters-cards'
 
 export function loadClusterCards(): ClusterCard[] {
   try {
-    const stored = localStorage.getItem(CLUSTERS_CARDS_KEY)
+    const stored = safeGetItem(CLUSTERS_CARDS_KEY)
     return stored ? JSON.parse(stored) : []
   } catch {
     return []
@@ -84,5 +85,5 @@ export function loadClusterCards(): ClusterCard[] {
 }
 
 export function saveClusterCards(cards: ClusterCard[]): void {
-  localStorage.setItem(CLUSTERS_CARDS_KEY, JSON.stringify(cards))
+  safeSetItem(CLUSTERS_CARDS_KEY, JSON.stringify(cards))
 }
