@@ -3,6 +3,7 @@ import { FolderOpen, ChevronDown, ChevronRight, Plus, Trash2, Check, WifiOff, Ch
 import { ClusterInfo } from '../../../hooks/useMCP'
 import { isClusterUnreachable } from '../utils'
 import { useTranslation } from 'react-i18next'
+import { ConfirmDialog } from '../../../lib/modals'
 
 export interface ClusterGroup {
   id: string
@@ -29,12 +30,13 @@ export function ClusterGroups({
   onSelectGroup,
   onDeleteGroup,
 }: ClusterGroupsProps) {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const [formState, setFormState] = useState({
     showForm: false,
     name: '',
     clusters: [] as string[],
   })
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const resetForm = () => setFormState({ showForm: false, name: '', clusters: [] })
 
@@ -162,7 +164,7 @@ export function ClusterGroups({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDeleteGroup(group.id)
+                  setDeleteConfirmId(group.id)
                 }}
                 className="p-1.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
                 title="Delete group"
@@ -173,6 +175,21 @@ export function ClusterGroups({
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            onDeleteGroup(deleteConfirmId)
+            setDeleteConfirmId(null)
+          }
+        }}
+        title={t('clusters.groups.deleteTitle')}
+        message={t('clusters.groups.deleteMessage')}
+        confirmLabel={t('actions.delete')}
+        variant="danger"
+      />
     </div>
   )
 }
