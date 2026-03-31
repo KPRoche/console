@@ -72,10 +72,10 @@ function isTokenExpired(cluster: ClusterInfo): boolean {
 
 // Auth method badge labels — intentionally subtle (muted text, no colored backgrounds)
 const AUTH_BADGE_MAP: Record<string, { label: string; color: string }> = {
-  exec: { label: 'IAM', color: 'bg-white/5 text-muted-foreground' },
-  token: { label: 'token', color: 'bg-white/5 text-muted-foreground' },
-  certificate: { label: 'cert', color: 'bg-white/5 text-muted-foreground' },
-  'auth-provider': { label: 'IAM', color: 'bg-white/5 text-muted-foreground' },
+  exec: { label: 'IAM', color: 'bg-black/5 dark:bg-white/5 text-muted-foreground' },
+  token: { label: 'token', color: 'bg-black/5 dark:bg-white/5 text-muted-foreground' },
+  certificate: { label: 'cert', color: 'bg-black/5 dark:bg-white/5 text-muted-foreground' },
+  'auth-provider': { label: 'IAM', color: 'bg-black/5 dark:bg-white/5 text-muted-foreground' },
 }
 
 // Session refresh commands per exec-plugin CLI name
@@ -118,7 +118,7 @@ function CopyCmd({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center p-0.5 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+      className="inline-flex items-center p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
       title={copied ? 'Copied!' : `Copy: ${text}`}
     >
       {copied ? <Check className="w-2.5 h-2.5 text-green-400" /> : <Copy className="w-2.5 h-2.5" />}
@@ -415,7 +415,7 @@ const FullClusterCard = memo(function FullClusterCard({
                   const hint = getIAMRefreshHint(cluster)
                   return hint ? (
                     <span className="flex items-center gap-1 text-2xs text-muted-foreground mt-0.5">
-                      Login: <code className="bg-white/5 px-1 rounded">{hint}</code>
+                      Login: <code className="bg-black/5 dark:bg-white/5 px-1 rounded">{hint}</code>
                       <CopyCmd text={hint} />
                     </span>
                   ) : null
@@ -618,7 +618,7 @@ const ListClusterCard = memo(function ListClusterCard({
             const hint = getIAMRefreshHint(cluster)
             return hint ? (
               <span className="hidden md:flex items-center gap-1 text-2xs text-muted-foreground flex-shrink-0">
-                <code className="bg-white/5 px-1 rounded">{hint}</code>
+                <code className="bg-black/5 dark:bg-white/5 px-1 rounded">{hint}</code>
                 <CopyCmd text={hint} />
               </span>
             ) : null
