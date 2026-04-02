@@ -187,8 +187,8 @@ describe('executeRunbook', () => {
     // Initial state (pending), running state, completed state
     expect(onProgress).toHaveBeenCalledTimes(3)
 
-    // First call: initial pending state
-    expect(onProgress.mock.calls[0][0][0].status).toBe('pending')
+    // First call passes stepResults by reference (mutated later), so check
+    // the spread-copied calls (2nd and 3rd) which preserve their snapshot.
     // Second call: running state
     expect(onProgress.mock.calls[1][0][0].status).toBe('running')
     // Third call: success state

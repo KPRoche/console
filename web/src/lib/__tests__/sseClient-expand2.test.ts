@@ -187,7 +187,8 @@ describe('fetchSSE — expanded edge cases', () => {
   // 6. Token is sent in Authorization header
   it('sends JWT token in Authorization header', async () => {
     const url = `/api/test-stream-${++testId}`
-    localStorage.setItem('kc-auth-token', 'my-jwt')
+    // STORAGE_KEY_TOKEN is 'token' (from constants/storage.ts)
+    localStorage.setItem('token', 'my-jwt')
     vi.mocked(fetch).mockResolvedValue(makeSSEResponse([
       { event: 'done', data: {} },
     ]))

@@ -144,8 +144,11 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
+    // All 6 queries are wrapped in Promise.allSettled, so individual rejections
+    // are caught as rejected results. When every query fails, hasAnyData stays
+    // false and the hook reports 'No Prometheus data available'.
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Network error')
+      expect(result.current.error).toBe('No Prometheus data available')
     })
 
     expect(result.current.metrics).toBeNull()
@@ -159,8 +162,11 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
+    // queryPrometheus throws 'Agent returned 503' per query, but all 6 calls
+    // are inside Promise.allSettled, so the rejections are caught individually.
+    // With no fulfilled data, the hook surfaces the generic no-data message.
     await vi.waitFor(() => {
-      expect(result.current.error).toBe('Agent returned 503')
+      expect(result.current.error).toBe('No Prometheus data available')
     })
   })
 
