@@ -177,4 +177,94 @@ describe('useBuildpackImages', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.lastRefresh).toBeDefined()
   })
+
+  it('skips fetch entirely on Netlify deployment', async () => {
+    mockIsNetlifyDeployment.value = true
+
+    const { result } = renderHook(() => useBuildpackImages('netlify-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
+  it('handles non-Error thrown values in error path', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue('string-error')
+
+    const { result } = renderHook(() => useBuildpackImages('str-err-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.error).toBe('Failed to fetch Buildpack images')
+    expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1)
+  })
+
+  it('handles non-404 HTTP error status codes', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    })
+
+    const { result } = renderHook(() => useBuildpackImages('http-err-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.error).toContain('API error: 500')
+  })
+
+  it('handles response with missing images key', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    })
+
+    const { result } = renderHook(() => useBuildpackImages('no-images-key'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.images).toEqual([])
+    expect(result.current.error).toBeNull()
+  })
+
+  it('resets consecutiveFailures on successful fetch after prior failure', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('fail'))
+    const { result, rerender } = renderHook(
+      ({ c }: { c: string }) => useBuildpackImages(c),
+      { initialProps: { c: 'fail-first-bp' } },
+    )
+    await waitFor(() => expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1))
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [] }),
+    })
+    rerender({ c: 'succeed-bp' })
+    await waitFor(() => expect(result.current.consecutiveFailures).toBe(0))
+  })
+
+  it('sends Authorization header when token is present', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [] }),
+    })
+    globalThis.fetch = fetchSpy
+    localStorage.setItem('token', 'my-secret-token')
+
+    renderHook(() => useBuildpackImages('auth-cluster'))
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled())
+    const callArgs = fetchSpy.mock.calls[0]
+    expect(callArgs[1].headers.Authorization).toBe('Bearer my-secret-token')
+  })
+
+  it('does not set Authorization header when no token', async () => {
+    localStorage.removeItem('token')
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ images: [] }),
+    })
+    globalThis.fetch = fetchSpy
+
+    renderHook(() => useBuildpackImages('no-auth-cluster'))
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled())
+    const callArgs = fetchSpy.mock.calls[0]
+    expect(callArgs[1].headers.Authorization).toBeUndefined()
+  })
 })
