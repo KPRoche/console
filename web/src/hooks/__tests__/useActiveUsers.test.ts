@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 
+let mockDemoMode = true
+let mockIsDemoModeForced = true
+
 vi.mock('../useDemoMode', () => ({
-  getDemoMode: vi.fn(() => true),
-  isDemoModeForced: true,
+  getDemoMode: vi.fn(() => mockDemoMode),
+  isDemoModeForced: mockIsDemoModeForced,
 }))
 
 vi.mock('../../lib/constants', async (importOriginal) => {
@@ -18,7 +21,10 @@ describe('useActiveUsers', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     localStorage.clear()
+    sessionStorage.clear()
     vi.clearAllMocks()
+    mockDemoMode = true
+    mockIsDemoModeForced = true
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ activeUsers: 5, totalConnections: 8 }), {
         status: 200,
@@ -244,5 +250,260 @@ describe('useActiveUsers', () => {
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
+  })
+
+  // ══════════════════════════════════════════════════════════════════════
+  // NEW TESTS — Targeting uncovered branches and edge cases
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ── Visibility change handler re-starts polling ───────────────────────
+  it('recovers polling when tab becomes visible again', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ activeUsers: 7, totalConnections: 10 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    const callsBefore = vi.mocked(fetch).mock.calls.length
+
+    // Simulate tab becoming visible
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    // Should have triggered an extra fetch
+    expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(callsBefore)
+  })
+
+  // ── Visibility change triggers immediate fetch when poll is running ───
+  it('fetches immediately on visibility change even when poll is active', async () => {
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    const callsBefore = vi.mocked(fetch).mock.calls.length
+
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(callsBefore)
+  })
+
+  // ── Demo mode change triggers refetch ─────────────────────────────────
+  it('refetches when demo mode changes', async () => {
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    const callsBefore = vi.mocked(fetch).mock.calls.length
+
+    act(() => {
+      window.dispatchEvent(new Event('kc-demo-mode-change'))
+    })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    // Should have triggered an extra fetch from the demo change handler
+    expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(callsBefore)
+  })
+
+  // ── Smoothing takes max of recent counts ──────────────────────────────
+  it('smoothing uses max of recent counts to prevent flicker', async () => {
+    // First response: high count
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ activeUsers: 10, totalConnections: 10 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    const { result } = renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    await waitFor(() => {
+      expect(result.current.activeUsers).toBe(10)
+    })
+
+    // Second response: lower count (should smooth to max = 10)
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ activeUsers: 5, totalConnections: 5 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_500) })
+
+    await waitFor(() => {
+      // Smoothing keeps the max (10), not the latest (5)
+      expect(result.current.activeUsers).toBe(10)
+    })
+  })
+
+  // ── Recovery after circuit breaker trips automatically ────────────────
+  it('automatically recovers after circuit breaker recovery delay', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('fail'))
+    const RECOVERY_DELAY = 30_000
+
+    const { result } = renderHook(() => useActiveUsers())
+
+    // Trip circuit breaker (3 consecutive failures)
+    for (let i = 0; i < 5; i++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(10_500) })
+    }
+
+    await waitFor(() => {
+      expect(result.current.hasError).toBe(true)
+    })
+
+    // Fix fetch before recovery
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ activeUsers: 2, totalConnections: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    // Advance past the recovery delay
+    await act(async () => { await vi.advanceTimersByTimeAsync(RECOVERY_DELAY + 1_000) })
+
+    await waitFor(() => {
+      expect(result.current.hasError).toBe(false)
+    })
+  })
+
+  // ── Session ID generation via sessionStorage ──────────────────────────
+  it('creates a session ID in sessionStorage on first call', async () => {
+    sessionStorage.clear()
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    // The heartbeat sends a POST with sessionId from sessionStorage
+    const sessionId = sessionStorage.getItem('kc-session-id')
+    expect(sessionId).not.toBeNull()
+    expect(typeof sessionId).toBe('string')
+  })
+
+  // ── Session ID reuses existing value ──────────────────────────────────
+  it('reuses existing session ID from sessionStorage', async () => {
+    const EXISTING_ID = 'existing-session-id-123'
+    sessionStorage.setItem('kc-session-id', EXISTING_ID)
+
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(sessionStorage.getItem('kc-session-id')).toBe(EXISTING_ID)
+  })
+
+  // ── Heartbeat sends POST to /api/active-users ────────────────────────
+  it('sends heartbeat POST with session ID in demo/Netlify mode', async () => {
+    renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    // Check that a POST was sent (heartbeat)
+    const postCalls = vi.mocked(fetch).mock.calls.filter(
+      call => typeof call[1] === 'object' && call[1]?.method === 'POST'
+    )
+    expect(postCalls.length).toBeGreaterThan(0)
+    // Verify the POST body includes a sessionId
+    const postBody = JSON.parse(postCalls[0][1]?.body as string)
+    expect(postBody).toHaveProperty('sessionId')
+    expect(typeof postBody.sessionId).toBe('string')
+  })
+
+  // ── Heartbeat failure is silent (best-effort) ────────────────────────
+  it('handles heartbeat POST failure gracefully', async () => {
+    // Make POST fail but GET succeed
+    vi.mocked(fetch).mockImplementation(async (url, options) => {
+      if (typeof options === 'object' && options?.method === 'POST') {
+        throw new Error('POST failed')
+      }
+      return new Response(JSON.stringify({ activeUsers: 3, totalConnections: 3 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    const { result } = renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+
+    // Should not crash; state should still be valid
+    expect(typeof result.current.activeUsers).toBe('number')
+  })
+
+  // ── Consecutive failures increment correctly ──────────────────────────
+  it('tracks consecutive failures and clears on success', async () => {
+    // First two calls fail, third succeeds
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('fail1'))
+      .mockRejectedValueOnce(new Error('fail2'))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ activeUsers: 4, totalConnections: 4 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+
+    const { result } = renderHook(() => useActiveUsers())
+
+    // After first failure
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(result.current.hasError).toBe(false) // not yet at MAX_FAILURES
+
+    // After second failure
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_500) })
+    expect(result.current.hasError).toBe(false) // still not at MAX_FAILURES=3
+
+    // After successful recovery
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_500) })
+    await waitFor(() => {
+      expect(result.current.hasError).toBe(false)
+      expect(result.current.activeUsers).toBe(4)
+    })
+  })
+
+  // ── Null JSON response handled ────────────────────────────────────────
+  it('handles response.json() returning null-like data', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('null', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    const { result } = renderHook(() => useActiveUsers())
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    // Should treat null JSON as error, not crash
+    expect(typeof result.current.activeUsers).toBe('number')
+  })
+
+  // ── Unmount removes demo-mode and visibility listeners ────────────────
+  it('removes event listeners on unmount', () => {
+    const removeSpy = vi.spyOn(window, 'removeEventListener')
+    const removeDocSpy = vi.spyOn(document, 'removeEventListener')
+
+    const { unmount } = renderHook(() => useActiveUsers())
+    unmount()
+
+    // Should have removed kc-demo-mode-change listener
+    const windowCalls = removeSpy.mock.calls.map(c => c[0])
+    expect(windowCalls).toContain('kc-demo-mode-change')
+
+    // Should have removed visibilitychange listener
+    const docCalls = removeDocSpy.mock.calls.map(c => c[0])
+    expect(docCalls).toContain('visibilitychange')
+
+    removeSpy.mockRestore()
+    removeDocSpy.mockRestore()
   })
 })

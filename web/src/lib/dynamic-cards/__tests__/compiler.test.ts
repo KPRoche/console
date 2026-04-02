@@ -9,9 +9,10 @@ vi.mock('sucrase', () => ({
 }))
 
 // Mock getDynamicScope to provide a minimal sandbox.
-// We must include 'eval' and 'Function' in the scope so they are NOT
-// added as parameter names in `new Function(...)`. Using reserved words
-// as parameters in strict mode causes a SyntaxError.
+// 'eval' is in BLOCKED_GLOBALS but cannot be used as a Function parameter
+// name in strict mode (SyntaxError). We make it non-enumerable so it passes
+// the `in` check (not added to blockedEntries) but isn't spread into the
+// Function parameter list via Object.keys().
 vi.mock('../scope', () => ({
   getDynamicScope: () => {
     const React = {
@@ -19,7 +20,7 @@ vi.mock('../scope', () => ({
       Fragment: Symbol('Fragment'),
     }
     const cleanupFn = vi.fn()
-    return {
+    const scope: Record<string, unknown> = {
       React,
       useState: vi.fn(),
       useEffect: vi.fn(),
@@ -39,13 +40,17 @@ vi.mock('../scope', () => ({
       clearTimeout: vi.fn(),
       setInterval: vi.fn(),
       clearInterval: vi.fn(),
-      // Reserved words that cannot be used as function parameter names
-      // in strict mode — must be in scope to prevent BLOCKED_GLOBALS from
-      // adding them as parameter names to new Function().
-      eval: undefined,
-      Function: undefined,
       __timerCleanup: cleanupFn,
     }
+    // Mark 'eval' as non-enumerable so it satisfies the `in` check
+    // (preventing BLOCKED_GLOBALS from adding it as a Function param)
+    // but doesn't appear in Object.keys() / spread.
+    Object.defineProperty(scope, 'eval', {
+      value: undefined,
+      enumerable: false,
+      configurable: true,
+    })
+    return scope
   },
 }))
 

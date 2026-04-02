@@ -399,3 +399,506 @@ describe('useKagentCRDMemories', () => {
     )
   })
 })
+
+// ===========================================================================
+// agentFetch — internal helper (tested via fetcher callbacks)
+// ===========================================================================
+
+describe('fetcher callback — agentFetchAllClusters', () => {
+  it('calls fetcher with agent available and clusters in cache', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'cluster-1', context: 'ctx-1', reachable: true },
+      { name: 'cluster-2', context: 'ctx-2', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    const agentData = { agents: [{ name: 'agent-1', cluster: 'cluster-1' }] }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => agentData,
+    })
+
+    // Mock mapSettledWithConcurrency to simulate settled results
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    renderHook(() => useKagentCRDAgents())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    expect(Array.isArray(result)).toBe(true)
+    expect(mockReportAgentDataSuccess).toHaveBeenCalled()
+  })
+
+  it('returns empty array when agent is unavailable', async () => {
+    mockIsAgentUnavailable.mockReturnValue(true)
+    mockClusterCacheRef.clusters = [
+      { name: 'cluster-1', context: 'ctx-1', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    renderHook(() => useKagentCRDAgents())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    expect(result).toEqual([])
+  })
+
+  it('returns empty array when cluster cache is empty', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = []
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    renderHook(() => useKagentCRDTools())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    expect(result).toEqual([])
+  })
+
+  it('filters out unreachable clusters', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'reachable-cluster', context: 'ctx-1', reachable: true },
+      { name: 'unreachable-cluster', context: 'ctx-2', reachable: false },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    const agentData = { tools: [{ name: 'tool-1' }] }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => agentData,
+    })
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    renderHook(() => useKagentCRDTools())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    expect(Array.isArray(result)).toBe(true)
+    // Only reachable cluster should have been queried
+    const fetchCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
+    const urls = fetchCalls.map((c: unknown[]) => String(c[0]))
+    expect(urls.every((u: string) => !u.includes('unreachable-cluster'))).toBe(true)
+  })
+
+  it('filters out clusters with slash in name (context paths)', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'short-name', context: 'ctx-1', reachable: true },
+      { name: 'default/api-long/path', context: 'ctx-2', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ models: [] }),
+    })
+
+    renderHook(() => useKagentCRDModels())
+
+    expect(capturedFetcher).toBeDefined()
+    await capturedFetcher!()
+
+    // mapSettled should only have been called with the short-name cluster
+    const mapSettledCalls = mockMapSettled.mock.calls
+    if (mapSettledCalls.length > 0) {
+      const targets = mapSettledCalls[0][0] as Array<{ name: string }>
+      expect(targets.every((t: { name: string }) => !t.name.includes('/'))).toBe(true)
+    }
+  })
+
+  it('handles rejected promises in mapSettledWithConcurrency gracefully', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'good-cluster', context: 'ctx-1', reachable: true },
+      { name: 'bad-cluster', context: 'ctx-2', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    // Simulate one cluster succeeding, one failing
+    mockMapSettled.mockResolvedValue([
+      { status: 'fulfilled', value: [{ name: 'memory-1', cluster: 'good-cluster' }] },
+      { status: 'rejected', reason: new Error('Connection refused') },
+    ])
+
+    renderHook(() => useKagentCRDMemories())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!() as Array<{ name: string }>
+    // Should only include fulfilled results, skipping rejected
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('memory-1')
+  })
+
+  it('filters by specific cluster when option is provided', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'target-cluster', context: 'ctx-1', reachable: true },
+      { name: 'other-cluster', context: 'ctx-2', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      // Verify only target cluster was passed
+      expect(items).toHaveLength(1)
+      expect(items[0].name).toBe('target-cluster')
+      return [{ status: 'fulfilled' as const, value: [{ name: 'agent-1', cluster: 'target-cluster' }] }]
+    })
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ agents: [{ name: 'agent-1' }] }),
+    })
+
+    renderHook(() => useKagentCRDAgents({ cluster: 'target-cluster' }))
+
+    expect(capturedFetcher).toBeDefined()
+    await capturedFetcher!()
+  })
+
+  it('uses context when available, falls back to name', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'cluster-no-ctx', reachable: true }, // no context property
+      { name: 'cluster-with-ctx', context: 'custom-ctx', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    const fetchedUrls: string[] = []
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      fetchedUrls.push(url)
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ agents: [] }),
+      })
+    })
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    renderHook(() => useKagentCRDAgents())
+
+    expect(capturedFetcher).toBeDefined()
+    await capturedFetcher!()
+
+    // Verify that fetch was called with context when available, name otherwise
+    const clusterParams = fetchedUrls.map(u => {
+      const url = new URL(u)
+      return url.searchParams.get('cluster')
+    })
+    expect(clusterParams).toContain('cluster-no-ctx')
+    expect(clusterParams).toContain('custom-ctx')
+  })
+
+  it('agentFetch returns null when fetch response is not ok', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'failing-cluster', context: 'ctx-fail', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    })
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    renderHook(() => useKagentCRDTools())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    // agentFetch returns null on non-ok => throws 'No data' => rejected => filtered out
+    expect(result).toEqual([])
+  })
+
+  it('agentFetch returns null when fetch throws (network error)', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'network-fail', context: 'ctx-net', reachable: true },
+    ]
+
+    let capturedFetcher: (() => Promise<unknown>) | undefined
+    mockUseCache.mockImplementation((opts: { fetcher?: () => Promise<unknown> }) => {
+      capturedFetcher = opts.fetcher
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ERR_CONNECTION_REFUSED'))
+
+    mockMapSettled.mockImplementation(async (
+      items: Array<{ name: string; context?: string }>,
+      fn: (item: { name: string; context?: string }, index: number) => Promise<unknown>,
+    ) => {
+      const results: PromiseSettledResult<unknown>[] = []
+      for (let i = 0; i < items.length; i++) {
+        try {
+          const value = await fn(items[i], i)
+          results.push({ status: 'fulfilled', value })
+        } catch (reason) {
+          results.push({ status: 'rejected', reason })
+        }
+      }
+      return results
+    })
+
+    renderHook(() => useKagentCRDModels())
+
+    expect(capturedFetcher).toBeDefined()
+    const result = await capturedFetcher!()
+    expect(result).toEqual([])
+  })
+})
+
+// ===========================================================================
+// Demo data integrity
+// ===========================================================================
+
+describe('demo data integrity', () => {
+  it('demo agents have all required fields', () => {
+    mockUseCache.mockImplementation((opts: { demoData: unknown[] }) => {
+      const agents = opts.demoData
+      for (const agent of agents as Array<Record<string, unknown>>) {
+        expect(agent.name).toBeTruthy()
+        expect(agent.namespace).toBeTruthy()
+        expect(agent.cluster).toBeTruthy()
+        expect(['Declarative', 'BYO']).toContain(agent.agentType)
+      }
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+    renderHook(() => useKagentCRDAgents())
+  })
+
+  it('demo tools have all required fields', () => {
+    mockUseCache.mockImplementation((opts: { demoData: unknown[] }) => {
+      const tools = opts.demoData
+      for (const tool of tools as Array<Record<string, unknown>>) {
+        expect(tool.name).toBeTruthy()
+        expect(tool.namespace).toBeTruthy()
+        expect(tool.cluster).toBeTruthy()
+        expect(['ToolServer', 'RemoteMCPServer']).toContain(tool.kind)
+        expect(Array.isArray(tool.discoveredTools)).toBe(true)
+      }
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+    renderHook(() => useKagentCRDTools())
+  })
+
+  it('demo models have provider and kind fields', () => {
+    mockUseCache.mockImplementation((opts: { demoData: unknown[] }) => {
+      const models = opts.demoData
+      for (const model of models as Array<Record<string, unknown>>) {
+        expect(model.name).toBeTruthy()
+        expect(model.provider).toBeTruthy()
+        expect(['ModelConfig', 'ModelProviderConfig']).toContain(model.kind)
+      }
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+    renderHook(() => useKagentCRDModels())
+  })
+
+  it('demo memories have provider and status fields', () => {
+    mockUseCache.mockImplementation((opts: { demoData: unknown[] }) => {
+      const memories = opts.demoData
+      for (const memory of memories as Array<Record<string, unknown>>) {
+        expect(memory.name).toBeTruthy()
+        expect(memory.provider).toBeTruthy()
+        expect(memory.status).toBeTruthy()
+      }
+      return {
+        data: [], isLoading: false, isRefreshing: false, error: null,
+        refetch: vi.fn(), isDemoData: false, isDemoFallback: false,
+        consecutiveFailures: 0, isFailed: false, lastRefresh: null,
+      }
+    })
+    renderHook(() => useKagentCRDMemories())
+  })
+})
+
+// ===========================================================================
+// Hook re-export types
+// ===========================================================================
+
+describe('type re-exports', () => {
+  it('re-exports KagentCRDAgent type', async () => {
+    const mod = await import('../kagent_crds')
+    // Type re-exports are checked at compile time; we verify module has the hooks
+    expect(mod.useKagentCRDAgents).toBeDefined()
+    expect(mod.useKagentCRDTools).toBeDefined()
+    expect(mod.useKagentCRDModels).toBeDefined()
+    expect(mod.useKagentCRDMemories).toBeDefined()
+  })
+})

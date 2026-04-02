@@ -135,7 +135,7 @@ describe('themes', () => {
     })
 
     it('returns empty array on corrupt JSON', () => {
-      localStorage.setItem('kubestellar-custom-themes', '{broken')
+      localStorage.setItem('kc-custom-themes', '{broken')
       expect(getCustomThemes()).toEqual([])
     })
   })
