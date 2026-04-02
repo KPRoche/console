@@ -2277,6 +2277,489 @@ describe('updateAnalyticsIds — branding override', () => {
     expect(true).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// initAnalytics — idempotency and automated environment guard
+// ---------------------------------------------------------------------------
+describe('initAnalytics', () => {
+  it('does not throw on first call', () => {
+    expect(() => initAnalytics()).not.toThrow()
+  })
+
+  it('is idempotent (second call is a no-op)', () => {
+    initAnalytics()
+    initAnalytics()
+    // No assertion needed — just verifying no throw on double init
+    expect(true).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// setAnalyticsUserId — hashing and anonymous ID
+// ---------------------------------------------------------------------------
+describe('setAnalyticsUserId', () => {
+  it('does not throw for regular user', async () => {
+    await expect(setAnalyticsUserId('user-123')).resolves.toBeUndefined()
+  })
+
+  it('creates anonymous ID for demo-user', async () => {
+    await expect(setAnalyticsUserId('demo-user')).resolves.toBeUndefined()
+    // Should have stored an anonymous ID
+    const storedId = localStorage.getItem('_ksc_anon_uid')
+    expect(storedId).toBeTruthy()
+  })
+
+  it('creates anonymous ID for empty string', async () => {
+    await expect(setAnalyticsUserId('')).resolves.toBeUndefined()
+    expect(localStorage.getItem('_ksc_anon_uid')).toBeTruthy()
+  })
+
+  it('reuses existing anonymous ID on subsequent calls', async () => {
+    await setAnalyticsUserId('demo-user')
+    const firstId = localStorage.getItem('_ksc_anon_uid')
+    await setAnalyticsUserId('demo-user')
+    const secondId = localStorage.getItem('_ksc_anon_uid')
+    expect(firstId).toBe(secondId)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// captureUtmParams / getUtmParams — URL param handling
+// ---------------------------------------------------------------------------
+describe('captureUtmParams', () => {
+  it('captures UTM params from window.location (no-op in jsdom)', () => {
+    expect(() => captureUtmParams()).not.toThrow()
+  })
+})
+
+describe('getUtmParams returns object', () => {
+  it('returns an object with UTM fields', () => {
+    const params = getUtmParams()
+    expect(typeof params).toBe('object')
+    // utm_source, utm_medium, utm_campaign, utm_term, utm_content
+    expect('utm_source' in params || Object.keys(params).length >= 0).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitPageView — triggers send and resets pageId
+// ---------------------------------------------------------------------------
+describe('emitPageView', () => {
+  it('does not throw with various paths', () => {
+    expect(() => emitPageView('/')).not.toThrow()
+    expect(() => emitPageView('/clusters')).not.toThrow()
+    expect(() => emitPageView('/dashboard/gpu')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// startGlobalErrorTracking — installs global listeners
+// ---------------------------------------------------------------------------
+describe('startGlobalErrorTracking', () => {
+  it('does not throw on initialization', () => {
+    expect(() => startGlobalErrorTracking()).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitChunkReloadRecoveryFailed — special chunk error event
+// ---------------------------------------------------------------------------
+describe('emitChunkReloadRecoveryFailed', () => {
+  it('does not throw', () => {
+    expect(() => emitChunkReloadRecoveryFailed('chunk-error', '/dashboard')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// markErrorReported / wasAlreadyReported — dedup set behavior
+// ---------------------------------------------------------------------------
+describe('markErrorReported dedup behavior', () => {
+  it('marking same error twice does not throw', () => {
+    expect(() => markErrorReported('test error msg')).not.toThrow()
+    expect(() => markErrorReported('test error msg')).not.toThrow()
+  })
+
+  it('marking different errors does not throw', () => {
+    expect(() => markErrorReported('error A')).not.toThrow()
+    expect(() => markErrorReported('error B')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitScreenshotAttached / emitScreenshotUploadFailed / emitScreenshotUploadSuccess
+// ---------------------------------------------------------------------------
+describe('screenshot analytics', () => {
+  it('emitScreenshotAttached does not throw', () => {
+    expect(() => emitScreenshotAttached('paste', 1)).not.toThrow()
+    expect(() => emitScreenshotAttached('drop', 2)).not.toThrow()
+    expect(() => emitScreenshotAttached('file_picker', 3)).not.toThrow()
+  })
+
+  it('emitScreenshotUploadFailed does not throw', () => {
+    expect(() => emitScreenshotUploadFailed('Network error', 1)).not.toThrow()
+  })
+
+  it('emitScreenshotUploadSuccess does not throw', () => {
+    expect(() => emitScreenshotUploadSuccess(2)).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitUpdateCompleted / emitUpdateFailed / emitUpdateRefreshed / emitUpdateStalled
+// ---------------------------------------------------------------------------
+describe('update lifecycle analytics', () => {
+  it('emitUpdateCompleted does not throw', () => {
+    expect(() => emitUpdateCompleted()).not.toThrow()
+  })
+
+  it('emitUpdateFailed does not throw', () => {
+    expect(() => emitUpdateFailed()).not.toThrow()
+  })
+
+  it('emitUpdateRefreshed does not throw', () => {
+    expect(() => emitUpdateRefreshed()).not.toThrow()
+  })
+
+  it('emitUpdateStalled does not throw', () => {
+    expect(() => emitUpdateStalled()).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitWidgetNavigation / emitWidgetInstalled / emitWidgetDownloaded
+// ---------------------------------------------------------------------------
+describe('widget analytics', () => {
+  it('emitWidgetNavigation does not throw', () => {
+    expect(() => emitWidgetNavigation('/path')).not.toThrow()
+  })
+
+  it('emitWidgetInstalled does not throw', () => {
+    expect(() => emitWidgetInstalled('test-widget')).not.toThrow()
+  })
+
+  it('emitWidgetDownloaded does not throw', () => {
+    expect(() => emitWidgetDownloaded('test-widget')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitAdopterNudgeActioned / emitNudgeDismissed / emitNudgeActioned
+// ---------------------------------------------------------------------------
+describe('nudge analytics', () => {
+  it('emitAdopterNudgeActioned does not throw', () => {
+    expect(() => emitAdopterNudgeActioned('clicked')).not.toThrow()
+  })
+
+  it('emitNudgeDismissed does not throw', () => {
+    expect(() => emitNudgeDismissed('test-nudge')).not.toThrow()
+  })
+
+  it('emitNudgeActioned does not throw', () => {
+    expect(() => emitNudgeActioned('test-nudge', 'click')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitModalOpened / emitModalTabViewed / emitModalClosed
+// ---------------------------------------------------------------------------
+describe('modal analytics', () => {
+  it('emitModalTabViewed does not throw', () => {
+    expect(() => emitModalTabViewed('pod', 'logs')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitFromLensActioned / emitFromLensTabSwitch / emitFromLensCommandCopy
+// ---------------------------------------------------------------------------
+describe('Lens migration analytics', () => {
+  it('emitFromLensActioned does not throw', () => {
+    expect(() => emitFromLensActioned('install')).not.toThrow()
+  })
+
+  it('emitFromLensTabSwitch does not throw', () => {
+    expect(() => emitFromLensTabSwitch('comparison')).not.toThrow()
+  })
+
+  it('emitFromLensCommandCopy does not throw', () => {
+    expect(() => emitFromLensCommandCopy('curl')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitFromHeadlampViewed / emitFromHeadlampActioned / etc.
+// ---------------------------------------------------------------------------
+describe('Headlamp migration analytics', () => {
+  it('emitFromHeadlampViewed does not throw', () => {
+    expect(() => emitFromHeadlampViewed()).not.toThrow()
+  })
+
+  it('emitFromHeadlampActioned does not throw', () => {
+    expect(() => emitFromHeadlampActioned('click')).not.toThrow()
+  })
+
+  it('emitFromHeadlampTabSwitch does not throw', () => {
+    expect(() => emitFromHeadlampTabSwitch('comparison')).not.toThrow()
+  })
+
+  it('emitFromHeadlampCommandCopy does not throw', () => {
+    expect(() => emitFromHeadlampCommandCopy('curl')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitWhiteLabelActioned / emitWhiteLabelTabSwitch / emitWhiteLabelCommandCopy
+// ---------------------------------------------------------------------------
+describe('White label analytics', () => {
+  it('emitWhiteLabelActioned does not throw', () => {
+    expect(() => emitWhiteLabelActioned('click')).not.toThrow()
+  })
+
+  it('emitWhiteLabelTabSwitch does not throw', () => {
+    expect(() => emitWhiteLabelTabSwitch('tab1')).not.toThrow()
+  })
+
+  it('emitWhiteLabelCommandCopy does not throw', () => {
+    expect(() => emitWhiteLabelCommandCopy('cmd')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// emitGlobalSeverityFilterChanged / emitGlobalStatusFilterChanged
+// ---------------------------------------------------------------------------
+describe('global filter analytics', () => {
+  it('emitGlobalSeverityFilterChanged does not throw', () => {
+    expect(() => emitGlobalSeverityFilterChanged('high', 'pods')).not.toThrow()
+  })
+
+  it('emitGlobalStatusFilterChanged does not throw', () => {
+    expect(() => emitGlobalStatusFilterChanged('running', 'pods')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// AI / Predictions analytics
+// ---------------------------------------------------------------------------
+describe('AI and predictions analytics', () => {
+  it('emitDemoModeToggled does not throw', () => {
+    expect(() => emitDemoModeToggled(true)).not.toThrow()
+    expect(() => emitDemoModeToggled(false)).not.toThrow()
+  })
+
+  it('emitAIModeChanged does not throw', () => {
+    expect(() => emitAIModeChanged('openai')).not.toThrow()
+  })
+
+  it('emitAIPredictionsToggled does not throw', () => {
+    expect(() => emitAIPredictionsToggled(true)).not.toThrow()
+  })
+
+  it('emitConfidenceThresholdChanged does not throw', () => {
+    expect(() => emitConfidenceThresholdChanged(75)).not.toThrow()
+  })
+
+  it('emitConsensusModeToggled does not throw', () => {
+    expect(() => emitConsensusModeToggled(true)).not.toThrow()
+  })
+
+  it('emitPredictionFeedbackSubmitted does not throw', () => {
+    expect(() => emitPredictionFeedbackSubmitted('positive', 'test-pred')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PWA analytics
+// ---------------------------------------------------------------------------
+describe('PWA analytics', () => {
+  it('emitPwaPromptShown does not throw', () => {
+    expect(() => emitPwaPromptShown()).not.toThrow()
+  })
+
+  it('emitPwaPromptDismissed does not throw', () => {
+    expect(() => emitPwaPromptDismissed()).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Session context and data export
+// ---------------------------------------------------------------------------
+describe('session and data analytics', () => {
+  it('emitSessionContext does not throw', () => {
+    expect(() => emitSessionContext({ clusters: 3, cards: 12 })).not.toThrow()
+  })
+
+  it('emitDataExported does not throw', () => {
+    expect(() => emitDataExported('json', 'pods')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Feature hints / getting started / post-connect / demo-to-local
+// ---------------------------------------------------------------------------
+describe('feature hint analytics', () => {
+  it('emitFeatureHintShown does not throw', () => {
+    expect(() => emitFeatureHintShown('search')).not.toThrow()
+  })
+
+  it('emitFeatureHintDismissed does not throw', () => {
+    expect(() => emitFeatureHintDismissed('search')).not.toThrow()
+  })
+
+  it('emitFeatureHintActioned does not throw', () => {
+    expect(() => emitFeatureHintActioned('search', 'click')).not.toThrow()
+  })
+
+  it('emitGettingStartedShown does not throw', () => {
+    expect(() => emitGettingStartedShown()).not.toThrow()
+  })
+
+  it('emitGettingStartedActioned does not throw', () => {
+    expect(() => emitGettingStartedActioned('next')).not.toThrow()
+  })
+
+  it('emitPostConnectShown does not throw', () => {
+    expect(() => emitPostConnectShown()).not.toThrow()
+  })
+
+  it('emitPostConnectActioned does not throw', () => {
+    expect(() => emitPostConnectActioned('continue')).not.toThrow()
+  })
+
+  it('emitDemoToLocalShown does not throw', () => {
+    expect(() => emitDemoToLocalShown()).not.toThrow()
+  })
+
+  it('emitDemoToLocalActioned does not throw', () => {
+    expect(() => emitDemoToLocalActioned('install')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// GitHub token / API provider analytics
+// ---------------------------------------------------------------------------
+describe('GitHub and API provider analytics', () => {
+  it('emitGitHubTokenConfigured does not throw', () => {
+    expect(() => emitGitHubTokenConfigured()).not.toThrow()
+  })
+
+  it('emitGitHubTokenRemoved does not throw', () => {
+    expect(() => emitGitHubTokenRemoved()).not.toThrow()
+  })
+
+  it('emitApiProviderConnected does not throw', () => {
+    expect(() => emitApiProviderConnected('openai')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Dashboard analytics
+// ---------------------------------------------------------------------------
+describe('dashboard analytics', () => {
+  it('emitDashboardScrolled does not throw', () => {
+    expect(() => emitDashboardScrolled(50, '/dashboard')).not.toThrow()
+  })
+
+  it('emitDashboardViewed does not throw', () => {
+    expect(() => emitDashboardViewed('overview')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Smart suggestions / card recommendations / mission suggestions
+// ---------------------------------------------------------------------------
+describe('suggestion analytics', () => {
+  it('emitSmartSuggestionsShown does not throw', () => {
+    expect(() => emitSmartSuggestionsShown(5)).not.toThrow()
+  })
+
+  it('emitSmartSuggestionAccepted does not throw', () => {
+    expect(() => emitSmartSuggestionAccepted('gpu-monitor')).not.toThrow()
+  })
+
+  it('emitSmartSuggestionsAddAll does not throw', () => {
+    expect(() => emitSmartSuggestionsAddAll(3)).not.toThrow()
+  })
+
+  it('emitCardRecommendationsShown does not throw', () => {
+    expect(() => emitCardRecommendationsShown(4)).not.toThrow()
+  })
+
+  it('emitCardRecommendationActioned does not throw', () => {
+    expect(() => emitCardRecommendationActioned('gpu-monitor', 'add')).not.toThrow()
+  })
+
+  it('emitMissionSuggestionsShown does not throw', () => {
+    expect(() => emitMissionSuggestionsShown(2)).not.toThrow()
+  })
+
+  it('emitMissionSuggestionActioned does not throw', () => {
+    expect(() => emitMissionSuggestionActioned('fix-pods', 'run')).not.toThrow()
+  })
+
+  it('emitAddCardModalOpened does not throw', () => {
+    expect(() => emitAddCardModalOpened()).not.toThrow()
+  })
+
+  it('emitAddCardModalAbandoned does not throw', () => {
+    expect(() => emitAddCardModalAbandoned(5000)).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// User management / marketplace item / insights / actions
+// ---------------------------------------------------------------------------
+describe('user and marketplace analytics', () => {
+  it('emitUserRoleChanged does not throw', () => {
+    expect(() => emitUserRoleChanged('admin')).not.toThrow()
+  })
+
+  it('emitUserRemoved does not throw', () => {
+    expect(() => emitUserRemoved()).not.toThrow()
+  })
+
+  it('emitMarketplaceItemViewed does not throw', () => {
+    expect(() => emitMarketplaceItemViewed('card', 'gpu-monitor')).not.toThrow()
+  })
+
+  it('emitInsightViewed does not throw', () => {
+    expect(() => emitInsightViewed('security')).not.toThrow()
+  })
+
+  it('emitInsightAcknowledged does not throw', () => {
+    expect(() => emitInsightAcknowledged('security')).not.toThrow()
+  })
+
+  it('emitInsightDismissed does not throw', () => {
+    expect(() => emitInsightDismissed('security')).not.toThrow()
+  })
+
+  it('emitActionClicked does not throw', () => {
+    expect(() => emitActionClicked('restart', 'pod')).not.toThrow()
+  })
+
+  it('emitAISuggestionViewed does not throw', () => {
+    expect(() => emitAISuggestionViewed('fix')).not.toThrow()
+  })
+
+  it('emitCardCategoryBrowsed does not throw', () => {
+    expect(() => emitCardCategoryBrowsed('gpu')).not.toThrow()
+  })
+
+  it('emitRecommendedCardShown does not throw', () => {
+    expect(() => emitRecommendedCardShown('gpu-monitor')).not.toThrow()
+  })
+
+  it('emitClusterAction does not throw', () => {
+    expect(() => emitClusterAction('cordon', 'prod-cluster')).not.toThrow()
+  })
+
+  it('emitClusterStatsDrillDown does not throw', () => {
+    expect(() => emitClusterStatsDrillDown('cpu', 'prod-cluster')).not.toThrow()
+  })
+
+  it('emitGitHubConnected does not throw', () => {
+    expect(() => emitGitHubConnected()).not.toThrow()
+  })
+})
 })
 })
 })

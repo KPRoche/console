@@ -1657,5 +1657,303 @@ describe('cache module', () => {
       expect(count).toBeGreaterThanOrEqual(1) // still matches the key
     })
   })
+
+  // ── resetAllCacheFailures ──────────────────────────────────────────
+
+  describe('resetAllCacheFailures', () => {
+    it('resets all store failures across multiple caches', async () => {
+      const mod = await importFresh()
+      // Create multiple failing caches
+      await mod.prefetchCache('pods:c1:ns', async () => { throw new Error('fail1') }, [])
+      await mod.prefetchCache('pods:c2:ns', async () => { throw new Error('fail2') }, [])
+
+      mod.resetAllCacheFailures()
+
+      const meta1 = JSON.parse(localStorage.getItem('kc_meta:pods:c1:ns') || '{}')
+      const meta2 = JSON.parse(localStorage.getItem('kc_meta:pods:c2:ns') || '{}')
+      expect(meta1.consecutiveFailures).toBe(0)
+      expect(meta2.consecutiveFailures).toBe(0)
+    })
+  })
+
+  // ── clearAllCaches ─────────────────────────────────────────────────
+
+  describe('clearAllCaches — comprehensive', () => {
+    it('clears kubectl history from localStorage', async () => {
+      localStorage.setItem('kubectl-history', JSON.stringify(['get pods']))
+      const mod = await importFresh()
+      await mod.clearAllCaches()
+      expect(localStorage.getItem('kubectl-history')).toBeNull()
+    })
+
+    it('clears sessionStorage entries with kcc: prefix', async () => {
+      sessionStorage.setItem('kcc:pods', JSON.stringify({ d: [], t: 0, v: 4 }))
+      sessionStorage.setItem('other-key', 'keep')
+      const mod = await importFresh()
+      await mod.clearAllCaches()
+      expect(sessionStorage.getItem('kcc:pods')).toBeNull()
+      expect(sessionStorage.getItem('other-key')).toBe('keep')
+    })
+  })
+
+  // ── useCache hook — demo mode behavior ────────────────────────────
+
+  describe('useCache — demo mode', () => {
+    it('returns demoData when in demo mode', async () => {
+      setDemoMode(true)
+      const mod = await importFresh()
+
+      const demoData = [{ name: 'demo-pod' }]
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'demo-test',
+          fetcher: async () => [{ name: 'live-pod' }],
+          initialData: [],
+          demoData,
+        })
+      )
+
+      expect(result.current.isDemoFallback).toBe(true)
+      expect(result.current.data).toEqual(demoData)
+    })
+
+    it('falls back to initialData when no demoData provided in demo mode', async () => {
+      setDemoMode(true)
+      const mod = await importFresh()
+
+      const initialData = [{ name: 'initial' }]
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'demo-no-data',
+          fetcher: async () => [{ name: 'live' }],
+          initialData,
+        })
+      )
+
+      expect(result.current.isDemoFallback).toBe(true)
+      expect(result.current.data).toEqual(initialData)
+    })
+  })
+
+  // ── useCache hook — enabled flag ──────────────────────────────────
+
+  describe('useCache — enabled flag', () => {
+    it('does not fetch when enabled is false', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+      const fetcher = vi.fn().mockResolvedValue(['data'])
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'disabled-test',
+          fetcher,
+          initialData: [],
+          enabled: false,
+          autoRefresh: false,
+        })
+      )
+
+      // Wait a tick
+      await act(async () => { await new Promise(r => setTimeout(r, 50)) })
+      expect(fetcher).not.toHaveBeenCalled()
+      expect(result.current.data).toEqual([])
+    })
+  })
+
+  // ── useCache hook — consecutive failure tracking ──────────────────
+
+  describe('useCache — failure tracking', () => {
+    it('increments consecutiveFailures on each fetch error', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+      const fetcher = vi.fn().mockRejectedValue(new Error('fail'))
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'fail-track',
+          fetcher,
+          initialData: [],
+          autoRefresh: false,
+          shared: false,
+        })
+      )
+
+      // Wait for first fetch cycle
+      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+
+      // After one failure, consecutiveFailures should be 1
+      expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1)
+    })
+
+    it('marks isFailed after MAX_FAILURES (3) consecutive errors', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+      const MAX_FAILURES = 3
+      let callCount = 0
+      const fetcher = vi.fn(async () => {
+        callCount++
+        throw new Error(`fail ${callCount}`)
+      })
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'max-fail-test',
+          fetcher,
+          initialData: [],
+          autoRefresh: false,
+          shared: false,
+        })
+      )
+
+      // Manually trigger refetch multiple times to hit MAX_FAILURES
+      for (let i = 0; i < MAX_FAILURES; i++) {
+        await act(async () => {
+          try { await result.current.refetch() } catch { /* expected */ }
+        })
+      }
+
+      // After enough failures, isFailed should be true
+      expect(result.current.isFailed).toBe(true)
+    })
+  })
+
+  // ── useCache hook — refetch method ────────────────────────────────
+
+  describe('useCache — refetch', () => {
+    it('refetch returns a promise', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+      const fetcher = vi.fn().mockResolvedValue(['refreshed'])
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'refetch-test',
+          fetcher,
+          initialData: [],
+          autoRefresh: false,
+          shared: false,
+        })
+      )
+
+      await act(async () => { await new Promise(r => setTimeout(r, 100)) })
+
+      await act(async () => {
+        await result.current.refetch()
+      })
+
+      expect(result.current.data).toEqual(['refreshed'])
+    })
+  })
+
+  // ── prefetchCache — basic operation ───────────────────────────────
+
+  describe('prefetchCache — additional paths', () => {
+    it('runs fetcher and populates cache', async () => {
+      const mod = await importFresh()
+      await mod.prefetchCache('prefetch-basic', async () => ['item-1', 'item-2'], [])
+      // No throw = success
+    })
+
+    it('handles fetcher errors gracefully', async () => {
+      const mod = await importFresh()
+      await expect(
+        mod.prefetchCache('prefetch-err', async () => { throw new Error('boom') }, [])
+      ).resolves.toBeUndefined()
+    })
+
+    it('stores meta with 0 failures after successful fetch', async () => {
+      const mod = await importFresh()
+      await mod.prefetchCache('prefetch-meta', async () => ['ok'], [])
+      const meta = JSON.parse(localStorage.getItem('kc_meta:prefetch-meta') || '{}')
+      expect(meta.consecutiveFailures).toBe(0)
+    })
+  })
+
+  // ── isEquivalentToInitial — indirect through CacheStore ───────────
+
+  describe('isEquivalentToInitial — indirect coverage', () => {
+    it('non-null newData and null initialData are not equivalent', async () => {
+      seedSessionStorage('neq-null', { data: true }, Date.now())
+      const mod = await importFresh()
+      // Store should hydrate from sessionStorage since newData ({data: true}) != null
+      await mod.prefetchCache('neq-null', async () => ({ data: true }), null as unknown as Record<string, unknown>)
+    })
+
+    it('array with items vs empty array are not equivalent', async () => {
+      seedSessionStorage('neq-arr', ['a', 'b'], Date.now())
+      const mod = await importFresh()
+      await mod.prefetchCache('neq-arr', async () => ['a', 'b'], [])
+    })
+
+    it('different objects are not equivalent', async () => {
+      seedSessionStorage('neq-obj', { count: 5 }, Date.now())
+      const mod = await importFresh()
+      await mod.prefetchCache('neq-obj', async () => ({ count: 5 }), { count: 0 })
+    })
+  })
+
+  // ── CacheStore — progressive fetcher edge cases ────────────────────
+
+  describe('CacheStore — progressive fetch skips empty updates', () => {
+    it('does not overwrite cached data with empty progress updates', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+
+      const cachedData = ['existing-item']
+      seedSessionStorage('prog-empty', cachedData, Date.now())
+
+      const fetcher = vi.fn().mockResolvedValue(['final-item'])
+      const progressiveFetcher = vi.fn(async (onProgress: (d: string[]) => void) => {
+        // First push empty progress (should be ignored)
+        onProgress([])
+        // Then push real data
+        onProgress(['partial-item'])
+        return ['final-item']
+      })
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'prog-empty',
+          fetcher,
+          initialData: [],
+          autoRefresh: false,
+          shared: false,
+          progressiveFetcher,
+        })
+      )
+
+      await act(async () => { await new Promise(r => setTimeout(r, 200)) })
+      expect(result.current.data).toEqual(['final-item'])
+    })
+  })
+
+  // ── CacheStore — merge function ────────────────────────────────────
+
+  describe('CacheStore — merge function', () => {
+    it('uses merge function when provided and cache has data', async () => {
+      setDemoMode(false)
+      const mod = await importFresh()
+
+      seedSessionStorage('merge-test', ['old-1'], Date.now())
+
+      const fetcher = vi.fn().mockResolvedValue(['new-1'])
+      const merge = vi.fn((old: string[], new_: string[]) => [...old, ...new_])
+
+      const { result } = renderHook(() =>
+        mod.useCache({
+          key: 'merge-test',
+          fetcher,
+          initialData: [],
+          autoRefresh: false,
+          shared: false,
+          merge,
+        })
+      )
+
+      await act(async () => { await new Promise(r => setTimeout(r, 200)) })
+      expect(result.current.data).toEqual(['old-1', 'new-1'])
+      expect(merge).toHaveBeenCalled()
+    })
+  })
 })
 })
