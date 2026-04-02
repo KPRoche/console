@@ -39,7 +39,7 @@ vi.mock('../../../hooks/mcp/clusters', () => ({
   useClusters: (...args: unknown[]) => mockClusters(...args),
 }))
 
-vi.mock('./useStablePageHeight', () => ({
+vi.mock('../useStablePageHeight', () => ({
   useStablePageHeight: () => ({ containerRef: { current: null }, containerStyle: undefined }),
 }))
 
