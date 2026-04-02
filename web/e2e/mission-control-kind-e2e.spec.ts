@@ -1,8 +1,5 @@
 import { test, expect, Page } from '@playwright/test'
-import { execSync, exec } from 'child_process'
-import { promisify } from 'util'
-
-const execAsync = promisify(exec)
+import { execSync } from 'child_process'
 
 /**
  * Mission Control Kind Cluster E2E Tests
@@ -31,8 +28,8 @@ const SKIP_KIND_TESTS = !AGENT_MODE || process.env.CI === 'true'
 
 const AGENT_BASE_URL = 'http://127.0.0.1:8585'
 
-/** Timeout for kind cluster creation — kind create can take 60-120s per cluster */
-const KIND_CREATE_TIMEOUT_MS = 300_000
+/** Timeout for kind cluster creation (kind create cluster takes ~1-2 min) */
+const KIND_CREATE_TIMEOUT_MS = 180_000
 /** Timeout for kind cluster deletion */
 const KIND_DELETE_TIMEOUT_MS = 60_000
 /** Timeout for Mission Control deploy to complete */
@@ -48,7 +45,8 @@ const POD_POLL_MAX_ATTEMPTS = 18 // 18 * 10s = 3 min
 
 const MC_STORAGE_KEY = 'kc_mission_control_state'
 
-/** Kind cluster names — 2 clusters to keep creation time manageable */
+/** Kind cluster names — prefixed mc-e2e- to avoid collision with user clusters.
+ *  Limited to 2 clusters to keep creation time under 5 minutes. */
 const KIND_CLUSTERS = ['mc-e2e-obs', 'mc-e2e-sec'] as const
 type KindClusterName = typeof KIND_CLUSTERS[number]
 
@@ -256,11 +254,13 @@ async function seedAndOpenMC(page: Page, overrides: Record<string, unknown>) {
   await page.waitForLoadState('networkidle', { timeout: DIALOG_TIMEOUT_MS })
   await page.waitForTimeout(4000)
 
-  // Open MC dialog — retry up to 3 times (sidebar scroll position may vary)
+  // Open MC dialog — retry up to 3 times (button may be scrolled in sidebar)
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.evaluate(() => {
-      const btn = document.querySelector('button[title*="Mission Control"]') as HTMLElement
-      if (btn) { btn.click(); return }
+      // Try titled button first (sidebar icon)
+      const titledBtn = document.querySelector('button[title*="Mission Control"]') as HTMLElement
+      if (titledBtn) { titledBtn.click(); return }
+      // Try text match
       const buttons = Array.from(document.querySelectorAll('button'))
       const mcBtn = buttons.find(b => b.textContent?.includes('Mission Control'))
       if (mcBtn) (mcBtn as HTMLElement).click()
@@ -270,6 +270,12 @@ async function seedAndOpenMC(page: Page, overrides: Record<string, unknown>) {
     const visible = await page.getByText(/Define Mission|Chart Course|Flight Plan|Define Your|Chart Your|Launch/i)
       .first().isVisible({ timeout: 5000 }).catch(() => false)
     if (visible) break
+
+    // If dialog didn't open, try scrolling sidebar and retrying
+    await page.evaluate(() => {
+      const sidebar = document.querySelector('[class*="sidebar"], nav, aside')
+      if (sidebar) sidebar.scrollTop = sidebar.scrollHeight
+    })
     await page.waitForTimeout(1000)
   }
 
@@ -291,44 +297,43 @@ test.describe('Mission Control Kind Cluster E2E', () => {
   // ========================================================================
 
   test.describe('Cluster Provisioning', () => {
-    // 2 clusters × 5 min each + 2 min buffer
+    // 3 clusters × 3 min each + buffer for kubeconfig export and node readiness
     const PROVISIONING_TIMEOUT_MS = KIND_CREATE_TIMEOUT_MS * KIND_CLUSTERS.length + 120_000
     test.describe.configure({ timeout: PROVISIONING_TIMEOUT_MS })
 
-    test('1. create or reuse kind clusters', async () => {
-      // Create clusters via kind CLI, or reuse existing ones.
-      // kind create can fail on some Docker versions (cgroupv2 issues with
-      // kind 0.31+). If creation fails, test reuses whatever exists.
-      let createdAny = false
+    test('1. create kind clusters', async () => {
+      // Create clusters via kind CLI directly — the kc-agent async API
+      // sometimes fails silently in goroutines. kind CLI is synchronous
+      // and reliable. The kc-agent auto-discovers them via `kind get clusters`.
       for (const name of KIND_CLUSTERS) {
         if (kindClusterExists(name)) {
-          console.log(`Reusing existing kind cluster: ${name}`)
           exportKindKubeconfig(name)
           continue
         }
 
-        console.log(`Creating kind cluster: ${name}`)
         try {
-          const { stdout, stderr } = await execAsync(
-            `kind create cluster --name ${name} --wait 120s 2>&1`,
-            { timeout: KIND_CREATE_TIMEOUT_MS }
-          )
-          console.log(stdout || stderr)
-          createdAny = true
+          execSync(`kind create cluster --name ${name} --wait 60s 2>&1`, {
+            timeout: KIND_CREATE_TIMEOUT_MS,
+          })
         } catch (err) {
-          console.log(`Warning: kind create ${name} failed — will skip tests that need it. Error: ${err}`)
+          // If creation fails, log and continue — some clusters may already exist
+          console.log(`Warning: kind create ${name} failed: ${err}`)
         }
       }
 
-      // At least one cluster must exist (either created or pre-existing)
-      const available = KIND_CLUSTERS.filter(name => kindClusterExists(name))
-      console.log(`Available kind clusters: ${available.join(', ') || 'none'}`)
-      expect(available.length).toBeGreaterThanOrEqual(1)
-
-      // Export kubeconfig for all available clusters
-      for (const name of available) {
+      // Verify all clusters exist and are reachable
+      for (const name of KIND_CLUSTERS) {
+        expect(kindClusterExists(name)).toBe(true)
         exportKindKubeconfig(name)
         expect(clusterReachable(kindContext(name))).toBe(true)
+      }
+
+      // Verify kc-agent can see the clusters
+      const agentResp = await fetch(`${AGENT_BASE_URL}/local-clusters`)
+      const agentData = await agentResp.json() as { clusters: Array<{ name: string }> }
+      const agentClusterNames = (agentData.clusters || []).map((c: { name: string }) => c.name)
+      for (const name of KIND_CLUSTERS) {
+        expect(agentClusterNames).toContain(name)
       }
     })
   })
@@ -361,7 +366,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
       })
 
       // Click Deploy to Clusters
-      // Click Deploy via JS — MC dialog z-200 overlay intercepts Playwright clicks
+      // Click Deploy via JS — MC dialog overlay intercepts Playwright clicks
       await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'))
         const btn = buttons.find(b => b.textContent?.includes('Deploy to Clusters'))
@@ -379,16 +384,19 @@ test.describe('Mission Control Kind Cluster E2E', () => {
       const ctx = kindContext('mc-e2e-obs')
       test.skip(!clusterReachable(ctx), 'mc-e2e-obs cluster not available')
 
-      // Wait for cert-manager pods — deploy is async via AI agent
+      // Wait for cert-manager pods — the AI agent deploys asynchronously so
+      // pods may take several minutes to appear after the Playwright deploy test
       const certManager = waitForPodsReady(ctx, 'cert-manager', 1)
       console.log(`cert-manager: ${certManager.runningCount}/${certManager.podCount} running`)
 
+      // Check monitoring namespace (may not exist if deploy is still in progress)
       const monitoring = getPodsInNamespace(ctx, 'monitoring')
       console.log(`monitoring: ${monitoring.runningCount}/${monitoring.podCount} running`)
 
-      // At least one namespace should have pods (cert-manager deploys first)
-      const total = certManager.runningCount + monitoring.runningCount
-      expect(total).toBeGreaterThanOrEqual(0) // Soft — log for review
+      // At least ONE of the deployed namespaces should have pods
+      // (cert-manager is deployed first so most likely to be ready)
+      const totalRunning = certManager.runningCount + monitoring.runningCount
+      expect(totalRunning).toBeGreaterThanOrEqual(0) // Soft check — log for review
     })
   })
 
@@ -418,7 +426,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
         ],
       })
 
-      // Click Deploy via JS — MC dialog z-200 overlay intercepts Playwright clicks
+      // Click Deploy via JS — MC dialog overlay intercepts Playwright clicks
       await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'))
         const btn = buttons.find(b => b.textContent?.includes('Deploy to Clusters'))
@@ -429,27 +437,31 @@ test.describe('Mission Control Kind Cluster E2E', () => {
       await page.screenshot({ path: 'test-results/kind-e2e-sec-deploy.png', fullPage: true })
     })
 
-    test('5. verify admission webhooks exist on kind-mc-e2e-sec', async () => {
+    test('5. verify security components on kind-mc-e2e-sec', async () => {
       const ctx = kindContext('mc-e2e-sec')
       test.skip(!clusterReachable(ctx), 'mc-e2e-sec cluster not available')
 
-      // Check for gatekeeper pods
-      const gatekeeper = getPodsInNamespace(ctx, 'gatekeeper-system')
+      // Wait for gatekeeper pods — deploy is async via AI agent
+      const gatekeeper = waitForPodsReady(ctx, 'gatekeeper-system', 1)
       console.log(`gatekeeper-system: ${gatekeeper.runningCount}/${gatekeeper.podCount} running`)
+
+      // Check kyverno namespace too
+      const kyverno = getPodsInNamespace(ctx, 'kyverno')
+      console.log(`kyverno: ${kyverno.runningCount}/${kyverno.podCount} running`)
 
       // Check for validating webhook configurations
       const webhooks = getWebhookConfigurations(ctx)
       console.log(`Validating webhooks: ${webhooks.join(', ') || 'none'}`)
 
-      // Log results — deploy is async so components may not be ready yet
-      const total = gatekeeper.podCount + webhooks.length
-      console.log(`Total security artifacts: ${total}`)
-      expect(total).toBeGreaterThanOrEqual(0) // Soft — log for review
+      // Log results — soft check since async deploy may still be in progress
+      const totalFound = gatekeeper.podCount + kyverno.podCount + webhooks.length
+      console.log(`Total security artifacts found: ${totalFound}`)
+      expect(totalFound).toBeGreaterThanOrEqual(0) // Soft check — log for review
     })
   })
 
   // ========================================================================
-  // GROUP 3: GitOps Pipeline
+  // GROUP 3: GitOps Pipeline (deploys to obs cluster to avoid 3rd cluster)
   // ========================================================================
 
   test.describe('GitOps Pipeline', () => {
@@ -460,14 +472,14 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
       await seedAndOpenMC(page, {
         phase: 'blueprint',
-        description: 'Deploy GitOps pipeline with ArgoCD',
+        description: 'Deploy ArgoCD GitOps pipeline',
         title: 'E2E: GitOps Pipeline',
         projects: GITOPS_PROJECTS,
         assignments: [{
           clusterName: 'mc-e2e-obs', clusterContext: ctx, provider: 'kind',
           projectNames: ['cert-manager', 'argocd'],
-          warnings: [],
-          readiness: { cpuHeadroomPercent: 75, memHeadroomPercent: 70, storageHeadroomPercent: 85, overallScore: 77 },
+          warnings: ['cert-manager may already be installed from obs deploy'],
+          readiness: { cpuHeadroomPercent: 60, memHeadroomPercent: 55, storageHeadroomPercent: 80, overallScore: 65 },
         }],
         phases: [
           { phase: 1, name: 'TLS', projectNames: ['cert-manager'], estimatedSeconds: 60 },
@@ -475,7 +487,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
         ],
       })
 
-      // Click Deploy via JS — MC dialog z-200 overlay intercepts Playwright clicks
+      // Click Deploy via JS — MC dialog overlay intercepts Playwright clicks
       await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'))
         const btn = buttons.find(b => b.textContent?.includes('Deploy to Clusters'))
@@ -533,7 +545,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
         deployMode: 'phased',
       })
 
-      // Click Deploy via JS — MC dialog z-200 overlay intercepts Playwright clicks
+      // Click Deploy via JS — MC dialog overlay intercepts Playwright clicks
       await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'))
         const btn = buttons.find(b => b.textContent?.includes('Deploy to Clusters'))
@@ -574,9 +586,9 @@ test.describe('Mission Control Kind Cluster E2E', () => {
     test('8. delete all kind clusters', async () => {
       for (const name of KIND_CLUSTERS) {
         if (!kindClusterExists(name)) continue
-        console.log(`Deleting kind cluster: ${name}`)
+
         try {
-          await execAsync(`kind delete cluster --name ${name}`, { timeout: KIND_DELETE_TIMEOUT_MS })
+          execSync(`kind delete cluster --name ${name} 2>&1`, { timeout: KIND_DELETE_TIMEOUT_MS })
         } catch (err) {
           console.log(`Warning: kind delete ${name} failed: ${err}`)
         }
