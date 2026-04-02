@@ -46,7 +46,7 @@ jobs:
         working-directory: web
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-        run: npx vitest run --coverage --shard=${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
+        run: npx vitest run --coverage --coverage.reportOnFailure --shard=${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
 
       - name: Upload shard coverage
         if: always()

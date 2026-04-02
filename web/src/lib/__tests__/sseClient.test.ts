@@ -586,3 +586,4 @@ describe('sseClient', () => {
     })
   })
 })
+})

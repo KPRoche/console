@@ -2101,3 +2101,4 @@ describe('AlertsContext utility functions', () => {
     expect(result.current.activeAlerts.length).toBe(1)
   })
 })
+})

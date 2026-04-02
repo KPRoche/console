@@ -129,3 +129,4 @@ describe('generateWidgetShell', () => {
     expect(result).toContain('openConsole')
   })
 })
+})
