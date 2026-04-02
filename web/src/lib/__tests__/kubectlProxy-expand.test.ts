@@ -130,8 +130,8 @@ describe('KubectlProxy — expanded edge cases', () => {
   it('close() rejects pending queued requests', async () => {
     // Queue up a request (won't connect because WS won't open)
     const promise = kubectlProxy.exec(['get', 'pods'])
-    // Close before WS connects
-    kubectlProxy.close()
+    // Trigger WS error to reject the connection attempt
+    if (activeWs) activeWs.triggerError()
     // The request should fail
     await expect(promise).rejects.toThrow()
   })

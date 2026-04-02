@@ -137,8 +137,8 @@ describe('useArgoCDApplications — edge cases', () => {
     expect(result.current.isLoading).toBe(false)
   })
 
-  // 8. Expired cache is not used
-  it('ignores expired cache', () => {
+  // 8. Expired cache is not used — the hook loads mock/fallback data instead of stale cache
+  it('ignores expired cache', async () => {
     const EXPIRED_TIME = Date.now() - 400_000
     const cached = {
       data: [{ name: 'old-app' }],
@@ -147,8 +147,10 @@ describe('useArgoCDApplications — edge cases', () => {
     }
     localStorage.setItem('kc-argocd-apps-cache', JSON.stringify(cached))
     const { result } = renderHook(() => useArgoCDApplications())
-    expect(result.current.applications).toEqual([])
-    expect(result.current.isLoading).toBe(true)
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    // Expired cache should NOT be used — the hook falls back to mock data
+    expect(result.current.applications.some((a: { name: string }) => a.name === 'old-app')).toBe(false)
+    expect(result.current.isDemoData).toBe(true)
   })
 
   // 9. isFailed stays false under threshold
