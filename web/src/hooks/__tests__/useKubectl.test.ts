@@ -75,7 +75,9 @@ describe('useKubectl', () => {
     // standard readyState constants (CONNECTING, OPEN, CLOSING, CLOSED).
     // Without these, the source code's `WebSocket.OPEN` evaluates to
     // undefined, breaking readyState checks.
-    const MockCtor = vi.fn(() => mockWs) as unknown as typeof WebSocket
+    // Must use a regular function (not arrow) so it can be invoked with `new`.
+    // Arrow functions throw TypeError when used as constructors.
+    const MockCtor = vi.fn(function () { return mockWs }) as unknown as typeof WebSocket
     Object.defineProperties(MockCtor, {
       CONNECTING: { value: WS_CONNECTING },
       OPEN: { value: WS_OPEN },
