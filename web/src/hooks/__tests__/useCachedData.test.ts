@@ -6423,6 +6423,9 @@ describe('useCachedData', () => {
 
     it('throws when no clusters are available', async () => {
       // Ensure clusterCacheRef is empty and fetchClusters returns []
+      vi.doMock('../mcp/shared', () => ({
+        clusterCacheRef: { clusters: [] },
+      }))
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
         text: vi.fn().mockResolvedValue(JSON.stringify({ clusters: [] })),
@@ -6448,10 +6451,10 @@ describe('useCachedData', () => {
         })
         .mockRejectedValue(new Error('network error'))
       )
-      mockSettledWithConcurrency.mockResolvedValue([
-        { status: 'rejected', reason: new Error('fail') },
-        { status: 'rejected', reason: new Error('fail') },
-      ])
+      // Run tasks so failedCount gets incremented inside fetchFromAllClusters
+      mockSettledWithConcurrency.mockImplementation(async (tasks: Array<() => Promise<unknown>>) => {
+        return Promise.allSettled(tasks.map(t => t()))
+      })
 
       let capturedOpts: Record<string, unknown> = {}
       mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
@@ -6587,27 +6590,34 @@ describe('useCachedData', () => {
 
   // ========================================================================
   // useGPUHealthCronJob — action success and error paths
+  // useGPUHealthCronJob uses useState/useCallback so it requires renderHook
   // ========================================================================
   describe('useGPUHealthCronJob', () => {
     it('returns null status when no cluster', async () => {
       mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { renderHook } = await import('@testing-library/react')
       const { useGPUHealthCronJob } = await loadModule()
-      const result = useGPUHealthCronJob()
-      expect(result.status).toBeNull()
+      const { result, unmount } = renderHook(() => useGPUHealthCronJob())
+      expect(result.current.status).toBeNull()
+      unmount()
     })
 
     it('enabled is false when cluster is undefined', async () => {
       mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { renderHook } = await import('@testing-library/react')
       const { useGPUHealthCronJob } = await loadModule()
-      useGPUHealthCronJob()
+      const { unmount } = renderHook(() => useGPUHealthCronJob())
       expect(mockUseCache.mock.calls[0][0].enabled).toBe(false)
+      unmount()
     })
 
     it('enabled is true when cluster is given', async () => {
       mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { renderHook } = await import('@testing-library/react')
       const { useGPUHealthCronJob } = await loadModule()
-      useGPUHealthCronJob('my-cluster')
+      const { unmount } = renderHook(() => useGPUHealthCronJob('my-cluster'))
       expect(mockUseCache.mock.calls[0][0].enabled).toBe(true)
+      unmount()
     })
   })
 
