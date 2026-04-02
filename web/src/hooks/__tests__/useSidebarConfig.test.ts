@@ -645,7 +645,7 @@ describe('useSidebarConfig — expanded coverage', () => {
   })
 
   // --- initSharedConfig: migrates from old storage key ---
-  it('migrates config from old storage key to current key', () => {
+  it('migrates config from old storage key to current key', async () => {
     const oldConfig = {
       primaryNav: [
         { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', href: '/', type: 'link', order: 0 },
@@ -660,7 +660,8 @@ describe('useSidebarConfig — expanded coverage', () => {
     localStorage.setItem(OLD_STORAGE_KEY, JSON.stringify(oldConfig))
     vi.resetModules()
 
-    const { result } = renderHook(() => useSidebarConfig())
+    const freshMod = await import('../useSidebarConfig')
+    const { result } = renderHook(() => freshMod.useSidebarConfig())
 
     // Old key should be removed after migration
     expect(localStorage.getItem(OLD_STORAGE_KEY)).toBeNull()
@@ -670,11 +671,12 @@ describe('useSidebarConfig — expanded coverage', () => {
   })
 
   // --- initSharedConfig: handles corrupt JSON in localStorage ---
-  it('falls back to default config when localStorage contains invalid JSON', () => {
+  it('falls back to default config when localStorage contains invalid JSON', async () => {
     localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{')
     vi.resetModules()
 
-    const { result } = renderHook(() => useSidebarConfig())
+    const freshMod = await import('../useSidebarConfig')
+    const { result } = renderHook(() => freshMod.useSidebarConfig())
 
     // Should fall back to default config
     expect(result.current.config.collapsed).toBe(false)
@@ -713,12 +715,11 @@ describe('useSidebarConfig — expanded coverage', () => {
     vi.resetModules()
     const freshMod = await import('../useSidebarConfig')
 
-    // Initialize shared config first
-    renderHook(() => freshMod.useSidebarConfig())
-
+    // Fetch enabled dashboards FIRST so enabledDashboardIds is set
+    // before initSharedConfig runs (which applies the filter)
     await freshMod.fetchEnabledDashboards()
 
-    // After fetch, the hook should reflect the promoted dashboard
+    // Now render the hook — initSharedConfig will apply the dashboard filter
     const { result } = renderHook(() => freshMod.useSidebarConfig())
     const computeItem = result.current.config.primaryNav.find(i => i.id === 'compute')
     expect(computeItem).toBeDefined()
@@ -744,6 +745,9 @@ describe('useSidebarConfig — expanded coverage', () => {
   // --- setConfig with function updater uses current shared state ---
   it('setConfig function updater receives current config', () => {
     const { result } = renderHook(() => useSidebarConfig())
+
+    // Establish known initial state
+    act(() => { result.current.setCollapsed(false) })
 
     // Set width first to establish state
     act(() => { result.current.setWidth(350) })
