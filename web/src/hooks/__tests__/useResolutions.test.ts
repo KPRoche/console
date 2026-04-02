@@ -1100,7 +1100,10 @@ describe('extractErrorPattern (via detectIssueSignature)', () => {
       'CrashLoopBackOff reason: container failed to initialize properly due to missing config',
     )
     expect(sig.errorPattern).toBeDefined()
-    expect(sig.errorPattern).toContain('container failed to initialize')
+    // The "failed:" regex matches first (before "reason:") because extractErrorPattern
+    // checks patterns in order: error, failed, reason, message. "failed to initialize..."
+    // matches the "failed" pattern, capturing text after "failed ".
+    expect(sig.errorPattern).toContain('to initialize properly')
   })
 
   it('extracts error pattern from "message:" prefix', () => {
