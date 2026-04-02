@@ -1159,3 +1159,135 @@ describe('useNVIDIAOperators — additional branches', () => {
     expect(url).toContain('cluster=specific-cluster')
   })
 })
+
+// ===========================================================================
+// updateGPUNodeCache — protection logic
+// ===========================================================================
+describe('updateGPUNodeCache — protection logic', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    gpuNodeCache.nodes = []
+    gpuNodeCache.isLoading = false
+    gpuNodeCache.isRefreshing = false
+    gpuNodeCache.error = null
+    gpuNodeCache.consecutiveFailures = 0
+    gpuNodeCache.lastRefresh = null
+    gpuNodeCache.lastUpdated = null
+  })
+
+  it('prevents clearing nodes when cache has data', () => {
+    const existingNodes = [
+      { name: 'n1', cluster: 'c1', gpuType: 'A100', gpuCount: 8, gpuAllocated: 4, acceleratorType: 'GPU' as const },
+    ]
+    gpuNodeCache.nodes = existingNodes
+
+    updateGPUNodeCache({ nodes: [], error: 'fetch failed' })
+
+    // Nodes should be preserved, error should be updated
+    expect(gpuNodeCache.nodes).toEqual(existingNodes)
+    expect(gpuNodeCache.error).toBe('fetch failed')
+  })
+
+  it('allows clearing nodes when cache is empty', () => {
+    updateGPUNodeCache({ nodes: [] })
+    expect(gpuNodeCache.nodes).toEqual([])
+  })
+
+  it('allows updating nodes with new non-empty data', () => {
+    const newNodes = [
+      { name: 'n2', cluster: 'c2', gpuType: 'H100', gpuCount: 4, gpuAllocated: 2, acceleratorType: 'GPU' as const },
+    ]
+    updateGPUNodeCache({ nodes: newNodes })
+    expect(gpuNodeCache.nodes).toEqual(newNodes)
+  })
+
+  it('notifies subscribers on every cache update', () => {
+    const subscriber = vi.fn()
+    gpuNodeSubscribers.add(subscriber)
+
+    updateGPUNodeCache({ isLoading: true })
+    expect(subscriber).toHaveBeenCalledTimes(1)
+
+    updateGPUNodeCache({ error: 'test' })
+    expect(subscriber).toHaveBeenCalledTimes(2)
+
+    gpuNodeSubscribers.delete(subscriber)
+  })
+})
+
+// ===========================================================================
+// useGPUNodes — deduplication edge cases
+// ===========================================================================
+describe('useGPUNodes — deduplication edge cases', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    gpuNodeCache.nodes = []
+    gpuNodeCache.isLoading = false
+    gpuNodeCache.isRefreshing = false
+    gpuNodeCache.error = null
+    gpuNodeCache.consecutiveFailures = 0
+    gpuNodeCache.lastRefresh = null
+    gpuNodeCache.lastUpdated = null
+    mockIsDemoMode.mockReturnValue(false)
+    mockUseDemoMode.mockReturnValue({ isDemoMode: false })
+    mockFetchSSE.mockResolvedValue([])
+  })
+
+  it('deduplicates nodes by name keeping short cluster name', () => {
+    const nodes = [
+      { name: 'gpu-1', cluster: 'default/api-long-context/admin', gpuType: 'A100', gpuCount: 8, gpuAllocated: 4, acceleratorType: 'GPU' as const },
+      { name: 'gpu-1', cluster: 'my-cluster', gpuType: 'A100', gpuCount: 8, gpuAllocated: 4, acceleratorType: 'GPU' as const },
+    ]
+    gpuNodeCache.nodes = nodes
+    gpuNodeCache.lastUpdated = new Date()
+
+    const { result } = renderHook(() => useGPUNodes())
+
+    // Should deduplicate to 1 node with the short cluster name
+    expect(result.current.nodes).toHaveLength(1)
+    expect(result.current.nodes[0].cluster).toBe('my-cluster')
+  })
+
+  it('clamps gpuAllocated to not exceed gpuCount', () => {
+    const nodes = [
+      { name: 'gpu-over', cluster: 'c1', gpuType: 'A100', gpuCount: 4, gpuAllocated: 10, acceleratorType: 'GPU' as const },
+    ]
+    gpuNodeCache.nodes = nodes
+    gpuNodeCache.lastUpdated = new Date()
+
+    const { result } = renderHook(() => useGPUNodes())
+
+    expect(result.current.nodes[0].gpuAllocated).toBe(4) // clamped to gpuCount
+  })
+
+  it('handles undefined gpuCount/gpuAllocated gracefully', () => {
+    const nodes = [
+      { name: 'gpu-undef', cluster: 'c1', gpuType: 'A100', gpuCount: undefined as unknown as number, gpuAllocated: undefined as unknown as number, acceleratorType: 'GPU' as const },
+    ]
+    gpuNodeCache.nodes = nodes
+    gpuNodeCache.lastUpdated = new Date()
+
+    const { result } = renderHook(() => useGPUNodes())
+
+    expect(result.current.nodes[0].gpuCount).toBe(0)
+    expect(result.current.nodes[0].gpuAllocated).toBe(0)
+  })
+
+  it('isFailed is true after 3+ consecutive failures', () => {
+    gpuNodeCache.consecutiveFailures = 3
+    gpuNodeCache.lastUpdated = new Date()
+
+    const { result } = renderHook(() => useGPUNodes())
+
+    expect(result.current.isFailed).toBe(true)
+  })
+
+  it('isFailed is false with fewer than 3 failures', () => {
+    gpuNodeCache.consecutiveFailures = 2
+    gpuNodeCache.lastUpdated = new Date()
+
+    const { result } = renderHook(() => useGPUNodes())
+
+    expect(result.current.isFailed).toBe(false)
+  })
+})

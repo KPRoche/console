@@ -3247,6 +3247,228 @@ describe('deduplicateClustersByServer — additional auto-generated name pattern
     expect(result[0].name).toBe('short-name')
   })
 })
+
+// ---------------------------------------------------------------------------
+// updateSingleClusterInCache — metric preservation and reachable guard
+// ---------------------------------------------------------------------------
+describe('updateSingleClusterInCache', () => {
+  beforeEach(() => {
+    clusterSubscribers.clear()
+    // Reset cluster cache to a known state
+    updateClusterCache({
+      clusters: [
+        makeCluster({ name: 'test-cluster', cpuCores: 8, nodeCount: 3, memoryGB: 32, reachable: true }),
+      ],
+      isLoading: false,
+    })
+  })
+
+  it('updates cluster fields in the cache', () => {
+    updateSingleClusterInCache('test-cluster', { podCount: 42 })
+    const updated = clusterCache.clusters.find(c => c.name === 'test-cluster')
+    expect(updated?.podCount).toBe(42)
+  })
+
+  it('preserves positive metric values when new value is 0', () => {
+    updateSingleClusterInCache('test-cluster', { cpuCores: 0 })
+    const updated = clusterCache.clusters.find(c => c.name === 'test-cluster')
+    // Should keep existing positive value (8), not overwrite with 0
+    expect(updated?.cpuCores).toBe(8)
+  })
+
+  it('does not overwrite with undefined', () => {
+    updateSingleClusterInCache('test-cluster', { cpuCores: undefined })
+    const updated = clusterCache.clusters.find(c => c.name === 'test-cluster')
+    expect(updated?.cpuCores).toBe(8)
+  })
+
+  it('does not set reachable=false if cluster has valid nodeCount', () => {
+    updateSingleClusterInCache('test-cluster', { reachable: false })
+    const updated = clusterCache.clusters.find(c => c.name === 'test-cluster')
+    // Should keep reachable=true because nodeCount > 0
+    expect(updated?.reachable).toBe(true)
+  })
+
+  it('allows reachable=false when cluster has no cached nodeCount', () => {
+    // First set up a cluster with nodeCount 0
+    updateClusterCache({
+      clusters: [makeCluster({ name: 'empty-cluster', nodeCount: 0, reachable: true })],
+      isLoading: false,
+    })
+    updateSingleClusterInCache('empty-cluster', { reachable: false })
+    const updated = clusterCache.clusters.find(c => c.name === 'empty-cluster')
+    expect(updated?.reachable).toBe(false)
+  })
+
+  it('does not modify unrelated clusters', () => {
+    updateClusterCache({
+      clusters: [
+        makeCluster({ name: 'c1', podCount: 10 }),
+        makeCluster({ name: 'c2', podCount: 20 }),
+      ],
+      isLoading: false,
+    })
+    updateSingleClusterInCache('c1', { podCount: 99 })
+    const c2 = clusterCache.clusters.find(c => c.name === 'c2')
+    expect(c2?.podCount).toBe(20)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// updateClusterCache — triggers refetches on first cluster arrival
+// ---------------------------------------------------------------------------
+describe('updateClusterCache', () => {
+  beforeEach(() => {
+    clusterSubscribers.clear()
+  })
+
+  it('notifies all subscribers on update', () => {
+    const sub = vi.fn()
+    clusterSubscribers.add(sub)
+    updateClusterCache({ isRefreshing: true })
+    expect(sub).toHaveBeenCalled()
+  })
+
+  it('triggers refetches when clusters become available for the first time', () => {
+    // Start with empty clusters
+    updateClusterCache({ clusters: [], isLoading: true })
+    mockResetAllCacheFailures.mockClear()
+    mockTriggerAllRefetches.mockClear()
+
+    // Now add clusters
+    updateClusterCache({
+      clusters: [makeCluster({ name: 'new-cluster' })],
+      isLoading: false,
+    })
+    expect(mockResetAllCacheFailures).toHaveBeenCalled()
+    expect(mockTriggerAllRefetches).toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// connectSharedWebSocket — guard conditions
+// ---------------------------------------------------------------------------
+describe('connectSharedWebSocket', () => {
+  beforeEach(() => {
+    cleanupSharedWebSocket()
+    mockIsDemoToken.mockReturnValue(false)
+    mockIsBackendUnavailable.mockReturnValue(false)
+  })
+
+  it('does not connect in demo token mode', () => {
+    mockIsDemoToken.mockReturnValue(true)
+    connectSharedWebSocket()
+    expect(sharedWebSocket.ws).toBeNull()
+    expect(sharedWebSocket.connecting).toBe(false)
+  })
+
+  it('does not connect when backend is unavailable', () => {
+    mockIsBackendUnavailable.mockReturnValue(true)
+    connectSharedWebSocket()
+    expect(sharedWebSocket.ws).toBeNull()
+  })
+
+  it('does not connect if already connecting', () => {
+    sharedWebSocket.connecting = true
+    connectSharedWebSocket()
+    // Should not create a new WebSocket
+    expect(sharedWebSocket.connecting).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cleanupSharedWebSocket — resets all state
+// ---------------------------------------------------------------------------
+describe('cleanupSharedWebSocket', () => {
+  it('resets all shared WebSocket state', () => {
+    sharedWebSocket.connecting = true
+    sharedWebSocket.reconnectAttempts = 5
+    cleanupSharedWebSocket()
+    expect(sharedWebSocket.ws).toBeNull()
+    expect(sharedWebSocket.connecting).toBe(false)
+    expect(sharedWebSocket.reconnectAttempts).toBe(0)
+    expect(sharedWebSocket.reconnectTimeout).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// clusterCacheRef / subscribeClusterCache
+// ---------------------------------------------------------------------------
+describe('clusterCacheRef', () => {
+  it('reflects current clusterCache clusters', () => {
+    updateClusterCache({
+      clusters: [makeCluster({ name: 'ref-test' })],
+      isLoading: false,
+    })
+    // clusterCacheRef should have at least the cluster we just added
+    expect(clusterCacheRef.clusters.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('subscribeClusterCache', () => {
+  it('returns an unsubscribe function that stops notifications', () => {
+    const listener = vi.fn()
+    const unsub = subscribeClusterCache(listener)
+
+    updateClusterCache({ isRefreshing: true })
+    const callsBefore = listener.mock.calls.length
+
+    unsub()
+    updateClusterCache({ isRefreshing: false })
+    expect(listener.mock.calls.length).toBe(callsBefore)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// setInitialFetchStarted / setHealthCheckFailures
+// ---------------------------------------------------------------------------
+describe('setInitialFetchStarted / setHealthCheckFailures', () => {
+  it('setInitialFetchStarted updates the flag', () => {
+    setInitialFetchStarted(true)
+    expect(initialFetchStarted).toBe(true)
+    setInitialFetchStarted(false)
+    expect(initialFetchStarted).toBe(false)
+  })
+
+  it('setHealthCheckFailures updates the counter', () => {
+    setHealthCheckFailures(0)
+    expect(healthCheckFailures).toBe(0)
+    const TEST_FAILURE_COUNT = 3
+    setHealthCheckFailures(TEST_FAILURE_COUNT)
+    expect(healthCheckFailures).toBe(TEST_FAILURE_COUNT)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// fetchWithRetry — retry logic
+// ---------------------------------------------------------------------------
+describe('fetchWithRetry', () => {
+  it('returns data on first success without retrying', async () => {
+    const fetcher = vi.fn().mockResolvedValue('ok')
+    const result = await fetchWithRetry(fetcher)
+    expect(result).toBe('ok')
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries on failure up to maxRetries and throws last error', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error('fail'))
+    await expect(fetchWithRetry(fetcher, { maxRetries: DEFAULT_MAX_RETRIES, initialBackoffMs: 1 }))
+      .rejects.toThrow('fail')
+    // 1 initial + 2 retries = 3 total calls
+    const EXPECTED_TOTAL_CALLS = 3
+    expect(fetcher).toHaveBeenCalledTimes(EXPECTED_TOTAL_CALLS)
+  })
+
+  it('succeeds on retry after initial failure', async () => {
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValue('recovered')
+    const result = await fetchWithRetry(fetcher, { maxRetries: DEFAULT_MAX_RETRIES, initialBackoffMs: 1 })
+    expect(result).toBe('recovered')
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+})
+})
 })
 })
 })
