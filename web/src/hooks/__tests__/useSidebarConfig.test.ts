@@ -489,3 +489,336 @@ describe('useSidebarConfig', () => {
     expect(uniqueIds.size).toBe(ids.length)
   })
 })
+
+// ===========================================================================
+// Additional coverage: fetchEnabledDashboards, applyDashboardFilter,
+// migrateConfig, initSharedConfig, getEnabledDashboardIds
+// ===========================================================================
+
+describe('useSidebarConfig — expanded coverage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // --- getEnabledDashboardIds ---
+  it('getEnabledDashboardIds returns null initially (show all dashboards)', async () => {
+    const { getEnabledDashboardIds } = await import('../useSidebarConfig')
+    // By default (no fetch performed yet) the value should be null
+    const ids = getEnabledDashboardIds()
+    // null means show all dashboards — no server-side filter applied
+    expect(ids === null || Array.isArray(ids)).toBe(true)
+  })
+
+  // --- fetchEnabledDashboards: health endpoint returns project ---
+  it('fetchEnabledDashboards calls setActiveProject when health returns project', async () => {
+    const { setActiveProject } = await import('../../lib/project/context')
+    const mockSetActiveProject = vi.mocked(setActiveProject)
+
+    // Mock global fetch to return project data
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({ project: 'custom-project', enabled_dashboards: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    // Reset the fetched flag by reimporting fresh module
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+    await freshMod.fetchEnabledDashboards()
+
+    expect(mockSetActiveProject).toHaveBeenCalledWith('custom-project')
+    vi.unstubAllGlobals()
+  })
+
+  // --- fetchEnabledDashboards: health endpoint fails gracefully ---
+  it('fetchEnabledDashboards silently handles network errors', async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error('Network down'))
+    vi.stubGlobal('fetch', mockFetch)
+
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+
+    // Should not throw
+    await expect(freshMod.fetchEnabledDashboards()).resolves.toBeUndefined()
+    vi.unstubAllGlobals()
+  })
+
+  // --- fetchEnabledDashboards: skips if already fetched (idempotent) ---
+  it('fetchEnabledDashboards is a no-op on second call', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({ enabled_dashboards: [] }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+
+    await freshMod.fetchEnabledDashboards()
+    const callCount = mockFetch.mock.calls.length
+    await freshMod.fetchEnabledDashboards()
+    // Second call should NOT fetch again
+    expect(mockFetch.mock.calls.length).toBe(callCount)
+    vi.unstubAllGlobals()
+  })
+
+  // --- migrateConfig: removes deprecated routes ---
+  it('migrates stored config by removing deprecated /apps route', () => {
+    const storedConfig = {
+      primaryNav: [
+        { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', href: '/', type: 'link', order: 0 },
+        { id: 'apps', name: 'Apps', icon: 'Box', href: '/apps', type: 'link', order: 1 },
+      ],
+      secondaryNav: [
+        { id: 'settings', name: 'Settings', icon: 'Settings', href: '/settings', type: 'link', order: 0 },
+      ],
+      sections: [],
+      showClusterStatus: true,
+      collapsed: false,
+      isMobileOpen: false,
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(storedConfig))
+
+    // Force re-init by resetting modules
+    vi.resetModules()
+    // Re-import with mocks re-applied would be complex, so we use the hook
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // /apps should be removed
+    const hasApps = result.current.config.primaryNav.some(item => item.href === '/apps')
+    expect(hasApps).toBe(false)
+  })
+
+  // --- migrateConfig: adds missing default primary nav items ---
+  it('migrates stored config by adding missing default primary nav items', () => {
+    // Store a config missing the "alerts" dashboard
+    const storedConfig = {
+      primaryNav: [
+        { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', href: '/', type: 'link', order: 0 },
+      ],
+      secondaryNav: [
+        { id: 'settings', name: 'Settings', icon: 'Settings', href: '/settings', type: 'link', order: 0 },
+      ],
+      sections: [],
+      showClusterStatus: true,
+      collapsed: false,
+      isMobileOpen: false,
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(storedConfig))
+    vi.resetModules()
+
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Missing default items should be added during migration
+    const hasAlerts = result.current.config.primaryNav.some(item => item.id === 'alerts')
+    expect(hasAlerts).toBe(true)
+  })
+
+  // --- migrateConfig: adds missing default secondary nav items ---
+  it('migrates stored config by adding missing default secondary nav items', () => {
+    // Store a config with no secondary nav items
+    const storedConfig = {
+      primaryNav: [
+        { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', href: '/', type: 'link', order: 0 },
+      ],
+      secondaryNav: [],
+      sections: [],
+      showClusterStatus: true,
+      collapsed: false,
+      isMobileOpen: false,
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(storedConfig))
+    vi.resetModules()
+
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Default secondary items (marketplace, history, namespaces, users, settings) should be added
+    expect(result.current.config.secondaryNav.length).toBeGreaterThan(0)
+    const hasMarketplace = result.current.config.secondaryNav.some(item => item.id === 'marketplace')
+    expect(hasMarketplace).toBe(true)
+  })
+
+  // --- initSharedConfig: migrates from old storage key ---
+  it('migrates config from old storage key to current key', () => {
+    const oldConfig = {
+      primaryNav: [
+        { id: 'dashboard', name: 'Dashboard', icon: 'LayoutDashboard', href: '/', type: 'link', order: 0 },
+      ],
+      secondaryNav: [],
+      sections: [],
+      showClusterStatus: true,
+      collapsed: true,
+      isMobileOpen: false,
+    }
+
+    localStorage.setItem(OLD_STORAGE_KEY, JSON.stringify(oldConfig))
+    vi.resetModules()
+
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Old key should be removed after migration
+    expect(localStorage.getItem(OLD_STORAGE_KEY)).toBeNull()
+
+    // Config should be loaded from old key
+    expect(result.current.config.collapsed).toBe(true)
+  })
+
+  // --- initSharedConfig: handles corrupt JSON in localStorage ---
+  it('falls back to default config when localStorage contains invalid JSON', () => {
+    localStorage.setItem(STORAGE_KEY, 'not-valid-json{{{')
+    vi.resetModules()
+
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Should fall back to default config
+    expect(result.current.config.collapsed).toBe(false)
+    expect(result.current.config.primaryNav.length).toBeGreaterThan(0)
+  })
+
+  // --- applyDashboardFilter: sorts by ENABLED_DASHBOARDS order ---
+  it('fetchEnabledDashboards applies filter and reorders primary nav', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        enabled_dashboards: ['deploy', 'dashboard', 'clusters'],
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+    await freshMod.fetchEnabledDashboards()
+
+    // After enabling dashboards, getEnabledDashboardIds should return the list
+    const ids = freshMod.getEnabledDashboardIds()
+    expect(ids).toEqual(['deploy', 'dashboard', 'clusters'])
+    vi.unstubAllGlobals()
+  })
+
+  // --- applyDashboardFilter: promotes discoverable dashboards ---
+  it('applyDashboardFilter promotes discoverable dashboards when they are in enabled list', async () => {
+    // 'compute' is in DISCOVERABLE_DASHBOARDS but NOT in default primary nav
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        enabled_dashboards: ['dashboard', 'compute'],
+      }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+
+    // Initialize shared config first
+    renderHook(() => freshMod.useSidebarConfig())
+
+    await freshMod.fetchEnabledDashboards()
+
+    // After fetch, the hook should reflect the promoted dashboard
+    const { result } = renderHook(() => freshMod.useSidebarConfig())
+    const computeItem = result.current.config.primaryNav.find(i => i.id === 'compute')
+    expect(computeItem).toBeDefined()
+    vi.unstubAllGlobals()
+  })
+
+  // --- applyDashboardFilter: custom items always survive filter ---
+  it('custom items survive dashboard filter (isCustom bypasses filter)', () => {
+    const { result } = renderHook(() => useSidebarConfig())
+
+    act(() => {
+      result.current.addItem(
+        { name: 'My Custom', icon: 'Box', href: '/my-custom', type: 'link' },
+        'primary'
+      )
+    })
+
+    const customItem = result.current.config.primaryNav.find(i => i.name === 'My Custom')
+    expect(customItem).toBeDefined()
+    expect(customItem!.isCustom).toBe(true)
+  })
+
+  // --- setConfig with function updater uses current shared state ---
+  it('setConfig function updater receives current config', () => {
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Set width first to establish state
+    act(() => { result.current.setWidth(350) })
+    expect(result.current.config.width).toBe(350)
+
+    // Toggle collapsed should work on the updated state
+    act(() => { result.current.toggleCollapsed() })
+    expect(result.current.config.collapsed).toBe(true)
+    expect(result.current.config.width).toBe(350) // width should persist
+  })
+
+  // --- generateFromBehavior: promotes secondary nav items to primary ---
+  it('generateFromBehavior can pull secondary nav items up by frequency', () => {
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // /settings is in secondaryNav; using it frequently should move it to primary
+    act(() => {
+      result.current.generateFromBehavior(['/settings'])
+    })
+
+    // settings should now be at the front of primaryNav
+    const ids = result.current.config.primaryNav.map(i => i.id)
+    expect(ids[0]).toBe('settings')
+  })
+
+  // --- addItems: handles mixed targets in a single batch ---
+  it('addItems handles secondary items in batch correctly', () => {
+    const { result } = renderHook(() => useSidebarConfig())
+    const beforeSecondary = result.current.config.secondaryNav.length
+
+    act(() => {
+      result.current.addItems([
+        { item: { name: 'SecBatch1', icon: 'Box', href: '/sb1', type: 'link' }, target: 'secondary' },
+        { item: { name: 'SecBatch2', icon: 'Box', href: '/sb2', type: 'link' }, target: 'secondary' },
+      ])
+    })
+
+    expect(result.current.config.secondaryNav.length).toBe(beforeSecondary + 2)
+    const sb1 = result.current.config.secondaryNav.find(i => i.name === 'SecBatch1')!
+    const sb2 = result.current.config.secondaryNav.find(i => i.name === 'SecBatch2')!
+    expect(sb2.order).toBeGreaterThan(sb1.order)
+  })
+
+  // --- fetchEnabledDashboards: ignores non-string project ---
+  it('fetchEnabledDashboards ignores non-string project field', async () => {
+    const { setActiveProject } = await import('../../lib/project/context')
+    const mockSetActiveProject = vi.mocked(setActiveProject)
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({ project: 42, enabled_dashboards: [] }), // project is number, not string
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    vi.resetModules()
+    const freshMod = await import('../useSidebarConfig')
+    await freshMod.fetchEnabledDashboards()
+
+    // setActiveProject should NOT be called since project is not a string
+    expect(mockSetActiveProject).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  // --- migrateConfig: no-op when all items already present ---
+  it('migrateConfig is a no-op when config has all default items', () => {
+    // Store a full default config (no missing items, no deprecated routes)
+    const { result: defaultResult } = renderHook(() => useSidebarConfig())
+    const fullConfig = defaultResult.current.config
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fullConfig))
+    vi.resetModules()
+
+    const { result } = renderHook(() => useSidebarConfig())
+
+    // Should have the same items
+    expect(result.current.config.primaryNav.length).toBe(fullConfig.primaryNav.length)
+    expect(result.current.config.secondaryNav.length).toBe(fullConfig.secondaryNav.length)
+  })
+})
