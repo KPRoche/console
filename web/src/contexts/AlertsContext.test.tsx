@@ -1885,6 +1885,3 @@ describe('deep coverage: acknowledgedAlerts dedup', () => {
     expect(result.current.acknowledgedAlerts[0].id).toBe('ackd-2')
   })
 })
-})
-})
-})

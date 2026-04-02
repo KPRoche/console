@@ -3817,9 +3817,565 @@ describe('KubectlProxy — additional coverage', () => {
       proxy.close()
     })
   })
-})
-})
-})
-})
-})
+
+  // =========================================================================
+  // getClusterHealth — healthy threshold edge cases
+  // =========================================================================
+
+  describe('getClusterHealth — healthy threshold', () => {
+    it('marks cluster unhealthy when no nodes exist', async () => {
+      const proxy = await createProxy()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const healthPromise = proxy.getClusterHealth('empty')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const allMsgs = sentMessages.map(s => JSON.parse(s))
+      const nodesMsg = allMsgs.find(m => m.payload.args.includes('nodes'))!
+      const podsMsg = allMsgs.find(m => m.payload.args.includes('pods'))!
+
+      activeWs!.simulateMessage({
+        id: nodesMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+      activeWs!.simulateMessage({
+        id: podsMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      const laterMsgs = sentMessages.map(s => JSON.parse(s))
+      const topMsg = laterMsgs.find(m => m.payload.args.includes('top'))
+      if (topMsg) {
+        activeWs!.simulateMessage({
+          id: topMsg.id, type: 'result',
+          payload: { output: '', exitCode: 1 },
+        })
+      }
+      await vi.advanceTimersByTimeAsync(0)
+
+      const health = await healthPromise
+      expect(health.healthy).toBe(false)
+      expect(health.nodeCount).toBe(0)
+
+      proxy.close()
+    })
+
+    it('marks cluster unhealthy when less than 50% nodes are ready', async () => {
+      const proxy = await createProxy()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const healthPromise = proxy.getClusterHealth('degraded')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const allMsgs = sentMessages.map(s => JSON.parse(s))
+      const nodesMsg = allMsgs.find(m => m.payload.args.includes('nodes'))!
+      const podsMsg = allMsgs.find(m => m.payload.args.includes('pods'))!
+
+      const nodeItems = [
+        { metadata: { name: 'n1', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'True' }], allocatable: { cpu: '4' } } },
+        { metadata: { name: 'n2', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'False' }], allocatable: { cpu: '4' } } },
+        { metadata: { name: 'n3', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'False' }], allocatable: { cpu: '4' } } },
+        { metadata: { name: 'n4', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'False' }], allocatable: { cpu: '4' } } },
+      ]
+      activeWs!.simulateMessage({
+        id: nodesMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: nodeItems }), exitCode: 0 },
+      })
+      activeWs!.simulateMessage({
+        id: podsMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      const laterMsgs = sentMessages.map(s => JSON.parse(s))
+      const topMsg = laterMsgs.find(m => m.payload.args.includes('top'))
+      if (topMsg) {
+        activeWs!.simulateMessage({
+          id: topMsg.id, type: 'result',
+          payload: { output: '', exitCode: 1 },
+        })
+      }
+      await vi.advanceTimersByTimeAsync(0)
+
+      const health = await healthPromise
+      expect(health.healthy).toBe(false)
+      expect(health.nodeCount).toBe(4)
+      expect(health.readyNodes).toBe(1)
+
+      proxy.close()
+    })
+
+    it('marks cluster healthy with exactly 50% ready nodes', async () => {
+      const proxy = await createProxy()
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const healthPromise = proxy.getClusterHealth('half')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const allMsgs = sentMessages.map(s => JSON.parse(s))
+      const nodesMsg = allMsgs.find(m => m.payload.args.includes('nodes'))!
+      const podsMsg = allMsgs.find(m => m.payload.args.includes('pods'))!
+
+      const nodeItems = [
+        { metadata: { name: 'n1', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'True' }], allocatable: { cpu: '4' } } },
+        { metadata: { name: 'n2', labels: {} }, status: { conditions: [{ type: 'Ready', status: 'False' }], allocatable: { cpu: '4' } } },
+      ]
+      activeWs!.simulateMessage({
+        id: nodesMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: nodeItems }), exitCode: 0 },
+      })
+      activeWs!.simulateMessage({
+        id: podsMsg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      const laterMsgs = sentMessages.map(s => JSON.parse(s))
+      const topMsg = laterMsgs.find(m => m.payload.args.includes('top'))
+      if (topMsg) {
+        activeWs!.simulateMessage({
+          id: topMsg.id, type: 'result',
+          payload: { output: '', exitCode: 1 },
+        })
+      }
+      await vi.advanceTimersByTimeAsync(0)
+
+      const health = await healthPromise
+      expect(health.healthy).toBe(true) // ceil(2*0.5)=1, ready=1 >= 1
+
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getDeployments — edge cases for image and metadata
+  // =========================================================================
+
+  describe('getDeployments — container image and metadata edge cases', () => {
+    it('handles deployment with no template (image undefined)', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getDeployments('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'no-tpl', namespace: 'default' },
+              spec: { replicas: 1 },
+              status: { readyReplicas: 1, updatedReplicas: 1, availableReplicas: 1 },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const deps = await promise
+      expect(deps[0].image).toBeUndefined()
+      proxy.close()
+    })
+
+    it('preserves labels and annotations', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getDeployments('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: {
+                name: 'dep',
+                namespace: 'default',
+                labels: { app: 'web' },
+                annotations: { revision: '3' },
+              },
+              spec: {
+                replicas: 1,
+                template: { spec: { containers: [{ image: 'img:v1' }] } },
+              },
+              status: { readyReplicas: 1, updatedReplicas: 1, availableReplicas: 1 },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const deps = await promise
+      expect(deps[0].labels).toEqual({ app: 'web' })
+      expect(deps[0].annotations).toEqual({ revision: '3' })
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getEvents — limit and namespace edge cases
+  // =========================================================================
+
+  describe('getEvents — limit parameter', () => {
+    it('limits events to the specified count', async () => {
+      const proxy = await createProxy()
+      const LIMIT = 2
+      const eventsPromise = proxy.getEvents('ctx', undefined, LIMIT)
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      const items = Array.from({ length: 5 }, (_, i) => ({
+        type: 'Warning',
+        reason: `Reason${i}`,
+        message: `Msg ${i}`,
+        involvedObject: { kind: 'Pod', name: `p-${i}` },
+        metadata: { namespace: 'default' },
+        count: i + 1,
+      }))
+
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items }), exitCode: 0 },
+      })
+
+      const events = await eventsPromise
+      expect(events).toHaveLength(LIMIT)
+      proxy.close()
+    })
+
+    it('uses -n with namespace for events', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getEvents('ctx', 'prod')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      expect(msg.payload.args).toContain('-n')
+      expect(msg.payload.args).toContain('prod')
+
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+      await promise
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getClusterUsage — edge cases
+  // =========================================================================
+
+  describe('getClusterUsage — parsing edge cases', () => {
+    it('handles empty output (no nodes in top output)', async () => {
+      const proxy = await createProxy()
+      const usagePromise = proxy.getClusterUsage('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: '', exitCode: 0 },
+      })
+
+      const usage = await usagePromise
+      expect(usage.metricsAvailable).toBe(true)
+      expect(usage.cpuUsageMillicores).toBe(0)
+      expect(usage.memoryUsageBytes).toBe(0)
+      proxy.close()
+    })
+
+    it('skips lines with fewer than 4 parts', async () => {
+      const proxy = await createProxy()
+      const usagePromise = proxy.getClusterUsage('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: 'node-1   500m\nnode-2   2000m   50%   4096Mi   50%',
+          exitCode: 0,
+        },
+      })
+
+      const usage = await usagePromise
+      expect(usage.cpuUsageMillicores).toBe(2000)
+      expect(usage.memoryUsageBytes).toBe(4096 * 1024 * 1024)
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getPodIssues — complex multi-container and threshold edge cases
+  // =========================================================================
+
+  describe('getPodIssues — threshold and multi-container edge cases', () => {
+    it('does not flag ContainerCreating (non-problematic waiting reason)', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getPodIssues('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'creating', namespace: 'ns' },
+              status: {
+                phase: 'Pending',
+                containerStatuses: [{
+                  restartCount: 0,
+                  state: { waiting: { reason: 'ContainerCreating' } },
+                }],
+              },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const issues = await promise
+      expect(issues).toEqual([])
+      proxy.close()
+    })
+
+    it('detects both OOMKilled and CrashLoopBackOff on same container', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getPodIssues('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'dual-issue', namespace: 'ns' },
+              status: {
+                phase: 'Running',
+                containerStatuses: [{
+                  restartCount: 25,
+                  state: { waiting: { reason: 'CrashLoopBackOff' } },
+                  lastState: { terminated: { reason: 'OOMKilled' } },
+                }],
+              },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const issues = await promise
+      expect(issues).toHaveLength(1)
+      expect(issues[0].issues).toContain('CrashLoopBackOff')
+      expect(issues[0].issues).toContain('OOMKilled')
+      proxy.close()
+    })
+
+    it('aggregates restarts from multiple containers', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getPodIssues('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'multi-c', namespace: 'ns' },
+              status: {
+                phase: 'Running',
+                containerStatuses: [
+                  { restartCount: 3, state: { running: {} } },
+                  { restartCount: 4, state: { running: {} } },
+                ],
+              },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const issues = await promise
+      // 3+4=7 > 5 (threshold), so it's flagged
+      expect(issues).toHaveLength(1)
+      expect(issues[0].restarts).toBe(7)
+      proxy.close()
+    })
+
+    it('does not flag pod with restarts at exactly the threshold', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getPodIssues('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'exact-thresh', namespace: 'ns' },
+              status: {
+                phase: 'Running',
+                containerStatuses: [{ restartCount: 5, state: { running: {} } }],
+              },
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const issues = await promise
+      expect(issues).toEqual([]) // 5 is NOT > 5
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getServices — clusterIP missing vs empty
+  // =========================================================================
+
+  describe('getServices — clusterIP edge cases', () => {
+    it('defaults clusterIP to empty when spec.clusterIP is undefined', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getServices('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: {
+          output: JSON.stringify({
+            items: [{
+              metadata: { name: 'ext', namespace: 'ns' },
+              spec: { type: 'ExternalName' }, // no clusterIP
+            }],
+          }),
+          exitCode: 0,
+        },
+      })
+
+      const svcs = await promise
+      expect(svcs[0].clusterIP).toBe('')
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getNamespaces — whitespace and sorting
+  // =========================================================================
+
+  describe('getNamespaces — whitespace handling', () => {
+    it('returns empty array for empty output', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getNamespaces('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: '', exitCode: 0 },
+      })
+
+      const ns = await promise
+      expect(ns).toEqual([])
+      proxy.close()
+    })
+
+    it('handles newlines and multiple spaces between namespaces', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getNamespaces('ctx')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: 'zeta  alpha\n  beta', exitCode: 0 },
+      })
+
+      const ns = await promise
+      expect(ns).toEqual(['alpha', 'beta', 'zeta'])
+      proxy.close()
+    })
+  })
+
+  // =========================================================================
+  // getPVCs — namespace flag edge case
+  // =========================================================================
+
+  describe('getPVCs — namespace arg correctness', () => {
+    it('uses -n when namespace is specified', async () => {
+      const proxy = await createProxy()
+      const promise = proxy.getPVCs('ctx', 'storage-ns')
+      await vi.advanceTimersByTimeAsync(0)
+      activeWs!.simulateOpen()
+      await vi.advanceTimersByTimeAsync(0)
+
+      const msg = JSON.parse(sentMessages[0])
+      expect(msg.payload.args).toContain('-n')
+      expect(msg.payload.args).toContain('storage-ns')
+
+      activeWs!.simulateMessage({
+        id: msg.id,
+        type: 'result',
+        payload: { output: JSON.stringify({ items: [] }), exitCode: 0 },
+      })
+      await promise
+      proxy.close()
+    })
+  })
 })

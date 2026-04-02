@@ -1219,5 +1219,286 @@ describe('useSearchIndex', () => {
     const cards = flat.filter(i => i.category === 'card' && i.scrollTarget === 'app_status')
     expect(cards.length).toBeGreaterThan(0)
   })
-})
+
+  // ── 69. buildDashboardStorage deduplicates legacy vs config keys ──────
+
+  it('does not duplicate entries when legacy key overlaps with config key', () => {
+    // The hook builds DASHBOARD_STORAGE from DASHBOARD_CONFIGS + LEGACY keys.
+    // Since we mock DASHBOARD_CONFIGS as {}, all entries come from legacy.
+    // Just verify cards from legacy dashboards are searchable.
+    localStorage.setItem('kubestellar-pods-cards', JSON.stringify([
+      { card_type: 'pod_overview', title: 'Pod Overview' },
+    ]))
+    const { result } = renderHook(() => useSearchIndex('Pod Overview'))
+    const flat = flattenResults(result.current.results)
+    const cards = flat.filter(i => i.category === 'card' && i.scrollTarget === 'pod_overview')
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards[0].href).toBe('/pods')
+  })
+
+  // ── 70. Stat items with custom visible stats from localStorage ────────
+
+  it('indexes custom stats stored in localStorage for a specific dashboard', () => {
+    localStorage.setItem('clusters-stats-config', JSON.stringify([
+      { id: 'my-stat', name: 'My Custom Stat', icon: 'Activity', visible: true, color: 'blue' },
+      { id: 'hidden', name: 'Hidden One', icon: 'EyeOff', visible: false, color: 'gray' },
+    ]))
+    const { result } = renderHook(() => useSearchIndex('My Custom Stat'))
+    const flat = flattenResults(result.current.results)
+    const stats = flat.filter(i => i.category === 'stat')
+    expect(stats.some(i => i.name === 'My Custom Stat')).toBe(true)
+    // The hidden stat should not appear
+    const hidden = flat.filter(i => i.name === 'Hidden One')
+    expect(hidden.length).toBe(0)
+  })
+
+  // ── 71. matchesQuery exercises all four match branches ────────────────
+
+  it('matches via description field', () => {
+    // 'Container' is in the Logs page description
+    const { result } = renderHook(() => useSearchIndex('Container'))
+    const flat = flattenResults(result.current.results)
+    const pages = flat.filter(i => i.category === 'page')
+    expect(pages.some(i => i.name === 'Logs' || i.name === 'Pods')).toBe(true)
+  })
+
+  // ── 72. Deployment without image keyword still matches by name ────────
+
+  it('matches deployments without image field by name', () => {
+    mockDeployments.mockReturnValue({
+      deployments: [
+        { name: 'my-unique-deploy', cluster: 'c', namespace: 'ns', status: 'Running' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('my-unique-deploy'))
+    const flat = flattenResults(result.current.results)
+    expect(flat.some(i => i.category === 'deployment' && i.name === 'my-unique-deploy')).toBe(true)
+  })
+
+  // ── 73. Pod meta includes cluster, namespace, and status ──────────────
+
+  it('pod meta contains cluster, namespace, and status', () => {
+    mockPods.mockReturnValue({
+      pods: [
+        { name: 'meta-test-pod', cluster: 'c1', namespace: 'ns1', status: 'Running' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('meta-test-pod'))
+    const flat = flattenResults(result.current.results)
+    const pod = flat.find(i => i.category === 'pod')
+    expect(pod).toBeDefined()
+    expect(pod!.meta).toContain('c1')
+    expect(pod!.meta).toContain('ns1')
+    expect(pod!.meta).toContain('Running')
+  })
+
+  // ── 74. Mission without cluster keyword still matches ─────────────────
+
+  it('mission without cluster field still matches via type', () => {
+    mockMissions.mockReturnValue({
+      missions: [
+        { id: 'm-1', title: 'Scan All', description: 'Run scan', type: 'scan', status: 'pending' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('scan'))
+    const flat = flattenResults(result.current.results)
+    const missions = flat.filter(i => i.category === 'mission')
+    expect(missions.some(i => i.name === 'Scan All')).toBe(true)
+  })
+
+  // ── 75. Dashboard description for custom dashboards ───────────────────
+
+  it('custom dashboard items have "Custom dashboard" description', () => {
+    mockDashboards.mockReturnValue({
+      dashboards: [
+        { id: 'my-dash', name: 'Custom Ops View', is_default: false },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('Custom Ops View'))
+    const flat = flattenResults(result.current.results)
+    const dash = flat.find(i => i.category === 'dashboard')
+    expect(dash).toBeDefined()
+    expect(dash!.description).toBe('Custom dashboard')
+  })
+
+  // ── 76. Catalog card meta contains "add card" ─────────────────────────
+
+  it('catalog card items have meta containing "add card"', () => {
+    const { result } = renderHook(() => useSearchIndex('Pod Overview'))
+    const flat = flattenResults(result.current.results)
+    const catalogCards = flat.filter(i => i.id.startsWith('catalog-card-'))
+    if (catalogCards.length > 0) {
+      expect(catalogCards[0].meta).toBe('add card')
+    }
+  })
+
+  // ── 77. Stat items contain dashboard name in description ──────────────
+
+  it('stat items description references their dashboard name', () => {
+    const { result } = renderHook(() => useSearchIndex('Total Clusters'))
+    const flat = flattenResults(result.current.results)
+    const stats = flat.filter(i => i.category === 'stat' && i.name === 'Total Clusters')
+    expect(stats.length).toBeGreaterThan(0)
+    expect(stats[0].description).toContain('Main dashboard')
+  })
+
+  // ── 78. Stat items contain stat icon as keyword ───────────────────────
+
+  it('stat items include icon name as keyword for search', () => {
+    // The mock for 'clusters' dashboard returns a stat with icon 'Server'
+    const { result } = renderHook(() => useSearchIndex('server'))
+    const flat = flattenResults(result.current.results)
+    const stats = flat.filter(i => i.category === 'stat')
+    // 'server' should match the icon keyword (lowercased)
+    expect(stats.some(i => i.name === 'Clusters')).toBe(true)
+  })
+
+  // ── 79. Cluster href has name encoded in URL ──────────────────────────
+
+  it('cluster items have correctly encoded href', () => {
+    mockClusters.mockReturnValue({
+      clusters: [{ name: 'my cluster', context: 'my cluster', healthy: true }],
+    })
+    const { result } = renderHook(() => useSearchIndex('my cluster'))
+    const flat = flattenResults(result.current.results)
+    const cluster = flat.find(i => i.category === 'cluster')
+    expect(cluster).toBeDefined()
+    expect(cluster!.href).toBe('/clusters?name=my%20cluster')
+  })
+
+  // ── 80. Deployment href contains deployment name ──────────────────────
+
+  it('deployment items have correctly encoded href', () => {
+    mockDeployments.mockReturnValue({
+      deployments: [
+        { name: 'api server', cluster: 'c', namespace: 'ns', status: 'Running' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('api server'))
+    const flat = flattenResults(result.current.results)
+    const dep = flat.find(i => i.category === 'deployment')
+    expect(dep).toBeDefined()
+    expect(dep!.href).toBe('/workloads?deployment=api%20server')
+  })
+
+  // ── 81. Pod href contains pod name ────────────────────────────────────
+
+  it('pod items have correctly encoded href', () => {
+    mockPods.mockReturnValue({
+      pods: [
+        { name: 'redis pod', cluster: 'c', namespace: 'ns', status: 'Running' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('redis pod'))
+    const flat = flattenResults(result.current.results)
+    const pod = flat.find(i => i.category === 'pod')
+    expect(pod).toBeDefined()
+    expect(pod!.href).toBe('/workloads?pod=redis%20pod')
+  })
+
+  // ── 82. Service href contains service name ────────────────────────────
+
+  it('service items have correctly encoded href', () => {
+    mockServices.mockReturnValue({
+      services: [
+        { name: 'my svc', cluster: 'c', namespace: 'ns', type: 'ClusterIP' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('my svc'))
+    const flat = flattenResults(result.current.results)
+    const svc = flat.find(i => i.category === 'service')
+    expect(svc).toBeDefined()
+    expect(svc!.href).toBe('/network?service=my%20svc')
+  })
+
+  // ── 83. Node href contains node name ──────────────────────────────────
+
+  it('node items have correctly encoded href', () => {
+    mockNodes.mockReturnValue({
+      nodes: [
+        { name: 'node 1', cluster: 'c', status: 'Ready', roles: ['worker'] },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('node 1'))
+    const flat = flattenResults(result.current.results)
+    const node = flat.find(i => i.category === 'node')
+    expect(node).toBeDefined()
+    expect(node!.href).toBe('/compute?node=node%201')
+  })
+
+  // ── 84. Helm href contains release name ───────────────────────────────
+
+  it('helm items have correctly encoded href', () => {
+    mockHelmReleases.mockReturnValue({
+      releases: [
+        { name: 'my helm', cluster: 'c', namespace: 'ns', chart: 'chart-1', app_version: '1.0', status: 'deployed' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('my helm'))
+    const flat = flattenResults(result.current.results)
+    const helm = flat.find(i => i.category === 'helm')
+    expect(helm).toBeDefined()
+    expect(helm!.href).toBe('/helm?release=my%20helm')
+  })
+
+  // ── 85. Mission href uses hash fragment ───────────────────────────────
+
+  it('mission items have hash fragment href', () => {
+    mockMissions.mockReturnValue({
+      missions: [
+        { id: 'abc123', title: 'My Mission', description: 'desc', type: 'deploy', status: 'pending' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('My Mission'))
+    const flat = flattenResults(result.current.results)
+    const mission = flat.find(i => i.category === 'mission')
+    expect(mission).toBeDefined()
+    expect(mission!.href).toBe('#mission:abc123')
+  })
+
+  // ── 86. Multiple dashboards store same card type on different keys ────
+
+  it('indexes cards from multiple legacy dashboard storage keys', () => {
+    localStorage.setItem('kubestellar-workloads-cards', JSON.stringify([
+      { card_type: 'app_status' },
+    ]))
+    localStorage.setItem('kubestellar-compute-cards', JSON.stringify([
+      { card_type: 'app_status' },
+    ]))
+    const { result } = renderHook(() => useSearchIndex('Workload Status'))
+    const flat = flattenResults(result.current.results)
+    const placedCards = flat.filter(i => i.category === 'card' && i.scrollTarget === 'app_status')
+    // Should have entries from both dashboards
+    expect(placedCards.length).toBeGreaterThanOrEqual(2)
+  })
+
+  // ── 87. Node with multiple roles lists them ───────────────────────────
+
+  it('node with multiple roles joins them in description', () => {
+    mockNodes.mockReturnValue({
+      nodes: [{ name: 'multi-role', cluster: 'c1', status: 'Ready', roles: ['control-plane', 'worker'] }],
+    })
+    const { result } = renderHook(() => useSearchIndex('multi-role'))
+    const flat = flattenResults(result.current.results)
+    const node = flat.find(i => i.category === 'node')
+    expect(node).toBeDefined()
+    expect(node!.description).toContain('control-plane')
+    expect(node!.description).toContain('worker')
+  })
+
+  // ── 88. Mission meta contains type and status ─────────────────────────
+
+  it('mission meta contains type and status', () => {
+    mockMissions.mockReturnValue({
+      missions: [
+        { id: 'm-1', title: 'Unique Mission', description: 'desc', type: 'upgrade', status: 'completed' },
+      ],
+    })
+    const { result } = renderHook(() => useSearchIndex('Unique Mission'))
+    const flat = flattenResults(result.current.results)
+    const mission = flat.find(i => i.category === 'mission')
+    expect(mission).toBeDefined()
+    expect(mission!.meta).toContain('upgrade')
+    expect(mission!.meta).toContain('completed')
+  })
 })

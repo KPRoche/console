@@ -430,7 +430,324 @@ describe('getSeverityColors', () => {
     expect(Object.keys(SEVERITY_COLORS)).toHaveLength(6)
   })
 })
+
+// ===========================================================================
+// saveAccessibilitySettings — error handling
+// ===========================================================================
+
+describe('saveAccessibilitySettings — error handling', () => {
+  it('does not throw when localStorage.setItem throws', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(() => saveAccessibilitySettings({
+      colorBlindMode: true,
+      reduceMotion: false,
+      highContrast: false,
+    })).not.toThrow()
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to save accessibility settings:',
+      expect.any(Error),
+    )
+
+    setItemSpy.mockRestore()
+    consoleSpy.mockRestore()
+  })
+
+  it('does not dispatch custom event when localStorage.setItem throws', () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError')
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const handler = vi.fn()
+    window.addEventListener('kubestellar-settings-changed', handler)
+
+    saveAccessibilitySettings({
+      colorBlindMode: false,
+      reduceMotion: false,
+      highContrast: false,
+    })
+
+    // The event should NOT be dispatched because setItem threw before dispatchEvent
+    expect(handler).not.toHaveBeenCalled()
+
+    window.removeEventListener('kubestellar-settings-changed', handler)
+    setItemSpy.mockRestore()
+    consoleSpy.mockRestore()
+  })
 })
+
+// ===========================================================================
+// loadAccessibilitySettings — localStorage.getItem error
+// ===========================================================================
+
+describe('loadAccessibilitySettings — localStorage.getItem error', () => {
+  it('returns defaults when localStorage.getItem throws', () => {
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError: access denied')
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const settings = loadAccessibilitySettings()
+
+    expect(settings.colorBlindMode).toBe(false)
+    expect(settings.reduceMotion).toBe(false)
+    expect(settings.highContrast).toBe(false)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to load accessibility settings:',
+      expect.any(Error),
+    )
+
+    getItemSpy.mockRestore()
+    consoleSpy.mockRestore()
+  })
 })
+
+// ===========================================================================
+// updateAccessibilitySetting — chained updates
+// ===========================================================================
+
+describe('updateAccessibilitySetting — chained updates', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('correctly chains multiple setting updates', () => {
+    updateAccessibilitySetting('colorBlindMode', true)
+    updateAccessibilitySetting('reduceMotion', true)
+    const result = updateAccessibilitySetting('highContrast', true)
+
+    expect(result.colorBlindMode).toBe(true)
+    expect(result.reduceMotion).toBe(true)
+    expect(result.highContrast).toBe(true)
+
+    // Verify localStorage reflects the final state
+    const stored = JSON.parse(localStorage.getItem('accessibility-settings')!)
+    expect(stored.colorBlindMode).toBe(true)
+    expect(stored.reduceMotion).toBe(true)
+    expect(stored.highContrast).toBe(true)
+  })
+
+  it('dispatches settings-changed event on each update', () => {
+    const handler = vi.fn()
+    window.addEventListener('kubestellar-settings-changed', handler)
+
+    updateAccessibilitySetting('colorBlindMode', true)
+    updateAccessibilitySetting('reduceMotion', true)
+
+    expect(handler).toHaveBeenCalledTimes(2)
+
+    window.removeEventListener('kubestellar-settings-changed', handler)
+  })
 })
+
+// ===========================================================================
+// normalizeStatus — duplicate entries in multiple arrays
+// ===========================================================================
+
+describe('normalizeStatus — overlap behavior', () => {
+  // 'pending' appears in both the warning array and the pending array
+  // The warning array is checked first, so 'pending' maps to 'warning'
+  it('maps "pending" to "warning" because warning check precedes pending check', () => {
+    expect(normalizeStatus('pending')).toBe('warning')
+  })
+
+  // 'waiting' also appears in both warning and pending arrays
+  it('maps "waiting" to "warning" because warning check precedes pending check', () => {
+    expect(normalizeStatus('waiting')).toBe('warning')
+  })
+
+  // 'scheduled' and 'queued' are only in the pending array
+  it('maps "scheduled" to "pending"', () => {
+    expect(normalizeStatus('scheduled')).toBe('pending')
+  })
+
+  it('maps "queued" to "pending"', () => {
+    expect(normalizeStatus('queued')).toBe('pending')
+  })
+})
+
+// ===========================================================================
+// STATUS_CONFIG — icon uniqueness and config completeness
+// ===========================================================================
+
+describe('STATUS_CONFIG — icon assignments', () => {
+  it('error and critical use different icons', () => {
+    expect(STATUS_CONFIG.error.icon).not.toBe(STATUS_CONFIG.critical.icon)
+  })
+
+  it('healthy and success share the same icon (CheckCircle)', () => {
+    expect(STATUS_CONFIG.healthy.icon).toBe(STATUS_CONFIG.success.icon)
+  })
+
+  it('loading uses Loader2 icon', () => {
+    // Verify the loading status uses the spinner icon
+    expect(STATUS_CONFIG.loading.icon).toBeDefined()
+    expect(STATUS_CONFIG.loading.label).toBe('Loading')
+  })
+
+  it('unknown uses HelpCircle icon', () => {
+    expect(STATUS_CONFIG.unknown.icon).toBeDefined()
+    expect(STATUS_CONFIG.unknown.label).toBe('Unknown')
+  })
+
+  it('pending uses Clock icon', () => {
+    expect(STATUS_CONFIG.pending.icon).toBeDefined()
+    expect(STATUS_CONFIG.pending.label).toBe('Pending')
+  })
+})
+
+// ===========================================================================
+// getPatternClass — exhaustive
+// ===========================================================================
+
+describe('getPatternClass — exhaustive coverage', () => {
+  it('returns "bg-stripes" for striped', () => {
+    expect(getPatternClass('striped')).toBe('bg-stripes')
+  })
+
+  it('returns "bg-dots" for dotted', () => {
+    expect(getPatternClass('dotted')).toBe('bg-dots')
+  })
+
+  it('returns "bg-dashes" for dashed', () => {
+    expect(getPatternClass('dashed')).toBe('bg-dashes')
+  })
+
+  it('returns empty string for solid (default case)', () => {
+    expect(getPatternClass('solid')).toBe('')
+  })
+
+  it('returns empty string for none (default case)', () => {
+    expect(getPatternClass('none')).toBe('')
+  })
+})
+
+// ===========================================================================
+// getSeverityColors — direct SEVERITY_COLORS lookup
+// ===========================================================================
+
+describe('getSeverityColors — direct lookup vs alias', () => {
+  it('returns direct lookup for all six severity levels', () => {
+    const levels: SeverityLevel[] = ['critical', 'high', 'medium', 'low', 'info', 'none']
+    for (const level of levels) {
+      const result = getSeverityColors(level)
+      expect(result).toBe(SEVERITY_COLORS[level])
+    }
+  })
+
+  it('returns critical colors for "error" alias', () => {
+    const result = getSeverityColors('error')
+    expect(result).toBe(SEVERITY_COLORS.critical)
+  })
+
+  it('returns critical colors for "danger" alias', () => {
+    const result = getSeverityColors('danger')
+    expect(result).toBe(SEVERITY_COLORS.critical)
+  })
+
+  it('returns critical colors for "fatal" alias', () => {
+    const result = getSeverityColors('fatal')
+    expect(result).toBe(SEVERITY_COLORS.critical)
+  })
+
+  it('returns critical colors for "emergency" alias', () => {
+    const result = getSeverityColors('emergency')
+    expect(result).toBe(SEVERITY_COLORS.critical)
+  })
+
+  it('returns medium colors for "warn" alias', () => {
+    const result = getSeverityColors('warn')
+    expect(result).toBe(SEVERITY_COLORS.medium)
+  })
+
+  it('returns medium colors for "warning" alias', () => {
+    const result = getSeverityColors('warning')
+    expect(result).toBe(SEVERITY_COLORS.medium)
+  })
+
+  it('returns medium colors for "caution" alias', () => {
+    const result = getSeverityColors('caution')
+    expect(result).toBe(SEVERITY_COLORS.medium)
+  })
+
+  it('returns info as fallback for unrecognized severity', () => {
+    expect(getSeverityColors('banana')).toBe(SEVERITY_COLORS.info)
+    expect(getSeverityColors('xyzzy')).toBe(SEVERITY_COLORS.info)
+  })
+})
+
+// ===========================================================================
+// SEVERITY_COLORS — color class format validation
+// ===========================================================================
+
+describe('SEVERITY_COLORS — format validation', () => {
+  it('all text classes start with "text-"', () => {
+    for (const [, colors] of Object.entries(SEVERITY_COLORS)) {
+      expect(colors.text).toMatch(/^text-/)
+    }
+  })
+
+  it('all bg classes start with "bg-"', () => {
+    for (const [, colors] of Object.entries(SEVERITY_COLORS)) {
+      expect(colors.bg).toMatch(/^bg-/)
+    }
+  })
+
+  it('all border classes start with "border-"', () => {
+    for (const [, colors] of Object.entries(SEVERITY_COLORS)) {
+      expect(colors.border).toMatch(/^border-/)
+    }
+  })
+
+  it('all solid classes start with "bg-"', () => {
+    for (const [, colors] of Object.entries(SEVERITY_COLORS)) {
+      expect(colors.solid).toMatch(/^bg-/)
+    }
+  })
+})
+
+// ===========================================================================
+// loadAccessibilitySettings — extra stored fields are ignored
+// ===========================================================================
+
+describe('loadAccessibilitySettings — extra fields handling', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('ignores unknown fields in stored settings', () => {
+    localStorage.setItem('accessibility-settings', JSON.stringify({
+      colorBlindMode: true,
+      unknownField: 'should be ignored',
+      anotherUnknown: 42,
+    }))
+    const settings = loadAccessibilitySettings()
+    expect(settings.colorBlindMode).toBe(true)
+    expect(settings.reduceMotion).toBe(false)
+    expect(settings.highContrast).toBe(false)
+    // Extra fields are spread but harmless since TypeScript types constrain usage
+    expect((settings as Record<string, unknown>)['unknownField']).toBe('should be ignored')
+  })
+
+  it('handles null value in localStorage', () => {
+    localStorage.setItem('accessibility-settings', 'null')
+    // JSON.parse('null') returns null, spread with null is ok
+    // But { ...DEFAULT_SETTINGS, ...null } === DEFAULT_SETTINGS
+    const settings = loadAccessibilitySettings()
+    expect(settings.colorBlindMode).toBe(false)
+    expect(settings.reduceMotion).toBe(false)
+    expect(settings.highContrast).toBe(false)
+  })
+
+  it('handles boolean values stored in localStorage', () => {
+    localStorage.setItem('accessibility-settings', 'true')
+    // JSON.parse('true') returns true, spread with boolean ignores it
+    // This should not crash and should return defaults
+    const settings = loadAccessibilitySettings()
+    expect(settings.colorBlindMode).toBe(false)
+  })
 })

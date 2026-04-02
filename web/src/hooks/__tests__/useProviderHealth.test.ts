@@ -250,4 +250,149 @@ describe('useProviderHealth', () => {
     expect(result.current.providers[0].statusUrl).toBe('https://status.claude.com')
     expect(result.current.providers[0].detail).toBe('API key configured')
   })
+
+  // --- Empty data arrays produce empty filtered arrays ---
+  it('handles empty data from cache gracefully', () => {
+    mockUseCacheResult.data = []
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.providers).toEqual([])
+    expect(result.current.aiProviders).toEqual([])
+    expect(result.current.cloudProviders).toEqual([])
+  })
+
+  // --- Only AI providers returns empty cloud array ---
+  it('returns empty cloudProviders when only AI providers exist', () => {
+    mockUseCacheResult.data = [
+      { id: 'anthropic', name: 'Anthropic', category: 'ai', status: 'operational', configured: true },
+      { id: 'bob', name: 'Bob', category: 'ai', status: 'operational', configured: false },
+    ] as ProviderHealthInfo[]
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.aiProviders.length).toBe(2)
+    expect(result.current.cloudProviders.length).toBe(0)
+  })
+
+  // --- Only cloud providers returns empty AI array ---
+  it('returns empty aiProviders when only cloud providers exist', () => {
+    mockUseCacheResult.data = [
+      { id: 'eks', name: 'AWS EKS', category: 'cloud', status: 'operational', configured: true },
+    ] as ProviderHealthInfo[]
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.aiProviders.length).toBe(0)
+    expect(result.current.cloudProviders.length).toBe(1)
+  })
+
+  // --- isDemoFallback = false when both flags false ---
+  it('isDemoFallback is false when cache is not in demo fallback', () => {
+    mockUseCacheResult.isLoading = false
+    mockUseCacheResult.isDemoFallback = false
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.isDemoFallback).toBe(false)
+  })
+
+  // --- Providers with all four status values ---
+  it('correctly passes through all four HealthStatus values', () => {
+    mockUseCacheResult.data = [
+      { id: 'a', name: 'A', category: 'ai', status: 'operational', configured: true },
+      { id: 'b', name: 'B', category: 'ai', status: 'degraded', configured: true },
+      { id: 'c', name: 'C', category: 'cloud', status: 'down', configured: true },
+      { id: 'd', name: 'D', category: 'cloud', status: 'unknown', configured: false },
+    ] as ProviderHealthInfo[]
+
+    const { result } = renderHook(() => useProviderHealth())
+    const statuses = result.current.providers.map(p => p.status)
+    expect(statuses).toEqual(['operational', 'degraded', 'down', 'unknown'])
+  })
+
+  // --- consecutiveFailures > 0 passed through ---
+  it('passes high consecutiveFailures values correctly', () => {
+    mockUseCacheResult.consecutiveFailures = 10
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.consecutiveFailures).toBe(10)
+  })
+
+  // --- Rerender does not duplicate providers ---
+  it('does not duplicate providers on rerender', () => {
+    mockUseCacheResult.data = [
+      { id: 'anthropic', name: 'Anthropic', category: 'ai', status: 'operational', configured: true },
+    ] as ProviderHealthInfo[]
+
+    const { result, rerender } = renderHook(() => useProviderHealth())
+    expect(result.current.aiProviders.length).toBe(1)
+
+    rerender()
+    expect(result.current.aiProviders.length).toBe(1)
+  })
+
+  // --- Data change updates providers ---
+  it('updates aiProviders when cache data changes between renders', () => {
+    mockUseCacheResult.data = [
+      { id: 'anthropic', name: 'Anthropic', category: 'ai', status: 'operational', configured: true },
+    ] as ProviderHealthInfo[]
+
+    const { result, rerender } = renderHook(() => useProviderHealth())
+    expect(result.current.aiProviders.length).toBe(1)
+
+    mockUseCacheResult.data = [
+      { id: 'anthropic', name: 'Anthropic', category: 'ai', status: 'operational', configured: true },
+      { id: 'openai', name: 'OpenAI', category: 'ai', status: 'degraded', configured: true },
+    ] as ProviderHealthInfo[]
+    rerender()
+    expect(result.current.aiProviders.length).toBe(2)
+  })
+
+  // --- Provider configured = false ---
+  it('preserves configured:false in provider data', () => {
+    mockUseCacheResult.data = [
+      { id: 'google', name: 'Google', category: 'ai', status: 'unknown', configured: false, detail: 'API key not configured' },
+    ] as ProviderHealthInfo[]
+
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.aiProviders[0].configured).toBe(false)
+    expect(result.current.aiProviders[0].detail).toBe('API key not configured')
+  })
+
+  // --- Refreshing transitions ---
+  it('tracks loading to refreshing transition', () => {
+    mockUseCacheResult.isLoading = true
+    mockUseCacheResult.isRefreshing = false
+    const { result, rerender } = renderHook(() => useProviderHealth())
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.isRefreshing).toBe(false)
+
+    mockUseCacheResult.isLoading = false
+    mockUseCacheResult.isRefreshing = true
+    rerender()
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isRefreshing).toBe(true)
+  })
+
+  // --- isFailed with isDemoFallback ---
+  it('can be both isFailed and isDemoFallback simultaneously', () => {
+    mockUseCacheResult.isFailed = true
+    mockUseCacheResult.isDemoFallback = true
+    mockUseCacheResult.isLoading = false
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.isFailed).toBe(true)
+    expect(result.current.isDemoFallback).toBe(true)
+  })
+
+  // --- Many providers of same category ---
+  it('handles large number of providers', () => {
+    const PROVIDER_COUNT = 20
+    const providers: ProviderHealthInfo[] = []
+    for (let i = 0; i < PROVIDER_COUNT; i++) {
+      providers.push({
+        id: `cloud-${i}`,
+        name: `Cloud Provider ${i}`,
+        category: 'cloud',
+        status: 'operational',
+        configured: true,
+      })
+    }
+    mockUseCacheResult.data = providers
+
+    const { result } = renderHook(() => useProviderHealth())
+    expect(result.current.cloudProviders.length).toBe(PROVIDER_COUNT)
+    expect(result.current.aiProviders.length).toBe(0)
+  })
 })

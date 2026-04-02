@@ -167,4 +167,3 @@ describe('importDynamicStats', () => {
     expect(count).toBe(0)
   })
 })
-})

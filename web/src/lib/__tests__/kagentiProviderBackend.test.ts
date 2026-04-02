@@ -10,74 +10,63 @@ import { authFetch } from '../api'
 const mockAuthFetch = vi.mocked(authFetch)
 
 // Import the module under test (need to import after mock setup)
-let fetchProviders: typeof import('../kagentiProviderBackend').fetchProviders
-let fetchProviderTools: typeof import('../kagentiProviderBackend').fetchProviderTools
-let callProviderTool: typeof import('../kagentiProviderBackend').callProviderTool
+let fetchKagentiProviderStatus: typeof import('../kagentiProviderBackend').fetchKagentiProviderStatus
+let fetchKagentiProviderAgents: typeof import('../kagentiProviderBackend').fetchKagentiProviderAgents
+let kagentiProviderCallTool: typeof import('../kagentiProviderBackend').kagentiProviderCallTool
 
 beforeEach(async () => {
   vi.clearAllMocks()
   const mod = await import('../kagentiProviderBackend')
-  fetchProviders = mod.fetchProviders
-  fetchProviderTools = mod.fetchProviderTools
-  callProviderTool = mod.callProviderTool
+  fetchKagentiProviderStatus = mod.fetchKagentiProviderStatus
+  fetchKagentiProviderAgents = mod.fetchKagentiProviderAgents
+  kagentiProviderCallTool = mod.kagentiProviderCallTool
 })
 
-describe('fetchProviders', () => {
-  it('returns providers list', async () => {
-    const providers = [
-      { name: 'openai', namespace: 'default', status: 'ready' },
-    ]
+describe('fetchKagentiProviderStatus', () => {
+  it('returns status when available', async () => {
     mockAuthFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ providers }),
+      json: () => Promise.resolve({ available: true, url: 'http://provider:8080' }),
     } as Response)
 
-    const result = await fetchProviders()
-    expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('openai')
+    const result = await fetchKagentiProviderStatus()
+    expect(result.available).toBe(true)
+    expect(result.url).toBe('http://provider:8080')
   })
 
-  it('returns empty array on HTTP error', async () => {
+  it('returns unavailable on HTTP error', async () => {
     mockAuthFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
     } as Response)
 
-    const result = await fetchProviders()
-    expect(result).toEqual([])
+    const result = await fetchKagentiProviderStatus()
+    expect(result.available).toBe(false)
+    expect(result.reason).toBe('HTTP 500')
   })
 
-  it('returns empty array on network error', async () => {
+  it('returns unavailable on network error', async () => {
     mockAuthFetch.mockRejectedValueOnce(new Error('Network error'))
 
-    const result = await fetchProviders()
-    expect(result).toEqual([])
-  })
-
-  it('returns empty array when providers field is missing', async () => {
-    mockAuthFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({}),
-    } as Response)
-
-    const result = await fetchProviders()
-    expect(result).toEqual([])
+    const result = await fetchKagentiProviderStatus()
+    expect(result.available).toBe(false)
+    expect(result.reason).toBe('unreachable')
   })
 })
 
-describe('fetchProviderTools', () => {
-  it('returns tools for a provider', async () => {
-    const tools = [
-      { name: 'search', description: 'Search the web' },
+describe('fetchKagentiProviderAgents', () => {
+  it('returns agents list', async () => {
+    const agents = [
+      { name: 'agent-1', namespace: 'default', description: 'Test agent' },
     ]
     mockAuthFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ tools }),
+      json: () => Promise.resolve({ agents }),
     } as Response)
 
-    const result = await fetchProviderTools('openai', 'default')
+    const result = await fetchKagentiProviderAgents()
     expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('search')
+    expect(result[0].name).toBe('agent-1')
   })
 
   it('returns empty array on HTTP error', async () => {
@@ -86,26 +75,36 @@ describe('fetchProviderTools', () => {
       status: 404,
     } as Response)
 
-    const result = await fetchProviderTools('missing', 'default')
+    const result = await fetchKagentiProviderAgents()
     expect(result).toEqual([])
   })
 
   it('returns empty array on network error', async () => {
     mockAuthFetch.mockRejectedValueOnce(new Error('Timeout'))
 
-    const result = await fetchProviderTools('provider', 'ns')
+    const result = await fetchKagentiProviderAgents()
+    expect(result).toEqual([])
+  })
+
+  it('returns empty array when agents field is missing', async () => {
+    mockAuthFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({}),
+    } as Response)
+
+    const result = await fetchKagentiProviderAgents()
     expect(result).toEqual([])
   })
 })
 
-describe('callProviderTool', () => {
-  it('calls a provider tool and returns result', async () => {
+describe('kagentiProviderCallTool', () => {
+  it('calls a tool and returns result', async () => {
     mockAuthFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ result: 'tool output' }),
     } as Response)
 
-    const result = await callProviderTool('openai', 'default', 'search', { query: 'kubernetes' })
+    const result = await kagentiProviderCallTool('agent-1', 'default', 'search', { query: 'kubernetes' })
     expect(result).toEqual({ result: 'tool output' })
   })
 
@@ -116,8 +115,8 @@ describe('callProviderTool', () => {
     } as Response)
 
     await expect(
-      callProviderTool('openai', 'default', 'search', {})
-    ).rejects.toThrow('HTTP 500')
+      kagentiProviderCallTool('agent-1', 'default', 'search', {})
+    ).rejects.toThrow('Tool call failed: HTTP 500')
   })
 
   it('sends correct request body', async () => {
@@ -126,10 +125,10 @@ describe('callProviderTool', () => {
       json: () => Promise.resolve({}),
     } as Response)
 
-    await callProviderTool('myProvider', 'myNs', 'myTool', { key: 'value' })
+    await kagentiProviderCallTool('myAgent', 'myNs', 'myTool', { key: 'value' })
 
     const callBody = JSON.parse(mockAuthFetch.mock.calls[0][1]?.body as string)
-    expect(callBody.provider).toBe('myProvider')
+    expect(callBody.agent).toBe('myAgent')
     expect(callBody.namespace).toBe('myNs')
     expect(callBody.tool).toBe('myTool')
     expect(callBody.args).toEqual({ key: 'value' })

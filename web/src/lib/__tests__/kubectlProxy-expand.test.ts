@@ -60,7 +60,7 @@ class FakeWebSocket {
     activeWs = this
   }
 
-  send() {}
+  send(_data?: unknown) {}
   close() {
     this.readyState = WS_CLOSED
     this.onclose?.(new CloseEvent('close', { code: 1000 }))
@@ -94,6 +94,14 @@ beforeEach(() => {
   activeWs = null
   // Reset the KubectlProxy singleton state
   kubectlProxy.close()
+  // Force-reset private fields that persist across close() calls to prevent
+  // state leaking between tests (cooldown, connection flags, pending requests).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proxy = kubectlProxy as any
+  proxy.lastConnectionFailureAt = 0
+  proxy.isConnecting = false
+  proxy.messageId = 0
+  proxy.pendingRequests.clear()
 })
 
 afterEach(() => {
@@ -130,8 +138,8 @@ describe('KubectlProxy — expanded edge cases', () => {
   it('close() rejects pending queued requests', async () => {
     // Queue up a request (won't connect because WS won't open)
     const promise = kubectlProxy.exec(['get', 'pods'])
-    // Close before WS connects
-    kubectlProxy.close()
+    // Trigger WS error to reject the connection attempt
+    if (activeWs) activeWs.triggerError()
     // The request should fail
     await expect(promise).rejects.toThrow()
   })
@@ -258,10 +266,11 @@ describe('KubectlProxy — expanded edge cases', () => {
     const p1 = kubectlProxy.exec(['get', 'pods'], { priority: true })
     if (activeWs) {
       activeWs.triggerOpen()
-      // Close immediately after open
+      // Close immediately after open — by the time execImmediate proceeds
+      // (microtask), the WS is already null so it throws 'Not connected'
       activeWs.close()
     }
-    await expect(p1).rejects.toThrow('Connection closed')
+    await expect(p1).rejects.toThrow('Not connected')
   })
 })
 

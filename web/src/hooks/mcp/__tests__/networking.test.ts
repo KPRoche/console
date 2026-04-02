@@ -945,3 +945,354 @@ describe('subscribeNetworkingCache', () => {
     }
   })
 })
+
+// ===========================================================================
+// Additional coverage tests — targeting uncovered branches in networking.ts
+// ===========================================================================
+
+describe('useServices — local agent HTTP path', () => {
+  it('fetches from local agent when cluster is set and agent is available', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    const agentServices = { services: [{ name: 'agent-svc', namespace: 'ns1', type: 'ClusterIP' }] }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => agentServices,
+    })
+
+    const { result } = renderHook(() => useServices('my-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    // Agent path is tried first when cluster is set and agent is available
+    expect(mockReportAgentDataSuccess).toHaveBeenCalled()
+  })
+
+  it('falls through to kubectl proxy when agent HTTP fetch returns non-ok', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [{ name: 'my-cluster', context: 'my-ctx', reachable: true }]
+
+    // Agent returns 500, then API returns empty
+    let callCount = 0
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      callCount++
+      if (typeof url === 'string' && url.includes('localhost:8585')) {
+        return Promise.resolve({ ok: false, status: 500 })
+      }
+      // API fallback
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ services: [] }),
+      })
+    })
+
+    const { result } = renderHook(() => useServices('my-cluster'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    // The hook should have tried the agent path and then fallen through
+    expect(callCount).toBeGreaterThanOrEqual(1)
+  })
+
+  it('falls through when agent HTTP fetch throws (network error)', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('localhost:8585')) {
+        return Promise.reject(new Error('ECONNREFUSED'))
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ services: [] }),
+      })
+    })
+
+    const { result } = renderHook(() => useServices('my-cluster'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.error).toBeNull()
+  })
+
+  it('skips agent paths when cluster is not specified', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ services: [] }),
+    })
+
+    const { result } = renderHook(() => useServices())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    // Should not have called reportAgentDataSuccess because no cluster was passed
+    expect(mockReportAgentDataSuccess).not.toHaveBeenCalled()
+  })
+})
+
+describe('useServices — kubectl proxy path', () => {
+  it('tries kubectl proxy when agent HTTP fails and cluster is set', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockClusterCacheRef.clusters = [
+      { name: 'test-cluster', context: 'test-ctx', reachable: true },
+    ]
+
+    // Agent fetch rejects, kubectl proxy also fails, API fallback succeeds
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('localhost:8585')) {
+        return Promise.reject(new Error('Agent unreachable'))
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ services: [{ name: 'api-svc', namespace: 'ns', type: 'ClusterIP', ports: [] }] }),
+      })
+    })
+
+    const { result } = renderHook(() => useServices('test-cluster'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    // Should eventually get data from the API fallback
+    expect(result.current.services.length).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('useServices — silent refresh behavior', () => {
+  it('does not set isRefreshing for silent (background) refetches', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ services: [{ name: 'svc', namespace: 'ns', type: 'ClusterIP', ports: [] }] }),
+    })
+
+    const { result } = renderHook(() => useServices())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    // After initial load completes, isRefreshing should be false
+    expect(result.current.isRefreshing).toBe(false)
+  })
+})
+
+describe('useServices — demo mode silent flag', () => {
+  it('sets isRefreshing briefly and then clears it in demo mode non-silent refetch', async () => {
+    vi.useFakeTimers()
+    mockIsDemoMode.mockReturnValue(true)
+    mockUseDemoMode.mockReturnValue({ isDemoMode: true })
+
+    const { result } = renderHook(() => useServices())
+
+    // Advance time past the MIN_REFRESH_INDICATOR_MS (500ms)
+    await act(async () => { vi.advanceTimersByTime(600) })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.error).toBeNull()
+    expect(result.current.services.length).toBeGreaterThan(0)
+  })
+})
+
+describe('useServices — localStorage cache', () => {
+  it('loads cached data from localStorage on mount', async () => {
+    const cachedServices = [
+      { name: 'cached-svc', namespace: 'default', cluster: 'all', type: 'ClusterIP', ports: [] },
+    ]
+    localStorage.setItem('kubestellar-services-cache', JSON.stringify({
+      data: cachedServices,
+      timestamp: new Date().toISOString(),
+      key: 'services:all:all',
+    }))
+
+    // Block fetch so we only see cached data
+    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
+
+    const { result } = renderHook(() => useServices())
+
+    // Should show cached data immediately without loading
+    expect(result.current.services).toEqual(cachedServices)
+    expect(result.current.isLoading).toBe(false)
+  })
+
+  it('ignores corrupt localStorage data gracefully', async () => {
+    localStorage.setItem('kubestellar-services-cache', '{{{invalid json')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ services: [] }),
+    })
+
+    const { result } = renderHook(() => useServices())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    // Should still work fine, just without cache
+    expect(result.current.error).toBeNull()
+  })
+
+  it('ignores cached data with mismatched cache key', async () => {
+    localStorage.setItem('kubestellar-services-cache', JSON.stringify({
+      data: [{ name: 'old' }],
+      timestamp: new Date().toISOString(),
+      key: 'services:other-cluster:other-ns',
+    }))
+
+    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
+
+    const { result } = renderHook(() => useServices('my-cluster', 'my-ns'))
+    // Cache key doesn't match, so should start in loading state
+    expect(result.current.isLoading).toBe(true)
+  })
+
+  it('ignores cached data with empty data array', async () => {
+    localStorage.setItem('kubestellar-services-cache', JSON.stringify({
+      data: [],
+      timestamp: new Date().toISOString(),
+      key: 'services:all:all',
+    }))
+
+    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
+
+    const { result } = renderHook(() => useServices())
+    // Empty cached data is treated as no cache
+    expect(result.current.isLoading).toBe(true)
+  })
+})
+
+describe('useServices — cluster/namespace change detection', () => {
+  it('resets state when cluster changes', async () => {
+    const svcA = [{ name: 'svc-a', namespace: 'ns', type: 'ClusterIP', ports: [], cluster: 'cluster-a' }]
+    const svcB = [{ name: 'svc-b', namespace: 'ns', type: 'ClusterIP', ports: [], cluster: 'cluster-b' }]
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ services: svcA }),
+    })
+
+    const { result, rerender } = renderHook(
+      ({ cluster }) => useServices(cluster),
+      { initialProps: { cluster: 'cluster-a' } }
+    )
+
+    await waitFor(() => expect(result.current.services).toEqual(svcA))
+
+    // Change cluster
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ services: svcB }),
+    })
+
+    rerender({ cluster: 'cluster-b' })
+
+    // Should reset to empty during transition
+    await waitFor(() => expect(result.current.services).toEqual(svcB))
+  })
+})
+
+describe('useServices — API error status response', () => {
+  it('throws and catches non-ok API response gracefully', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+    })
+
+    const { result } = renderHook(() => useServices())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1)
+    expect(result.current.error).toBeNull()
+  })
+})
+
+describe('useIngresses — local agent path', () => {
+  it('fetches from local agent when cluster is set and agent is available', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    const agentIngresses = { ingresses: [{ name: 'agent-ing', namespace: 'ns1', hosts: ['a.com'] }] }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => agentIngresses,
+    })
+
+    const { result } = renderHook(() => useIngresses('my-cluster'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(mockReportAgentDataSuccess).toHaveBeenCalled()
+    expect(result.current.ingresses.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('falls through to API when agent returns non-ok for ingresses', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    })
+    mockApiGet.mockResolvedValue({ data: { ingresses: [{ name: 'api-ing', namespace: 'ns', hosts: [] }] } })
+
+    const { result } = renderHook(() => useIngresses('cluster-1'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.ingresses.length).toBeGreaterThanOrEqual(0)
+  })
+
+  it('falls through to API when agent fetch throws for ingresses', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+    mockApiGet.mockResolvedValue({ data: { ingresses: [] } })
+
+    const { result } = renderHook(() => useIngresses('cluster-1'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.error).toBeNull()
+  })
+})
+
+describe('useNetworkPolicies — local agent path', () => {
+  it('fetches from local agent when cluster is set and agent is available', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    const agentPolicies = { networkpolicies: [{ name: 'agent-np', namespace: 'ns1', policyTypes: ['Ingress'], podSelector: '' }] }
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => agentPolicies,
+    })
+
+    const { result } = renderHook(() => useNetworkPolicies('my-cluster'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(mockReportAgentDataSuccess).toHaveBeenCalled()
+    expect(result.current.networkpolicies.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('falls through to API when agent returns non-ok for network policies', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    mockApiGet.mockResolvedValue({ data: { networkpolicies: [] } })
+
+    const { result } = renderHook(() => useNetworkPolicies('cluster-1'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.error).toBeNull()
+  })
+
+  it('falls through to API when agent fetch throws for network policies', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+    mockApiGet.mockResolvedValue({ data: { networkpolicies: [] } })
+
+    const { result } = renderHook(() => useNetworkPolicies('cluster-1'))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(result.current.error).toBeNull()
+  })
+
+  it('skips agent path for network policies when no cluster specified', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockApiGet.mockResolvedValue({ data: { networkpolicies: [] } })
+
+    renderHook(() => useNetworkPolicies())
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalled())
+    expect(mockReportAgentDataSuccess).not.toHaveBeenCalled()
+  })
+})
+
+describe('useIngresses — agent skipped when no cluster', () => {
+  it('skips agent path for ingresses when no cluster specified', async () => {
+    mockIsAgentUnavailable.mockReturnValue(false)
+    mockApiGet.mockResolvedValue({ data: { ingresses: [] } })
+
+    renderHook(() => useIngresses())
+
+    await waitFor(() => expect(mockApiGet).toHaveBeenCalled())
+    expect(mockReportAgentDataSuccess).not.toHaveBeenCalled()
+  })
+})

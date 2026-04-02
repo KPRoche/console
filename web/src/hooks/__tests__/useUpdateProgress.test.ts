@@ -532,5 +532,476 @@ describe('useUpdateProgress', () => {
     expect(result.current.stepHistory[8].message).toBe('Extra step') // active step uses payload message
     expect(result.current.stepHistory[9].message).toBe('Step 10')
   })
-})
+
+  // ── waitForBackend: reconnect during restarting status triggers health polling ──
+
+  it('triggers waitForBackend when WebSocket reconnects during restarting status', async () => {
+    const WS_RECONNECT_MS = 5000
+    const BACKEND_POLL_MS = 2000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    // Trigger onopen
+    act(() => { vi.advanceTimersByTime(0) })
+
+    // Set status to restarting
+    sendProgress(ws, {
+      status: 'restarting',
+      message: 'Restarting...',
+      progress: 85,
+      step: 7,
+      totalSteps: 7,
+    })
+    expect(result.current.progress?.status).toBe('restarting')
+
+    // Mock fetch for /health to return "starting" initially, then "ok"
+    let fetchCallCount = 0
+    vi.stubGlobal('fetch', vi.fn(() => {
+      fetchCallCount++
+      if (fetchCallCount <= 2) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: 'starting' }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: 'ok' }),
+      })
+    }))
+
+    // Close and reconnect — reconnect during restarting triggers waitForBackend
+    act(() => { ws.close() })
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    // Trigger onopen of the new WebSocket
+    const ws2 = wsInstances[wsInstances.length - 1]
+    act(() => {
+      if (ws2.onopen) ws2.onopen()
+    })
+
+    // Advance through poll iterations
+    for (let i = 0; i < 5; i++) {
+      await act(async () => { vi.advanceTimersByTime(BACKEND_POLL_MS) })
+      // Allow pending microtasks (fetch promises) to resolve
+      await act(async () => { await Promise.resolve() })
+    }
+
+    // After backend returns "ok", progress should be "done"
+    expect(result.current.progress?.status).toBe('done')
+    expect(result.current.progress?.message).toContain('Update complete')
+    expect(result.current.progress?.progress).toBe(100)
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── waitForBackend: progressive messages change over time ──
+
+  it('shows progressive messages during backend health polling', async () => {
+    const WS_RECONNECT_MS = 5000
+    const BACKEND_POLL_MS = 2000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'restarting',
+      message: 'Restarting...',
+      progress: 85,
+    })
+
+    // Mock fetch to never return ok (always starting)
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: 'starting' }),
+      })
+    ))
+
+    act(() => { ws.close() })
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    const ws2 = wsInstances[wsInstances.length - 1]
+    act(() => {
+      if (ws2.onopen) ws2.onopen()
+    })
+
+    // First poll: "Waiting for services to restart..."
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.progress?.message).toContain('Waiting for services to restart')
+
+    // Advance several polls to get elapsed time > 10s
+    const POLLS_FOR_10S = 6 // 6 * 2000ms = 12s
+    for (let i = 0; i < POLLS_FOR_10S; i++) {
+      await act(async () => { vi.advanceTimersByTime(BACKEND_POLL_MS) })
+      await act(async () => { await Promise.resolve() })
+    }
+
+    // Message should now reference "initializing" or "Starting backend"
+    expect(result.current.progress?.status).toBe('restarting')
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── waitForBackend: fetch error does not crash, continues polling ──
+
+  it('continues polling when fetch throws during waitForBackend', async () => {
+    const WS_RECONNECT_MS = 5000
+    const BACKEND_POLL_MS = 2000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'restarting',
+      message: 'Restarting...',
+      progress: 85,
+    })
+
+    // Mock fetch to throw first, then succeed
+    let callCount = 0
+    vi.stubGlobal('fetch', vi.fn(() => {
+      callCount++
+      if (callCount <= 2) {
+        return Promise.reject(new Error('Network error'))
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: 'ok' }),
+      })
+    }))
+
+    act(() => { ws.close() })
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    const ws2 = wsInstances[wsInstances.length - 1]
+    act(() => {
+      if (ws2.onopen) ws2.onopen()
+    })
+
+    // Advance through polls — errors should be swallowed
+    for (let i = 0; i < 5; i++) {
+      await act(async () => { vi.advanceTimersByTime(BACKEND_POLL_MS) })
+      await act(async () => { await Promise.resolve() })
+    }
+
+    // Eventually should reach "done" after fetch succeeds
+    expect(result.current.progress?.status).toBe('done')
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── waitForBackend: non-ok response continues polling ──
+
+  it('continues polling when /health returns non-ok response', async () => {
+    const WS_RECONNECT_MS = 5000
+    const BACKEND_POLL_MS = 2000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'restarting',
+      message: 'Restarting...',
+      progress: 85,
+    })
+
+    let callCount = 0
+    vi.stubGlobal('fetch', vi.fn(() => {
+      callCount++
+      if (callCount <= 2) {
+        return Promise.resolve({ ok: false, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: 'ok' }),
+      })
+    }))
+
+    act(() => { ws.close() })
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    const ws2 = wsInstances[wsInstances.length - 1]
+    act(() => {
+      if (ws2.onopen) ws2.onopen()
+    })
+
+    for (let i = 0; i < 5; i++) {
+      await act(async () => { vi.advanceTimersByTime(BACKEND_POLL_MS) })
+      await act(async () => { await Promise.resolve() })
+    }
+
+    expect(result.current.progress?.status).toBe('done')
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── waitForBackend: times out after max attempts ──
+
+  it('shows done after max poll attempts even without healthy response', async () => {
+    const WS_RECONNECT_MS = 5000
+    const BACKEND_POLL_MS = 2000
+    const BACKEND_POLL_MAX = 90
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'restarting',
+      message: 'Restarting...',
+      progress: 85,
+    })
+
+    // Always return "starting" — never "ok"
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ status: 'starting' }),
+      })
+    ))
+
+    act(() => { ws.close() })
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    const ws2 = wsInstances[wsInstances.length - 1]
+    act(() => {
+      if (ws2.onopen) ws2.onopen()
+    })
+
+    // Advance through all 90 attempts
+    for (let i = 0; i < BACKEND_POLL_MAX + 1; i++) {
+      await act(async () => { vi.advanceTimersByTime(BACKEND_POLL_MS) })
+      await act(async () => { await Promise.resolve() })
+    }
+
+    // After timeout, should still show done
+    expect(result.current.progress?.status).toBe('done')
+    expect(result.current.progress?.progress).toBe(100)
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── WebSocket constructor throws — catch block in connect() ──
+
+  it('retries connection when WebSocket constructor throws', () => {
+    const WS_RECONNECT_MS = 5000
+
+    // First make the constructor throw
+    vi.stubGlobal('WebSocket', class {
+      constructor() { throw new Error('Connection refused') }
+    })
+
+    renderHook(() => useUpdateProgress())
+
+    // No instances created because constructor threw
+    // But the hook should schedule a reconnect
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    // Restore MockWebSocket for the retry
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+
+    // Now a new instance should have been created
+    expect(wsInstances.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // ── Stale detection: interval clears when status becomes non-active ──
+
+  it('stale detection timer clears itself when progress is no longer active', () => {
+    const STALE_CHECK_INTERVAL_MS = 5000
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    // Start active update to start stale detection
+    sendProgress(ws, {
+      status: 'building',
+      message: 'Building...',
+      progress: 50,
+    })
+
+    // Now set status to idle (non-active) without going through done/failed
+    sendProgress(ws, {
+      status: 'idle',
+      message: 'Idle',
+      progress: 0,
+    })
+
+    // Advance past a stale check interval — the interval callback should detect
+    // non-active status and clear itself
+    act(() => { vi.advanceTimersByTime(STALE_CHECK_INTERVAL_MS) })
+
+    expect(result.current.progress?.status).toBe('idle')
+    expect(clearIntervalSpy).toHaveBeenCalled()
+    clearIntervalSpy.mockRestore()
+  })
+
+  // ── Stale detection: does not trigger when WS is still connected ──
+
+  it('stale detection does not trigger failure when WebSocket is still connected', () => {
+    const STALE_TIMEOUT_MS = 45_000
+    const STALE_CHECK_INTERVAL_MS = 5_000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'building',
+      message: 'Building...',
+      progress: 50,
+    })
+
+    // Advance past the stale timeout but keep WS connected (wsRef is not null)
+    act(() => {
+      vi.advanceTimersByTime(STALE_TIMEOUT_MS + STALE_CHECK_INTERVAL_MS)
+    })
+
+    // Since WS is still connected, stale detection should NOT trigger failure
+    expect(result.current.progress?.status).toBe('building')
+  })
+
+  // ── Step history: active step uses empty message when payload message is empty ──
+
+  it('uses label from step map when active step message is empty', () => {
+    const TOTAL_STEPS = 7
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    sendProgress(ws, {
+      status: 'pulling',
+      message: '', // empty message
+      progress: 10,
+      step: 1,
+      totalSteps: TOTAL_STEPS,
+    })
+
+    // Active step with empty message should fall back to label
+    expect(result.current.stepHistory[0].message).toBe('Git pull')
+  })
+
+  // ── Stale detection: error message includes elapsed time ──
+
+  it('stale detection error message includes elapsed seconds', () => {
+    const STALE_TIMEOUT_MS = 45_000
+    const STALE_CHECK_INTERVAL_MS = 5_000
+    const WS_RECONNECT_MS = 5_000
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    sendProgress(ws, {
+      status: 'pulling',
+      message: 'Pulling...',
+      progress: 20,
+    })
+
+    vi.stubGlobal('WebSocket', class {
+      constructor() { throw new Error('Connection refused') }
+    })
+
+    act(() => {
+      ws.readyState = MockWebSocket.CLOSED
+      if (ws.onclose) ws.onclose()
+    })
+
+    act(() => { vi.advanceTimersByTime(WS_RECONNECT_MS) })
+    act(() => { vi.advanceTimersByTime(STALE_TIMEOUT_MS + STALE_CHECK_INTERVAL_MS) })
+
+    expect(result.current.progress?.status).toBe('failed')
+    expect(result.current.progress?.error).toMatch(/No response from kc-agent for \d+s/)
+    expect(result.current.progress?.error).toContain('startup-oauth.sh')
+
+    vi.unstubAllGlobals()
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  // ── Stale detection does not restart if already running ──
+
+  it('does not start a second stale detection timer when one is already running', () => {
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    act(() => { vi.advanceTimersByTime(0) })
+
+    // First active update — starts stale detection
+    sendProgress(ws, {
+      status: 'pulling',
+      message: 'Pulling...',
+      progress: 10,
+    })
+
+    const callCountAfterFirst = setIntervalSpy.mock.calls.length
+
+    // Another active update message — should NOT start a second timer
+    sendProgress(ws, {
+      status: 'building',
+      message: 'Building...',
+      progress: 40,
+    })
+
+    // setInterval should not have been called again
+    expect(setIntervalSpy.mock.calls.length).toBe(callCountAfterFirst)
+    expect(result.current.progress?.status).toBe('building')
+
+    setIntervalSpy.mockRestore()
+  })
+
+  // ── Pending steps have timestamp 0 ──
+
+  it('sets timestamp to 0 for pending steps', () => {
+    const TOTAL_STEPS = 7
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    sendProgress(ws, {
+      status: 'pulling',
+      message: 'Git pull',
+      progress: 14,
+      step: 1,
+      totalSteps: TOTAL_STEPS,
+    })
+
+    // Steps 2-7 should be pending with timestamp 0
+    for (let i = 1; i < TOTAL_STEPS; i++) {
+      expect(result.current.stepHistory[i].status).toBe('pending')
+      expect(result.current.stepHistory[i].timestamp).toBe(0)
+    }
+  })
+
+  // ── Completed step without prior entry uses Date.now() ──
+
+  it('assigns Date.now() to completed steps without prior history entry', () => {
+    const TOTAL_STEPS = 7
+    const { result } = renderHook(() => useUpdateProgress())
+    const ws = wsInstances[0]
+
+    // Jump directly to step 3 — steps 1 and 2 have no prior history entries
+    sendProgress(ws, {
+      status: 'building',
+      message: 'Frontend build',
+      progress: 42,
+      step: 3,
+      totalSteps: TOTAL_STEPS,
+    })
+
+    // Steps 1 and 2 should be completed with non-zero timestamps
+    expect(result.current.stepHistory[0].status).toBe('completed')
+    expect(result.current.stepHistory[0].timestamp).toBeGreaterThan(0)
+    expect(result.current.stepHistory[1].status).toBe('completed')
+    expect(result.current.stepHistory[1].timestamp).toBeGreaterThan(0)
+  })
 })

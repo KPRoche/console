@@ -8,27 +8,49 @@ vi.mock('sucrase', () => ({
   })),
 }))
 
-// Mock getDynamicScope to provide a minimal sandbox
+// Mock getDynamicScope to provide a minimal sandbox.
+// 'eval' is in BLOCKED_GLOBALS but cannot be used as a Function parameter
+// name in strict mode (SyntaxError). We make it non-enumerable so it passes
+// the `in` check (not added to blockedEntries) but isn't spread into the
+// Function parameter list via Object.keys().
 vi.mock('../scope', () => ({
   getDynamicScope: () => {
     const React = {
       createElement: vi.fn(),
       Fragment: Symbol('Fragment'),
     }
-    return {
+    const cleanupFn = vi.fn()
+    const scope: Record<string, unknown> = {
       React,
       useState: vi.fn(),
       useEffect: vi.fn(),
       useMemo: vi.fn(),
       useCallback: vi.fn(),
       useRef: vi.fn(),
+      useReducer: vi.fn(),
       cn: vi.fn(),
+      useCardData: vi.fn(),
+      commonComparators: {},
+      useCardFetch: vi.fn(),
+      Skeleton: vi.fn(),
+      Pagination: vi.fn(),
+      Spinner: vi.fn(),
+      SpinWrapper: vi.fn(),
       setTimeout: vi.fn(),
       clearTimeout: vi.fn(),
       setInterval: vi.fn(),
       clearInterval: vi.fn(),
-      __timerCleanup: vi.fn(),
+      __timerCleanup: cleanupFn,
     }
+    // Mark 'eval' as non-enumerable so it satisfies the `in` check
+    // (preventing BLOCKED_GLOBALS from adding it as a Function param)
+    // but doesn't appear in Object.keys() / spread.
+    Object.defineProperty(scope, 'eval', {
+      value: undefined,
+      enumerable: false,
+      configurable: true,
+    })
+    return scope
   },
 }))
 

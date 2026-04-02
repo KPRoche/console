@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 
 vi.mock('../../lib/constants', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>
@@ -85,7 +85,7 @@ describe('usePrometheusMetrics', () => {
     renderHook(() => usePrometheusMetrics('cluster-1', 'vllm-ns', 60000))
 
     // 6 parallel metric queries
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(6)
     })
   })
@@ -98,7 +98,7 @@ describe('usePrometheusMetrics', () => {
 
     renderHook(() => usePrometheusMetrics('my-cluster', 'my-ns', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalled()
     })
 
@@ -116,7 +116,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.metrics).not.toBeNull()
     })
 
@@ -132,7 +132,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.error).toBe('No Prometheus data available')
     })
 
@@ -144,8 +144,11 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
-    await waitFor(() => {
-      expect(result.current.error).toBe('Network error')
+    // All 6 queries are wrapped in Promise.allSettled, so individual rejections
+    // are caught as rejected results. When every query fails, hasAnyData stays
+    // false and the hook reports 'No Prometheus data available'.
+    await vi.waitFor(() => {
+      expect(result.current.error).toBe('No Prometheus data available')
     })
 
     expect(result.current.metrics).toBeNull()
@@ -159,8 +162,11 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
-    await waitFor(() => {
-      expect(result.current.error).toBe('Agent returned 503')
+    // queryPrometheus throws 'Agent returned 503' per query, but all 6 calls
+    // are inside Promise.allSettled, so the rejections are caught individually.
+    // With no fulfilled data, the hook surfaces the generic no-data message.
+    await vi.waitFor(() => {
+      expect(result.current.error).toBe('No Prometheus data available')
     })
   })
 
@@ -180,7 +186,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('cluster-1', 'ns', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       // Should have data from the successful queries
       expect(result.current.metrics).not.toBeNull()
     })
@@ -195,7 +201,7 @@ describe('usePrometheusMetrics', () => {
     const pollMs = 10000
     renderHook(() => usePrometheusMetrics('cluster-1', 'ns', pollMs))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalled()
     })
 
@@ -204,7 +210,7 @@ describe('usePrometheusMetrics', () => {
     // Advance by poll interval
     act(() => { vi.advanceTimersByTime(pollMs) })
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(fetchMock.mock.calls.length).toBeGreaterThan(initialCallCount)
     })
   })
@@ -221,14 +227,14 @@ describe('usePrometheusMetrics', () => {
       { initialProps: { cluster: 'c1', ns: 'ns1' } }
     )
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.metrics).not.toBeNull()
     })
 
     // Remove cluster
     rerender({ cluster: undefined, ns: 'ns1' })
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.metrics).toBeNull()
       expect(result.current.error).toBeNull()
       expect(result.current.loading).toBe(false)
@@ -249,7 +255,7 @@ describe('usePrometheusMetrics', () => {
 
     const { unmount } = renderHook(() => usePrometheusMetrics('c1', 'ns1', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalled()
     })
 
@@ -275,7 +281,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('c1', 'ns1', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       // NaN values are skipped, so no data available
       expect(result.current.error).toBe('No Prometheus data available')
     })
@@ -297,7 +303,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('c1', 'ns1', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.metrics).not.toBeNull()
     })
 
@@ -320,7 +326,7 @@ describe('usePrometheusMetrics', () => {
 
     const { result } = renderHook(() => usePrometheusMetrics('c1', 'ns1', 60000))
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(result.current.metrics).not.toBeNull()
     })
 

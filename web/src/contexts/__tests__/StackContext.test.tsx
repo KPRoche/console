@@ -298,20 +298,23 @@ describe('StackContext', () => {
     expect(result.current.selectedStack!.id).toBe(firstStack.id)
   })
 
-  it('returns null for selectedStack when no stack is selected', () => {
+  // SKIP: test update needed — StackContext now returns default stack instead of null
+  it('auto-selects a default stack when selection is cleared and stacks are available', () => {
     mockIsDemoMode = true
     const { result } = renderHook(() => useStack(), { wrapper })
 
-    // Clear any auto-selected stack
+    // Clear any auto-selected stack — auto-select effect will re-select a default
     act(() => {
       result.current.setSelectedStackId(null)
     })
 
-    expect(result.current.selectedStack).toBeNull()
-    expect(result.current.selectedStackId).toBeNull()
+    // StackContext auto-selects a healthy disaggregated stack when selectedStackId is null
+    expect(result.current.selectedStack).not.toBeNull()
+    expect(result.current.selectedStackId).not.toBeNull()
   })
 
-  it('returns null for selectedStack when selected ID does not match any stack', () => {
+  // SKIP: test update needed — StackContext now returns default stack instead of null
+  it('auto-selects a default stack when selected ID does not match any stack', () => {
     mockIsDemoMode = true
     const { result } = renderHook(() => useStack(), { wrapper })
 
@@ -319,10 +322,9 @@ describe('StackContext', () => {
       result.current.setSelectedStackId('nonexistent@cluster')
     })
 
-    // The selected ID should be cleared by the auto-clear effect
-    // since the ID doesn't match any stack
-    // But selectedStack should be null even before the effect
-    expect(result.current.selectedStack).toBeNull()
+    // The auto-clear effect removes the invalid ID, then the auto-select
+    // effect picks a default stack since stacks are available
+    expect(result.current.selectedStack).not.toBeNull()
   })
 
   // ── 6. Selection persistence to localStorage ─────────────────────────
@@ -339,7 +341,8 @@ describe('StackContext', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe(stackId)
   })
 
-  it('removes selection from localStorage when set to null', () => {
+  // SKIP: test update needed — StackContext now returns default stack instead of null
+  it('re-populates localStorage with auto-selected stack when selection is set to null', () => {
     mockIsDemoMode = true
     localStorage.setItem(STORAGE_KEY, 'some-id')
 
@@ -349,7 +352,11 @@ describe('StackContext', () => {
       result.current.setSelectedStackId(null)
     })
 
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull()
+    // Setting to null momentarily clears localStorage, but the auto-select
+    // effect fires and persists the new default stack ID back to localStorage
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull()
+    // The auto-selected stack should be persisted
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(result.current.selectedStackId)
   })
 
   it('restores selection from localStorage on mount', () => {
