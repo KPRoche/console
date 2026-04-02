@@ -1,11 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import {
   registerDataHook,
   getDataHook,
   getRegisteredDataHooks,
   subscribeRegistryChange,
   getRegistryVersion,
+  useDataHookRegistryVersion,
 } from '../useDataSource'
+import useDataSource from '../useDataSource'
+import type { UseDataSourceResult } from '../useDataSource'
 
 /**
  * Tests for useDataSource pure functions and registry logic.

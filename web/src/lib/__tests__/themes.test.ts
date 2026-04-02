@@ -54,7 +54,8 @@ describe('themes', () => {
         expect(theme.font.family).toBeTruthy()
         expect(theme.font.monoFamily).toBeTruthy()
         expect(theme.font.weight.normal).toBe(400)
-        expect(theme.font.weight.bold).toBeGreaterThanOrEqual(700)
+        // bold weight varies by theme (e.g. Matrix uses 400 for uniform monospace)
+        expect(theme.font.weight.bold).toBeGreaterThanOrEqual(400)
       }
     })
   })
@@ -127,7 +128,7 @@ describe('themes', () => {
         colors: getDefaultTheme().colors,
         font: getDefaultTheme().font,
       }
-      localStorage.setItem('kubestellar-custom-themes', JSON.stringify([custom]))
+      localStorage.setItem('kc-custom-themes', JSON.stringify([custom]))
       const result = getCustomThemes()
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe('test-theme')
