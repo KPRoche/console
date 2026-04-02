@@ -8,11 +8,9 @@ vi.mock('../useDemoMode', () => ({
   isDemoModeForced: true,
 }))
 
-vi.mock('../../lib/constants', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>
-  return { ...actual,
+vi.mock('../../lib/constants', () => ({
   STORAGE_KEY_TOKEN: 'kc-auth-token',
-} })
+}))
 
 import { useActiveUsers } from '../useActiveUsers'
 
