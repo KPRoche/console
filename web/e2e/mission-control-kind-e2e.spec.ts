@@ -114,9 +114,30 @@ async function deleteKindCluster(name: string): Promise<{ ok: boolean; error?: s
   }
 }
 
-function clusterExists(context: string): boolean {
+/** Check if a kind cluster exists by name (not kubectl context — doesn't need kubeconfig) */
+function kindClusterExists(name: string): boolean {
   try {
-    execSync(`kubectl --context=${context} cluster-info 2>/dev/null`, { timeout: VERIFY_TIMEOUT_MS })
+    const output = execSync('kind get clusters 2>/dev/null', { timeout: VERIFY_TIMEOUT_MS }).toString()
+    return output.split('\n').map(s => s.trim()).includes(name)
+  } catch {
+    return false
+  }
+}
+
+/** Export kubeconfig for a kind cluster so kubectl can use it */
+function exportKindKubeconfig(name: string): boolean {
+  try {
+    execSync(`kind export kubeconfig --name ${name} 2>/dev/null`, { timeout: VERIFY_TIMEOUT_MS })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Check if kubectl can reach the cluster API server */
+function clusterReachable(context: string): boolean {
+  try {
+    execSync(`kubectl --context=${context} get nodes 2>/dev/null`, { timeout: VERIFY_TIMEOUT_MS })
     return true
   } catch {
     return false
@@ -260,30 +281,47 @@ test.describe('Mission Control Kind Cluster E2E', () => {
   // ========================================================================
 
   test.describe('Cluster Provisioning', () => {
-    test.describe.configure({ timeout: KIND_CREATE_TIMEOUT_MS * KIND_CLUSTERS.length })
+    // 3 clusters × 3 min each + buffer for kubeconfig export and node readiness
+    const PROVISIONING_TIMEOUT_MS = KIND_CREATE_TIMEOUT_MS * KIND_CLUSTERS.length + 120_000
+    test.describe.configure({ timeout: PROVISIONING_TIMEOUT_MS })
 
     test('1. create kind clusters via console Local Clusters API', async () => {
       for (const name of KIND_CLUSTERS) {
-        const ctx = kindContext(name)
-
         // Skip if cluster already exists (idempotent)
-        if (clusterExists(ctx)) continue
+        if (kindClusterExists(name)) {
+          exportKindKubeconfig(name)
+          continue
+        }
 
         const result = await createKindCluster(name)
         expect(result.ok).toBe(true)
 
-        // Wait for cluster to be ready
-        let ready = false
+        // Wait for the async creation to complete (kind get clusters, not kubectl)
+        let created = false
         for (let i = 0; i < POD_POLL_MAX_ATTEMPTS; i++) {
-          if (clusterExists(ctx)) { ready = true; break }
+          if (kindClusterExists(name)) { created = true; break }
           execSync(`sleep ${POD_POLL_INTERVAL_MS / 1000}`)
         }
-        expect(ready).toBe(true)
+        expect(created).toBe(true)
+
+        // Export kubeconfig so kubectl can reach this cluster
+        const exported = exportKindKubeconfig(name)
+        expect(exported).toBe(true)
+
+        // Wait for the API server to become reachable
+        const ctx = kindContext(name)
+        let reachable = false
+        for (let i = 0; i < POD_POLL_MAX_ATTEMPTS; i++) {
+          if (clusterReachable(ctx)) { reachable = true; break }
+          execSync(`sleep ${POD_POLL_INTERVAL_MS / 1000}`)
+        }
+        expect(reachable).toBe(true)
       }
 
-      // Verify all 3 clusters exist
+      // Verify all 3 clusters exist and are reachable
       for (const name of KIND_CLUSTERS) {
-        expect(clusterExists(kindContext(name))).toBe(true)
+        expect(kindClusterExists(name)).toBe(true)
+        expect(clusterReachable(kindContext(name))).toBe(true)
       }
     })
   })
@@ -296,7 +334,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
     test('2. deploy cert-manager + Prometheus + Grafana to kind-mc-e2e-obs', async ({ page }) => {
       const ctx = kindContext('mc-e2e-obs')
-      test.skip(!clusterExists(ctx), 'mc-e2e-obs cluster not available')
+      test.skip(!clusterReachable(ctx), 'mc-e2e-obs cluster not available')
 
       await seedAndOpenMC(page, {
         phase: 'blueprint',
@@ -330,7 +368,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
     test('3. verify cert-manager + monitoring pods running on kind-mc-e2e-obs', async () => {
       const ctx = kindContext('mc-e2e-obs')
-      test.skip(!clusterExists(ctx), 'mc-e2e-obs cluster not available')
+      test.skip(!clusterReachable(ctx), 'mc-e2e-obs cluster not available')
 
       // Wait for cert-manager pods
       const certManager = waitForPodsReady(ctx, 'cert-manager', 1)
@@ -353,7 +391,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
     test('4. deploy OPA Gatekeeper + Kyverno to kind-mc-e2e-sec', async ({ page }) => {
       const ctx = kindContext('mc-e2e-sec')
-      test.skip(!clusterExists(ctx), 'mc-e2e-sec cluster not available')
+      test.skip(!clusterReachable(ctx), 'mc-e2e-sec cluster not available')
 
       await seedAndOpenMC(page, {
         phase: 'blueprint',
@@ -382,7 +420,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
     test('5. verify admission webhooks exist on kind-mc-e2e-sec', async () => {
       const ctx = kindContext('mc-e2e-sec')
-      test.skip(!clusterExists(ctx), 'mc-e2e-sec cluster not available')
+      test.skip(!clusterReachable(ctx), 'mc-e2e-sec cluster not available')
 
       // Check for gatekeeper pods
       const gatekeeper = getPodsInNamespace(ctx, 'gatekeeper-system')
@@ -406,7 +444,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
     test('6. deploy ArgoCD + cert-manager to kind-mc-e2e-gitops', async ({ page }) => {
       const ctx = kindContext('mc-e2e-gitops')
-      test.skip(!clusterExists(ctx), 'mc-e2e-gitops cluster not available')
+      test.skip(!clusterReachable(ctx), 'mc-e2e-gitops cluster not available')
 
       await seedAndOpenMC(page, {
         phase: 'blueprint',
@@ -448,7 +486,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
     test('7. deploy 6 projects across 2 kind clusters', async ({ page }) => {
       const ctxObs = kindContext('mc-e2e-obs')
       const ctxSec = kindContext('mc-e2e-sec')
-      test.skip(!clusterExists(ctxObs) || !clusterExists(ctxSec), 'Both mc-e2e-obs and mc-e2e-sec clusters required')
+      test.skip(!clusterReachable(ctxObs) || !clusterReachable(ctxSec), 'Both mc-e2e-obs and mc-e2e-sec clusters required')
 
       const allProjects = [
         ...OBS_PROJECTS,
@@ -520,7 +558,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
     test('8. delete all kind clusters via console API', async () => {
       for (const name of KIND_CLUSTERS) {
         const ctx = kindContext(name)
-        if (!clusterExists(ctx)) continue // Already gone
+        if (!clusterReachable(ctx)) continue // Already gone
 
         const result = await deleteKindCluster(name)
         expect(result.ok).toBe(true)
@@ -531,7 +569,7 @@ test.describe('Mission Control Kind Cluster E2E', () => {
 
       // Verify all clusters are gone
       for (const name of KIND_CLUSTERS) {
-        const exists = clusterExists(kindContext(name))
+        const exists = kindClusterExists(name)
         if (exists) {
           console.log(`Warning: ${name} still exists after delete — may need manual cleanup`)
         }
