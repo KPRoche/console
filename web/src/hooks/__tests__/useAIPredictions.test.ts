@@ -61,7 +61,7 @@ const originalFetch = globalThis.fetch
 
 describe('useAIPredictions', () => {
   beforeEach(() => {
-    vi.useFakeTimers()
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.clearAllMocks()
     // Reset to demo mode defaults for each test
     mockGetDemoMode.mockReturnValue(true)
