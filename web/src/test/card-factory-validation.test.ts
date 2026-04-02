@@ -337,3 +337,4 @@ describe('Card Registry consistency checks', () => {
     expect(invalid).toEqual([])
   })
 })
+})
