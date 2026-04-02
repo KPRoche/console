@@ -322,13 +322,25 @@ export function MissionDetailView({
             </button>
           )}
           {githubSourceUrl && (
-            <a href={githubSourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors" title="View source file on GitHub">
+            <a
+              href={githubSourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+              title="View source file on GitHub"
+            >
               <ExternalLink className="w-3.5 h-3.5" />
               Source
             </a>
           )}
           {githubEditUrl && (
-            <a href={githubEditUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-colors" title="Edit and create a PR on GitHub">
+            <a
+              href={githubEditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-colors"
+              title="Edit file and create a pull request on GitHub"
+            >
               <GitPullRequest className="w-3.5 h-3.5" />
               PR
             </a>

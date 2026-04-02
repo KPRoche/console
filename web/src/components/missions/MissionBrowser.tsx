@@ -738,15 +738,8 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
           if (ghFile.content && ghFile.encoding === 'base64') {
             content = atob(ghFile.content.replace(/\n/g, ''))
           } else if (ghFile.download_url) {
-            const GITHUB_RAW_FETCH_TIMEOUT_MS = 30_000 // 30s timeout for raw GitHub file downloads
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), GITHUB_RAW_FETCH_TIMEOUT_MS)
-            try {
-              const rawResp = await fetch(ghFile.download_url, { signal: controller.signal })
-              content = await rawResp.text()
-            } finally {
-              clearTimeout(timeoutId)
-            }
+            const rawResp = await fetch(ghFile.download_url)
+            content = await rawResp.text()
           } else {
             content = JSON.stringify(ghFile)
           }
@@ -1431,40 +1424,27 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                       saveWatchedPaths(updated)
                       showToast(`Removed path "${child.path}"`, 'info')
                     } : undefined}
-                    onRefresh={(node.id === 'github' || node.id === 'local') ? async (child) => {
-                      // Mark as loading
+                    onRefresh={(node.id === 'github' || node.id === 'local') ? (child) => {
+                      // Reset node to unloaded state and collapse
                       setTreeNodes((prev) =>
-                        updateNodeInTree(prev, child.id, { loading: true, isEmpty: false })
+                        updateNodeInTree(prev, child.id, {
+                          loaded: false,
+                          loading: false,
+                          children: [],
+                          isEmpty: false,
+                        })
                       )
-                      try {
-                        // Fetch fresh contents directly (bypass toggleNode to avoid stale closure issues)
-                        let children: TreeNode[] = []
-                        if (child.source === 'github' && child.id !== 'github') {
-                          const repoPath = child.path
-                          const { data: ghEntries } = await api.get<Array<{ name: string; path: string; type: string; size?: number }>>(
-                            `/api/github/repos/${repoPath}/contents`
-                          )
-                          children = (ghEntries || [])
-                            .filter(e => e.type === 'dir' || isMissionFile(e.name))
-                            .map(e => ({
-                              id: `${child.id}/${e.name}`,
-                              name: e.name,
-                              path: `${repoPath.split('/').slice(0, 2).join('/')}/${e.path}`,
-                              type: (e.type === 'dir' ? 'directory' : 'file') as TreeNode['type'],
-                              source: 'github' as const,
-                              loaded: e.type !== 'dir',
-                            }))
-                        }
-                        setTreeNodes((prev) =>
-                          updateNodeInTree(prev, child.id, { children, loaded: true, loading: false, isEmpty: children.length === 0 })
-                        )
-                        // Ensure expanded
-                        setExpandedNodes((prev) => new Set(prev).add(child.id))
-                      } catch {
-                        setTreeNodes((prev) =>
-                          updateNodeInTree(prev, child.id, { children: [], loaded: true, loading: false, isEmpty: true })
-                        )
-                      }
+                      setExpandedNodes((prev) => {
+                        const next = new Set(prev)
+                        next.delete(child.id)
+                        return next
+                      })
+                      // Re-expand with a fresh node reference so toggleNode sees loaded=false
+                      setTimeout(() => {
+                        const freshNode: TreeNode = { ...child, loaded: false, loading: false, children: [] }
+                        toggleNode(freshNode)
+                        selectNode(freshNode)
+                      }, 100)
                     } : undefined}
                     onAdd={node.id === 'github' ? () => setAddingRepo(!addingRepo)
                       : node.id === 'local' ? () => setAddingPath(!addingPath)
@@ -1629,7 +1609,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                     const parts = selectedPath.replace('github/', '').split('/')
                     if (parts.length < 3) return {}
                     const [owner, repo, ...rest] = parts
-                    const filePath = (rest || []).join('/')
+                    const filePath = rest.join('/')
                     return {
                       githubSourceUrl: `https://github.com/${owner}/${repo}/blob/main/${filePath}`,
                       githubEditUrl: `https://github.com/${owner}/${repo}/edit/main/${filePath}`,
