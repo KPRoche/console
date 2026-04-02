@@ -15,6 +15,7 @@ vi.mock('../scope', () => ({
       createElement: vi.fn(),
       Fragment: Symbol('Fragment'),
     }
+    const cleanupFn = vi.fn()
     return {
       React,
       useState: vi.fn(),
@@ -22,12 +23,20 @@ vi.mock('../scope', () => ({
       useMemo: vi.fn(),
       useCallback: vi.fn(),
       useRef: vi.fn(),
+      useReducer: vi.fn(),
       cn: vi.fn(),
+      useCardData: vi.fn(),
+      commonComparators: {},
+      useCardFetch: vi.fn(),
+      Skeleton: vi.fn(),
+      Pagination: vi.fn(),
+      Spinner: vi.fn(),
+      SpinWrapper: vi.fn(),
       setTimeout: vi.fn(),
       clearTimeout: vi.fn(),
       setInterval: vi.fn(),
       clearInterval: vi.fn(),
-      __timerCleanup: vi.fn(),
+      __timerCleanup: cleanupFn,
     }
   },
 }))

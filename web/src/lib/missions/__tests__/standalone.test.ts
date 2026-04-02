@@ -12,7 +12,7 @@ vi.mock('../scanner/index', () => ({
 // Mock the types module
 vi.mock('../types', () => ({
   validateMissionExport: vi.fn((data) => {
-    if (!data || typeof data !== 'object') {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return {
         valid: false,
         errors: [{ message: 'Not an object', path: '' }],

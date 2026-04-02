@@ -201,7 +201,9 @@ describe('BaseModal.Footer', () => {
       </BaseModal>
     )
     expect(screen.getByText('Esc')).toBeInTheDocument()
-    expect(screen.getByText('close')).toBeInTheDocument()
+    // Both Esc and Space hints show "close" as label, so use getAllByText
+    const closeLabels = screen.getAllByText('close')
+    expect(closeLabels.length).toBeGreaterThanOrEqual(1)
   })
 
   it('hides keyboard hints when showKeyboardHints is false', () => {

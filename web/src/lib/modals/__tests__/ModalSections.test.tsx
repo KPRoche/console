@@ -305,8 +305,9 @@ describe('BadgesSection', () => {
     const onClick = vi.fn()
     const badges = [{ label: 'Tag', value: 'v1', onClick }]
     render(<BadgesSection badges={badges} />)
-    const badge = screen.getByText('v1').closest('span')
-    expect(badge?.className).toContain('cursor-pointer')
+    // The clickable badge has role="button" when onClick is provided
+    const badge = screen.getByRole('button')
+    expect(badge.className).toContain('cursor-pointer')
   })
 })
 
