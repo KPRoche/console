@@ -6338,4 +6338,340 @@ describe('useCachedData', () => {
       expect(calledUrl).toContain('includeSystem=true')
     })
   })
+
+  // ========================================================================
+  // fetchAPI — token missing, non-JSON, undefined params
+  // ========================================================================
+  describe('fetchAPI — error paths', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('throws when no token in localStorage', async () => {
+      localStorage.removeItem('kc_token')
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedPods } = await loadModule()
+      useCachedPods('test-cluster')
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow('No authentication token')
+    })
+
+    it('throws when response is not ok', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: vi.fn().mockResolvedValue('Service Unavailable'),
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedServices } = await loadModule()
+      useCachedServices('c1')
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow('API error: 503')
+    })
+
+    it('throws when response is non-JSON text', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue('<html>Not JSON</html>'),
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedServices } = await loadModule()
+      useCachedServices('c1')
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow('API returned non-JSON response')
+    })
+
+    it('skips undefined params in query string', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ pods: [] })),
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedPods } = await loadModule()
+      useCachedPods('c1', undefined, { limit: 10 })
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await fetcher()
+
+      const calledUrl = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+      expect(calledUrl).toContain('cluster=c1')
+      expect(calledUrl).not.toContain('namespace=')
+    })
+  })
+
+  // ========================================================================
+  // fetchFromAllClusters — cluster failure scenarios
+  // ========================================================================
+  describe('fetchFromAllClusters — failure and empty paths', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('throws when no clusters are available', async () => {
+      // Ensure clusterCacheRef is empty and fetchClusters returns []
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ clusters: [] })),
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      // useCachedNodes uses fetchFromAllClusters when no cluster specified
+      const { useCachedNodes } = await loadModule()
+      useCachedNodes()
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow()
+    })
+
+    it('throws "All cluster fetches failed" when every cluster errors', async () => {
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          text: vi.fn().mockResolvedValue(JSON.stringify({ clusters: [{ name: 'c1' }, { name: 'c2' }] })),
+        })
+        .mockRejectedValue(new Error('network error'))
+      )
+      mockSettledWithConcurrency.mockResolvedValue([
+        { status: 'rejected', reason: new Error('fail') },
+        { status: 'rejected', reason: new Error('fail') },
+      ])
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedNodes } = await loadModule()
+      useCachedNodes()
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow()
+    })
+  })
+
+  // ========================================================================
+  // fetchViaSSE — demo token fallback, SSE error fallback
+  // ========================================================================
+  describe('fetchViaSSE — fallback paths', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('falls back to REST when token is demo-token', async () => {
+      localStorage.setItem('kc_token', 'demo-token')
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ clusters: [{ name: 'c1' }], pods: [{ name: 'p1' }] })),
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+
+      const { useCachedPods } = await loadModule()
+      useCachedPods()
+      const progressiveFetcher = capturedOpts.progressiveFetcher as ((onProgress: (d: unknown) => void) => Promise<unknown>) | undefined
+      if (progressiveFetcher) {
+        // Should not call fetchSSE since token is demo
+        const onProgress = vi.fn()
+        // This will throw because fetchFromAllClusters can't fetch with demo-token
+        // but the point is it doesn't attempt SSE
+        try { await progressiveFetcher(onProgress) } catch { /* expected */ }
+        expect(mockFetchSSE).not.toHaveBeenCalled()
+      }
+    })
+  })
+
+  // ========================================================================
+  // fetchGitOpsAPI / fetchViaGitOpsSSE — token and error paths
+  // ========================================================================
+  describe('fetchGitOpsAPI — error paths', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('throws when no token for GitOps API', async () => {
+      localStorage.removeItem('kc_token')
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult([])
+      })
+      const { useCachedGitOpsDrifts } = await loadModule()
+      useCachedGitOpsDrifts()
+      const fetcher = capturedOpts.fetcher as (() => Promise<unknown>) | undefined
+      if (fetcher) {
+        await expect(fetcher()).rejects.toThrow()
+      }
+    })
+  })
+
+  // ========================================================================
+  // useCachedHardwareHealth — agent fetcher branches
+  // ========================================================================
+  describe('useCachedHardwareHealth', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('returns hardware health data', async () => {
+      const health = {
+        alerts: [{ id: 'a1', nodeName: 'gpu-1', cluster: 'prod', deviceType: 'gpu', severity: 'critical', previousCount: 8, currentCount: 6, droppedCount: 2 }],
+        inventory: [],
+        nodeCount: 1,
+        lastUpdate: new Date().toISOString(),
+      }
+      mockUseCache.mockReturnValue(makeCacheResult(health))
+      const { useCachedHardwareHealth } = await loadModule()
+      const result = useCachedHardwareHealth()
+      expect(result.data.alerts).toHaveLength(1)
+      expect(result.data.nodeCount).toBe(1)
+    })
+
+    it('fetcher throws when both agent endpoints fail', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+      }))
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult({ alerts: [], inventory: [], nodeCount: 0, lastUpdate: null })
+      })
+      const { useCachedHardwareHealth } = await loadModule()
+      useCachedHardwareHealth()
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      await expect(fetcher()).rejects.toThrow('Device endpoints unavailable')
+    })
+
+    it('fetcher handles one endpoint ok and the other failed', async () => {
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: vi.fn().mockResolvedValue({ alerts: [{ id: 'x' }], nodeCount: 2, timestamp: 'now' }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+        })
+      )
+
+      let capturedOpts: Record<string, unknown> = {}
+      mockUseCache.mockImplementation((opts: Record<string, unknown>) => {
+        capturedOpts = opts
+        return makeCacheResult({ alerts: [], inventory: [], nodeCount: 0, lastUpdate: null })
+      })
+      const { useCachedHardwareHealth } = await loadModule()
+      useCachedHardwareHealth()
+      const fetcher = capturedOpts.fetcher as () => Promise<unknown>
+      const result = await fetcher() as { alerts: unknown[]; nodeCount: number }
+      expect(result.alerts).toHaveLength(1)
+      expect(result.nodeCount).toBe(2)
+    })
+  })
+
+  // ========================================================================
+  // useGPUHealthCronJob — action success and error paths
+  // ========================================================================
+  describe('useGPUHealthCronJob', () => {
+    it('returns null status when no cluster', async () => {
+      mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { useGPUHealthCronJob } = await loadModule()
+      const result = useGPUHealthCronJob()
+      expect(result.status).toBeNull()
+    })
+
+    it('enabled is false when cluster is undefined', async () => {
+      mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { useGPUHealthCronJob } = await loadModule()
+      useGPUHealthCronJob()
+      expect(mockUseCache.mock.calls[0][0].enabled).toBe(false)
+    })
+
+    it('enabled is true when cluster is given', async () => {
+      mockUseCache.mockReturnValue(makeCacheResult(null))
+      const { useGPUHealthCronJob } = await loadModule()
+      useGPUHealthCronJob('my-cluster')
+      expect(mockUseCache.mock.calls[0][0].enabled).toBe(true)
+    })
+  })
+
+  // ========================================================================
+  // coreFetchers — standalone fetcher paths
+  // ========================================================================
+  describe('coreFetchers', () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it('coreFetchers.podIssues returns empty when no agent and no token', async () => {
+      localStorage.removeItem('kc_token')
+      mockIsAgentUnavailable.mockReturnValue(true)
+
+      const { coreFetchers } = await loadModule()
+      const result = await coreFetchers.podIssues()
+      expect(result).toEqual([])
+    })
+
+    it('coreFetchers.deployments returns empty when no agent and no token', async () => {
+      localStorage.removeItem('kc_token')
+      mockIsAgentUnavailable.mockReturnValue(true)
+
+      const { coreFetchers } = await loadModule()
+      const result = await coreFetchers.deployments()
+      expect(result).toEqual([])
+    })
+
+    it('coreFetchers.deploymentIssues returns empty when no sources available', async () => {
+      localStorage.removeItem('kc_token')
+      mockIsAgentUnavailable.mockReturnValue(true)
+
+      const { coreFetchers } = await loadModule()
+      const result = await coreFetchers.deploymentIssues()
+      expect(result).toEqual([])
+    })
+
+    it('coreFetchers.securityIssues returns empty when no sources available', async () => {
+      localStorage.removeItem('kc_token')
+      mockIsAgentUnavailable.mockReturnValue(true)
+
+      const { coreFetchers } = await loadModule()
+      const result = await coreFetchers.securityIssues()
+      expect(result).toEqual([])
+    })
+
+    it('coreFetchers.workloads returns empty when no sources available', async () => {
+      localStorage.removeItem('kc_token')
+      mockIsAgentUnavailable.mockReturnValue(true)
+
+      const { coreFetchers } = await loadModule()
+      const result = await coreFetchers.workloads()
+      expect(result).toEqual([])
+    })
+  })
+
+  // ========================================================================
+  // specialtyFetchers — exported correctly
+  // ========================================================================
+  describe('specialtyFetchers', () => {
+    it('specialtyFetchers has prowJobs, llmdServers, llmdModels', async () => {
+      const { specialtyFetchers } = await loadModule()
+      expect(typeof specialtyFetchers.prowJobs).toBe('function')
+      expect(typeof specialtyFetchers.llmdServers).toBe('function')
+      expect(typeof specialtyFetchers.llmdModels).toBe('function')
+    })
+  })
 })

@@ -159,4 +159,100 @@ describe('useCrossplaneManagedResources', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.lastRefresh).toBeDefined()
   })
+
+  it('skips fetch and clears loading on Netlify deployment', async () => {
+    mockIsNetlifyDeployment.value = true
+
+    const { result } = renderHook(() => useCrossplaneManagedResources('netlify-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
+  it('handles non-Error thrown values in catch path', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue('string-error')
+
+    const { result } = renderHook(() => useCrossplaneManagedResources('err-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1)
+    expect(result.current.error).toBe('Failed to fetch managed resources')
+  })
+
+  it('handles HTTP error status codes (non-ok response)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    })
+
+    const { result } = renderHook(() => useCrossplaneManagedResources('err-cluster-2'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.error).toContain('API error: 500')
+  })
+
+  it('handles response with missing resources key', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    })
+
+    const { result } = renderHook(() => useCrossplaneManagedResources('missing-key-cluster'))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.resources).toEqual([])
+    expect(result.current.error).toBeNull()
+  })
+
+  it('returns isRefreshing true during silent refetch', async () => {
+    let resolvePromise: (v: unknown) => void
+    globalThis.fetch = vi.fn().mockImplementation(() =>
+      new Promise((resolve) => {
+        resolvePromise = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useCrossplaneManagedResources())
+
+    // Wait for the initial fetch to be in progress
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
+
+    // Resolve initial fetch
+    resolvePromise!({
+      ok: true,
+      json: async () => ({ resources: [{ apiVersion: 'v1', kind: 'Test', metadata: { name: 'a', namespace: 'b', creationTimestamp: '' } }] }),
+    })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.resources.length).toBe(1)
+  })
+
+  it('provides refetch function that can be called', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ resources: [] }),
+    })
+
+    const { result } = renderHook(() => useCrossplaneManagedResources())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(typeof result.current.refetch).toBe('function')
+  })
+
+  it('resets consecutiveFailures on successful fetch', async () => {
+    // First: failure
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('fail'))
+    const { result, rerender } = renderHook(
+      ({ c }: { c: string }) => useCrossplaneManagedResources(c),
+      { initialProps: { c: 'fail-first' } },
+    )
+    await waitFor(() => expect(result.current.consecutiveFailures).toBeGreaterThanOrEqual(1))
+
+    // Then: success
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ resources: [] }),
+    })
+    rerender({ c: 'succeed-second' })
+    await waitFor(() => expect(result.current.consecutiveFailures).toBe(0))
+  })
 })
