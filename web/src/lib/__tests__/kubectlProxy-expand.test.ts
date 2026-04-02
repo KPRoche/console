@@ -258,10 +258,11 @@ describe('KubectlProxy — expanded edge cases', () => {
     const p1 = kubectlProxy.exec(['get', 'pods'], { priority: true })
     if (activeWs) {
       activeWs.triggerOpen()
-      // Close immediately after open
+      // Close immediately after open — by the time execImmediate proceeds
+      // (microtask), the WS is already null so it throws 'Not connected'
       activeWs.close()
     }
-    await expect(p1).rejects.toThrow('Connection closed')
+    await expect(p1).rejects.toThrow('Not connected')
   })
 })
 
