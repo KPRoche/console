@@ -2818,4 +2818,3 @@ describe('AlertsContext — additional coverage', () => {
     expect(result.current.isEvaluating).toBe(false)
   })
 })
-})

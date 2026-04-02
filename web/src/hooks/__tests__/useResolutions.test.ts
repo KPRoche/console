@@ -1089,6 +1089,3 @@ describe('useResolutions', () => {
     expect(result.current.resolutions[0].id).toBe('stays')
   })
 })
-})
-})
-})

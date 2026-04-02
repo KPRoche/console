@@ -533,4 +533,3 @@ describe('useUpdateProgress', () => {
     expect(result.current.stepHistory[9].message).toBe('Step 10')
   })
 })
-})

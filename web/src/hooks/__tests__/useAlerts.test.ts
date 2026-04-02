@@ -652,6 +652,3 @@ describe('useSlackWebhooks addWebhook return value', () => {
     expect(returned!.id).toMatch(new RegExp(`^${WEBHOOK_ID_PREFIX}`))
   })
 })
-})
-})
-})

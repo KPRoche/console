@@ -543,6 +543,3 @@ describe('Concurrent Mutation Safety Scan', () => {
     })
   })
 })
-})
-})
-})

@@ -1390,4 +1390,3 @@ describe('formatElapsedTime', () => {
     expect(formatElapsedTime(now)).toBe('now')
   })
 })
-})

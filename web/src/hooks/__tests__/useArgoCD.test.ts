@@ -1186,6 +1186,3 @@ describe('cache helpers — additional coverage', () => {
     unmount()
   })
 })
-})
-})
-})

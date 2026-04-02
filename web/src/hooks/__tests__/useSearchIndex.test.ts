@@ -1220,4 +1220,3 @@ describe('useSearchIndex', () => {
     expect(cards.length).toBeGreaterThan(0)
   })
 })
-})

@@ -430,7 +430,3 @@ describe('getSeverityColors', () => {
     expect(Object.keys(SEVERITY_COLORS)).toHaveLength(6)
   })
 })
-})
-})
-})
-})

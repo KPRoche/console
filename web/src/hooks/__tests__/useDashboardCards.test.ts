@@ -702,6 +702,3 @@ describe('useDashboardCards', () => {
     })
   })
 })
-})
-})
-})
