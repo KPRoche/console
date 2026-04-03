@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-04-02T03:55:10Z",
+  "last_updated": "2026-04-03T03:55:27Z",
   "rolling_window_days": 30,
   "categories": {
     "performance": {
@@ -11,25 +11,25 @@
       "last_evaluated": "2026-03-28T03:48:11Z"
     },
     "security": {
-      "merged": 20,
+      "merged": 21,
       "closed": 18,
-      "acceptance_rate": 0.53,
+      "acceptance_rate": 0.54,
       "status": "normal",
-      "last_evaluated": "2026-04-01T04:02:27Z"
+      "last_evaluated": "2026-04-03T03:55:27Z"
     },
     "a11y": {
-      "merged": 33,
+      "merged": 34,
       "closed": 17,
-      "acceptance_rate": 0.66,
+      "acceptance_rate": 0.67,
       "status": "normal",
-      "last_evaluated": "2026-04-01T04:02:27Z"
+      "last_evaluated": "2026-04-03T03:55:27Z"
     },
     "operator": {
-      "merged": 9,
+      "merged": 11,
       "closed": 4,
-      "acceptance_rate": 0.69,
+      "acceptance_rate": 0.73,
       "status": "normal",
-      "last_evaluated": "2026-04-02T03:55:10Z"
+      "last_evaluated": "2026-04-03T03:55:27Z"
     },
     "sre": {
       "merged": 2,
@@ -46,11 +46,11 @@
       "last_evaluated": "2026-04-01T04:02:27Z"
     },
     "resilience": {
-      "merged": 36,
+      "merged": 37,
       "closed": 35,
       "acceptance_rate": 0.51,
       "status": "normal",
-      "last_evaluated": "2026-04-01T04:02:27Z"
+      "last_evaluated": "2026-04-03T03:55:27Z"
     },
     "consistency": {
       "merged": 15,
@@ -116,13 +116,6 @@
     ]
   },
   "history": [
-    {
-      "date": "2026-02-26",
-      "total_merged": 54,
-      "total_closed": 32,
-      "categories_blocked": [],
-      "categories_boosted": []
-    },
     {
       "date": "2026-02-27",
       "total_merged": 66,
@@ -337,13 +330,20 @@
       "total_closed": 97,
       "categories_blocked": [],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-04-03",
+      "total_merged": 131,
+      "total_closed": 97,
+      "categories_blocked": [],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
     "performance": 0.86,
-    "security": 0.8,
-    "a11y": 0.99,
-    "operator": 1.03,
+    "security": 0.81,
+    "a11y": 1.01,
+    "operator": 1.1,
     "sre": 1.01,
     "features": 1.5,
     "resilience": 0.77,
