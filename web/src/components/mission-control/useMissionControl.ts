@@ -77,6 +77,7 @@ function makeInitialState(persisted?: Partial<MissionControlState> | null): Miss
     overlay: persisted?.overlay ?? 'architecture',
     deployMode: persisted?.deployMode ?? 'phased',
     isDryRun: persisted?.isDryRun ?? false,
+    targetClusters: persisted?.targetClusters ?? [],
     planningMissionId: persisted?.planningMissionId,
     aiStreaming: false,
     launchProgress: persisted?.launchProgress ?? [],
@@ -269,6 +270,10 @@ export function useMissionControl() {
     setState((prev) => ({ ...prev, title }))
   }, [])
 
+  const setTargetClusters = useCallback((targetClusters: string[]) => {
+    setState((prev) => ({ ...prev, targetClusters }))
+  }, [])
+
   const askAIForSuggestions = useCallback(
     (description: string, existingProjects: PayloadProject[] = []) => {
       let missionId = state.planningMissionId
@@ -278,14 +283,23 @@ export function useMissionControl() {
           ? `\n\nAlready selected projects:\n${JSON.stringify(existingProjects.map((p) => p.name))}`
           : ''
 
+      // Scope AI analysis to selected target clusters (if any)
+      const clusterScope = state.targetClusters.length > 0
+        ? `\n\nIMPORTANT — The user has scoped this mission to these specific clusters ONLY: ${JSON.stringify(state.targetClusters)}. Do NOT analyze or suggest deployments for clusters outside this list.`
+        : ''
+
       // Include helm release info so AI knows what's already installed
-      const helmContext = helmReleases?.length
-        ? `\n\nIMPORTANT — Cluster inspection results (helm releases already installed across clusters):\n${JSON.stringify(helmReleases.map(r => ({ name: r.name, chart: r.chart, namespace: r.namespace, status: r.status, cluster: r.cluster })), null, 2)}\n\nFor each suggested project, check if it is already installed on the clusters. Include a "Cluster Inspection Summary" table in your analysis showing which components are Running vs Not installed on each cluster.`
+      // Filter to target clusters if scoped
+      const scopedReleases = state.targetClusters.length > 0
+        ? (helmReleases || []).filter(r => r.cluster && state.targetClusters.includes(r.cluster))
+        : helmReleases
+      const helmContext = scopedReleases?.length
+        ? `\n\nIMPORTANT — Cluster inspection results (helm releases already installed across clusters):\n${JSON.stringify(scopedReleases.map(r => ({ name: r.name, chart: r.chart, namespace: r.namespace, status: r.status, cluster: r.cluster })), null, 2)}\n\nFor each suggested project, check if it is already installed on the clusters. Include a "Cluster Inspection Summary" table in your analysis showing which components are Running vs Not installed on each cluster.`
         : ''
 
       const prompt = `You are helping plan a Kubernetes fix deployment.
 User's goal: "${description}"
-${existingContext}${helmContext}
+${clusterScope}${existingContext}${helmContext}
 
 First, provide a brief executive analysis of the user's requirements and your recommended architecture approach. Explain what layers of the stack need to be covered (security, networking, observability, etc.) and why.
 
@@ -744,6 +758,7 @@ Order phases by dependency — prerequisites first. Each phase completes before 
     // Phase 1
     setDescription,
     setTitle,
+    setTargetClusters,
     askAIForSuggestions,
     addProject,
     removeProject,

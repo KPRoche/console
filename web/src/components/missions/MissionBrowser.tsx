@@ -232,17 +232,28 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
         loaded: false,
         description: 'console-kb',
       },
+      {
+        id: 'kubara',
+        name: 'Kubara Platform Catalog',
+        path: 'go-binary/templates/embedded/managed-service-catalog/helm',
+        type: 'directory',
+        source: 'github',
+        loaded: false,
+        description: 'Production-tested Helm values from kubara-io/kubara',
+        repoOwner: 'kubara-io',
+        repoName: 'kubara',
+      },
     ]
 
     if (isAuthenticated && user) {
       rootNodes.push({
         id: 'github',
-        name: 'My Repositories',
+        name: 'GitHub Repositories',
         path: '',
         type: 'directory',
         source: 'github',
         loaded: true,
-        description: user.github_login,
+        description: 'Add any repo — your own, Kubara forks, or team knowledge bases',
         children: watchedRepos.map((repo) => ({
           id: `github/${repo}`,
           name: repo.split('/').pop() || repo,
@@ -686,16 +697,20 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
           )
         } else if (node.source === 'github') {
           // Fetch repo contents via GitHub Contents API proxy
-          // node.path is "owner/repo" for root or "owner/repo/subpath" for subdirs
-          const repoPath = node.path
-          const { data: ghEntries } = await api.get<Array<{ name: string; path: string; type: string; size?: number }>>(
-            `/api/github/repos/${repoPath}/contents/`
-          )
+          // If repoOwner/repoName are set (external sources like Kubara), use them
+          // Otherwise node.path is "owner/repo" or "owner/repo/subpath"
+          const owner = node.repoOwner || node.path.split('/')[0]
+          const repo = node.repoName || node.path.split('/')[1]
+          const subPath = node.repoOwner ? node.path : node.path.split('/').slice(2).join('/')
+          const apiPath = subPath
+            ? `/api/github/repos/${owner}/${repo}/contents/${subPath}`
+            : `/api/github/repos/${owner}/${repo}/contents/`
+          const { data: ghEntries } = await api.get<Array<{ name: string; path: string; type: string; size?: number }>>(apiPath)
           const entries: BrowseEntry[] = (ghEntries || [])
             .filter(e => e.type === 'dir' || isMissionFile(e.name))
             .map(e => ({
               name: e.name,
-              path: `${repoPath.split('/').slice(0, 2).join('/')}/${e.path}`,
+              path: node.repoOwner ? e.path : `${owner}/${repo}/${e.path}`,
               type: e.type === 'dir' ? 'directory' as const : 'file' as const,
               size: e.size,
             }))
@@ -1464,7 +1479,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
                         type="text"
                         value={newRepoValue}
                         onChange={(e) => setNewRepoValue(e.target.value)}
-                        placeholder="owner/repo"
+                        placeholder="owner/repo (e.g., kubara-io/kubara or your-org/runbooks)"
                         className="flex-1 px-2 py-1 text-xs bg-secondary border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500/40"
                         autoFocus
                         onKeyDown={(e) => { if (e.key === 'Escape') { setAddingRepo(false); setNewRepoValue('') } }}
