@@ -1,42 +1,42 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-04-06T04:00:46Z",
+  "last_updated": "2026-04-07T03:57:21Z",
   "rolling_window_days": 30,
   "categories": {
     "performance": {
       "merged": 8,
-      "closed": 8,
-      "acceptance_rate": 0.5,
+      "closed": 9,
+      "acceptance_rate": 0.47,
       "status": "normal",
-      "last_evaluated": "2026-04-05T03:59:32Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "security": {
       "merged": 21,
-      "closed": 25,
-      "acceptance_rate": 0.46,
+      "closed": 29,
+      "acceptance_rate": 0.42,
       "status": "normal",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "a11y": {
       "merged": 34,
-      "closed": 19,
-      "acceptance_rate": 0.64,
+      "closed": 21,
+      "acceptance_rate": 0.62,
       "status": "normal",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "operator": {
       "merged": 11,
-      "closed": 85,
-      "acceptance_rate": 0.11,
+      "closed": 124,
+      "acceptance_rate": 0.08,
       "status": "blocked",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "sre": {
       "merged": 2,
-      "closed": 18,
-      "acceptance_rate": 0.1,
+      "closed": 20,
+      "acceptance_rate": 0.09,
       "status": "blocked",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "features": {
       "merged": 3,
@@ -47,10 +47,10 @@
     },
     "resilience": {
       "merged": 37,
-      "closed": 48,
-      "acceptance_rate": 0.44,
+      "closed": 50,
+      "acceptance_rate": 0.43,
       "status": "normal",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-07T03:57:21Z"
     },
     "consistency": {
       "merged": 15,
@@ -116,15 +116,6 @@
     ]
   },
   "history": [
-    {
-      "date": "2026-03-03",
-      "total_merged": 79,
-      "total_closed": 44,
-      "categories_blocked": [],
-      "categories_boosted": [
-        "consistency"
-      ]
-    },
     {
       "date": "2026-03-05",
       "total_merged": 83,
@@ -337,16 +328,26 @@
         "sre"
       ],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-04-07",
+      "total_merged": 131,
+      "total_closed": 278,
+      "categories_blocked": [
+        "operator",
+        "sre"
+      ],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
-    "performance": 0.75,
-    "security": 0.69,
-    "a11y": 0.96,
+    "performance": 0.71,
+    "security": 0.63,
+    "a11y": 0.93,
     "operator": 0,
     "sre": 0,
     "features": 0.45,
-    "resilience": 0.66,
+    "resilience": 0.65,
     "consistency": 0.68
   },
   "max_issues_override": 2,
