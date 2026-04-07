@@ -1,6 +1,5 @@
 name: GA4 Error Monitor
 # Queries GA4 for recent ksc_error events and creates GitHub issues for
-# error spikes. Issues get triage/accepted + ai-fix-requested labels so
 # Copilot auto-picks them up and creates fix PRs.
 #
 # Secrets required:
@@ -349,10 +348,8 @@ jobs:
                 '',
                 '---',
                 `*This issue was automatically created by the [GA4 Error Monitor workflow](${runUrl}).*`,
-                '*Labels `ai-fix-requested` and `triage/accepted` enable Copilot to fix this automatically.*',
               ].join('\n');
 
-              // Note: ai-fix-requested is omitted because we assign Copilot directly below.
               // Including it would trigger ai-fix.yml which tries to assign again with GITHUB_TOKEN (Forbidden).
               const labels = ['bug', 'help wanted', 'ga4-error', 'auto-qa', 'triage/accepted'];
 
@@ -366,14 +363,8 @@ jobs:
 
               core.info(`Created issue #${issue.number}: ${title}`);
 
-              // Queue for Copilot assignment (processed by copilot-queue.yml)
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                labels: ['ai-queued'],
-              });
-              core.info(`#${issue.number}: added to Copilot queue`);
+              // Copilot auto-assignment disabled — issues are handled by Claude Code scanner
+              core.info(`#${issue.number}: created (Copilot assignment disabled)`);
 
               created++;
             }

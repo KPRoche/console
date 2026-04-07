@@ -267,7 +267,6 @@ jobs:
               '',
               '---',
               `*This issue was automatically created by the [nil-safety workflow](${runUrl}).*`,
-              '*Labels `ai-fix-requested` and `help wanted` enable Copilot to fix this after triage.*',
             ].join('\n');
 
             const { data: issue } = await github.rest.issues.create({
@@ -275,7 +274,7 @@ jobs:
               repo: context.repo.repo,
               title,
               body,
-              labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nil-safety'],
+              labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nil-safety'],
             });
 
             core.info(`Created issue #${issue.number}: ${title}`);

@@ -3587,7 +3587,6 @@ jobs:
                 '',
                 '---',
                 `*This issue was automatically created by the [Auto-QA workflow](${runUrl}).*`,
-                '*Labels `ai-fix-requested` and `help wanted` enable Copilot to fix this after triage.*',
               ].join('\n');
             }
 
@@ -3608,7 +3607,6 @@ jobs:
                 '',
                 '---',
                 `*This issue was automatically created by the [Auto-QA workflow](${runUrl}) during **${areaName}** focus day.*`,
-                '*Labels `ai-fix-requested` and `help wanted` enable Copilot to fix this after triage.*',
               ].join('\n');
             }
 
@@ -3624,7 +3622,7 @@ jobs:
                   ['Check the TypeScript errors shown above',
                    'Fix type errors, missing imports, or syntax issues',
                    'Run `cd web && npm run build` to verify the fix']),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted'],
               });
             }
 
@@ -3636,7 +3634,7 @@ jobs:
                   ['Fix the ESLint errors listed above',
                    'Common fixes: remove unused imports, add missing hook dependencies',
                    'Run `cd web && npm run lint` to verify the fix']),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted'],
               });
             }
 
@@ -3648,7 +3646,7 @@ jobs:
                   ['Fix the Go compilation errors shown above',
                    'Check for missing dependencies, type errors, or undefined references',
                    'Run `go build ./cmd/console` to verify the fix']),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted'],
               });
             }
 
@@ -3677,9 +3675,8 @@ jobs:
                   '- Run `cd web && npm audit --audit-level=high` to verify the fix',
                   '', '---',
                   `*This issue was automatically created by the [Auto-QA workflow](${runUrl}).*`,
-                  '*Labels `ai-fix-requested` and `help wanted` enable Copilot to fix this after triage.*',
                 ].join('\n'),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted'],
               });
             }
 
@@ -3708,7 +3705,7 @@ jobs:
                     ['Remove unused dependencies with `npm uninstall <pkg>`',
                      'Verify each package is truly unused before removing',
                      'Some packages may be used indirectly (plugins, configs)'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_LAZY_LOADING === 'true') {
@@ -3719,7 +3716,7 @@ jobs:
                     ['Wrap large page components with `React.lazy(() => import(...))`',
                      'Add `<Suspense fallback={<Loading />}>` around lazy components',
                      'Focus on route-level components first for maximum impact'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_BUNDLE_ANALYSIS === 'true') {
@@ -3731,7 +3728,7 @@ jobs:
                      'Use `vite-bundle-visualizer` or `rollup-plugin-visualizer` to identify what is large',
                      'Move large third-party libs to a separate manual chunk in vite.config.ts',
                      'Consider loading non-critical libraries on demand (e.g., chart libs)'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:bundle-size'],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:bundle-size'],
                 });
               }
               if (process.env.FOCUS_LARGE_FILES === 'true') {
@@ -3743,7 +3740,7 @@ jobs:
                      'Extract reusable hooks into `hooks/` directory',
                      'Move co-located sub-components into their own files under a component directory',
                      'Large files slow TypeScript type-checking and IDE responsiveness'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:large-files'],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:large-files'],
                 });
               }
               if (process.env.FOCUS_IMPORT_COST === 'true') {
@@ -3755,7 +3752,7 @@ jobs:
                      'Use per-method lodash imports: `import debounce from "lodash/debounce"`',
                      'Verify bundle size before and after with `npm run build` and `du -sh web/dist`',
                      'Consider alternatives to lodash for simple utilities (native Array/Object methods)'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:import-cost'],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:import-cost'],
                 });
               }
             }
@@ -3771,7 +3768,7 @@ jobs:
                      'Remove any hardcoded tokens or passwords',
                      'Use `.env` files for environment-specific values',
                      'Ensure no real credentials are committed (check git history)'], false),
-                  labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_DEP_AGE === 'true') {
@@ -3782,7 +3779,7 @@ jobs:
                     ['Review changelogs for breaking changes before updating',
                      'Update one dependency at a time and test thoroughly',
                      'Major version bumps may require code changes'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -3798,7 +3795,7 @@ jobs:
                      'Add `alt` text to all images',
                      'Use semantic HTML elements where possible',
                      'Test with a screen reader to verify'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_KEYBOARD === 'true') {
@@ -3809,7 +3806,7 @@ jobs:
                     ['Replace clickable `<div>` elements with `<button>` or add `role="button"` and `tabIndex={0}`',
                      'Add `onKeyDown` handlers alongside `onClick` for non-button elements',
                      'Ensure all interactive elements are focusable via Tab'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_COLOR_CONTRAST === 'true') {
@@ -3822,7 +3819,7 @@ jobs:
                      'Avoid opacity-reduced text below 60% — it drops effective contrast sharply',
                      'Use inline color styles only when paired with a verified-contrast background',
                      'Validate with the WebAIM Contrast Checker: https://webaim.org/resources/contrastchecker/'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:color-contrast'],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:color-contrast'],
                 });
               }
             }
@@ -3837,7 +3834,7 @@ jobs:
                     ['Extract magic numbers to named constants at the top of the file',
                      'Consider making thresholds configurable via environment or props',
                      'Add comments explaining the reasoning behind threshold values'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_TOOLTIPS === 'true') {
@@ -3848,7 +3845,7 @@ jobs:
                     ['Add tooltips to technical abbreviations (CPU, RBAC, CRD, etc.)',
                      'Use the existing Tooltip component or HTML `title` attribute',
                      'Explain what status indicators mean on hover'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -3863,7 +3860,7 @@ jobs:
                     ['Review flagged code for multi-cluster compatibility',
                      'Ensure cluster selectors and filters work with multiple clusters',
                      'Add cluster context to API calls where missing'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_HEALTH === 'true') {
@@ -3874,7 +3871,7 @@ jobs:
                     ['Add health/status indicators to dashboard components',
                      'Show cluster connectivity status, degraded/healthy state',
                      'Add visual alerts for unhealthy resources'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -3890,7 +3887,7 @@ jobs:
                     ['Review each TODO and either implement or create a tracking issue',
                      'Remove stale TODOs that are no longer relevant',
                      'Convert HACKs to proper implementations'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_COMPLEXITY === 'true') {
@@ -3901,7 +3898,7 @@ jobs:
                     ['Extract sub-components from large files',
                      'Move hooks into custom hooks for reusability',
                      'Consider splitting into container + presentational components'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_CONSOLE_LOGS === 'true') {
@@ -3913,7 +3910,7 @@ jobs:
                     ['Remove console.log statements used for debugging',
                      'Use proper logging framework for production logging',
                      'Consider using debug package with namespaces for development'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_ANY_TYPES === 'true') {
@@ -3926,7 +3923,7 @@ jobs:
                      'Create interfaces for API response types',
                      'Use generics for flexible but type-safe code',
                      'Add `// eslint-disable-next-line` only when truly necessary'], true),
-                  labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
               if (process.env.FOCUS_MEMORY_LEAKS === 'true') {
@@ -3938,7 +3935,7 @@ jobs:
                      'Clear intervals/timeouts in cleanup: `return () => clearInterval(id)`',
                      'Remove event listeners in cleanup: `return () => el.removeEventListener(...)`',
                      'Consider using AbortController for fetch cleanup'], true),
-                  labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
+                  labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', focusLabel],
                 });
               }
             }
@@ -3953,7 +3950,7 @@ jobs:
                    'Show user-facing error messages instead of just logging',
                    'Use error boundaries for React component errors',
                    'At minimum, log errors with `console.error` for debugging'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:resilience'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:resilience'],
               });
             }
             if (process.env.FOCUS_LOADING_STATES === 'true') {
@@ -3964,7 +3961,7 @@ jobs:
                   ['Add loading indicators (skeleton screens or spinners) while data loads',
                    'Add error states with retry buttons for failed fetches',
                    'Consider using a shared data-fetching wrapper or custom hook'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:resilience'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:resilience'],
               });
             }
 
@@ -3977,7 +3974,7 @@ jobs:
                   ['Remove stale entries from INVENTORY.md for deleted components',
                    'Add missing component files if they should exist',
                    'Run the consistency check locally to verify: `grep -oE "web/src/[^ ]+.tsx" INVENTORY.md`'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
               });
             }
             if (process.env.FOCUS_CARD_REGISTRY === 'true') {
@@ -3988,7 +3985,7 @@ jobs:
                   ['Register missing card types in the card registry',
                    'Remove obsolete card types from INVENTORY.md',
                    'Ensure card type strings match between inventory and source'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
               });
             }
             if (process.env.FOCUS_ROUTES === 'true') {
@@ -3999,7 +3996,7 @@ jobs:
                   ['Add missing routes to the router configuration',
                    'Remove obsolete routes from INVENTORY.md',
                    'Verify route paths match between inventory and App.tsx'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
               });
             }
             if (process.env.FOCUS_MODAL_CONSISTENCY === 'true') {
@@ -4010,7 +4007,7 @@ jobs:
                   ['Update INVENTORY.md to reflect current modals and drill-down views',
                    'Add new drill-down views to the inventory',
                    'Remove references to deleted modals/dialogs'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:consistency'],
               });
             }
 
@@ -4023,7 +4020,7 @@ jobs:
                   ['Review and update ROADMAP.md with current-year milestones',
                    'Ensure near-term, mid-term, long-term, and non-goals sections are present',
                    'CNCF incubation requires a public, up-to-date roadmap'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:governance'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:governance'],
               });
             }
 
@@ -4037,7 +4034,7 @@ jobs:
                    'Use CSS variables for custom colors (e.g., `var(--primary)`)',
                    'Define custom colors in tailwind.config.js for consistency',
                    'Check that colors adapt properly to dark mode'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
               });
             }
             if (process.env.FOCUS_SPACING === 'true') {
@@ -4049,7 +4046,7 @@ jobs:
                    'Use the 4px/8px grid system for consistency',
                    'Define custom spacing in tailwind.config.js if needed',
                    'Avoid magic numbers - use semantic spacing tokens'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
               });
             }
             if (process.env.FOCUS_DARK_MODE === 'true') {
@@ -4061,7 +4058,7 @@ jobs:
                    'Replace inline color styles with Tailwind or CSS variables',
                    'Test components in both light and dark modes',
                    'Use semantic color tokens that auto-switch (e.g., `bg-background`)'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
               });
             }
             if (process.env.FOCUS_TOUCH_TARGETS === 'true') {
@@ -4073,7 +4070,7 @@ jobs:
                    'Add padding to small buttons: `p-2` or `p-3` instead of `p-0/p-1`',
                    'Icon-only buttons need adequate hit area around the icon',
                    'Consider adding `min-h-11 min-w-11` (44px) to interactive elements'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
               });
             }
             if (process.env.FOCUS_COMPONENT_PATTERNS === 'true') {
@@ -4085,7 +4082,7 @@ jobs:
                    'Standardize modal visibility props (prefer `isOpen` pattern)',
                    'Replace inline styles with Tailwind classes where possible',
                    'Follow established patterns in existing components'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:ui-design'],
               });
             }
 
@@ -4124,7 +4121,7 @@ jobs:
                    'Focus on components with complex logic or user interactions',
                    'Consider using React Testing Library for component tests',
                    'Run `npm test -- --coverage` to see current coverage'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
               });
             }
 
@@ -4138,7 +4135,7 @@ jobs:
                    'Use a translation function like `t("key")` or `<Trans>`',
                    'Consider using react-i18next or similar library',
                    'Start with visible UI text: buttons, labels, headings'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
               });
             }
 
@@ -4152,7 +4149,7 @@ jobs:
                    'Use Context API or state management for prop drilling',
                    'Consider useSWR/useQuery for data fetching with caching',
                    'Extract repeated data fetching logic into custom hooks'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
               });
             }
 
@@ -4166,7 +4163,7 @@ jobs:
                    'Add `target="_blank" rel="noopener noreferrer"` to external links',
                    'Add back navigation to drill-down/detail views',
                    'Consider adding breadcrumbs for deep navigation'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
               });
             }
 
@@ -4180,7 +4177,7 @@ jobs:
                    'Wrap callback functions in useCallback when passed as props',
                    'Use named imports: `import { debounce } from "lodash/debounce"`',
                    'Consider React.memo for components receiving object props'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:nfr'],
               });
             }
 
@@ -4195,7 +4192,7 @@ jobs:
                    'Use Suspense boundaries around async components',
                    'Only use useLayoutEffect for DOM measurements, not side effects',
                    'Consider useDeferredValue or useTransition for non-urgent updates'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:flicker'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:flicker'],
               });
             }
 
@@ -4210,7 +4207,7 @@ jobs:
                    'Create a useModal hook to standardize modal open/close logic',
                    'Use DashboardLayout component for consistent grid patterns',
                    'Move common card utilities to lib/cards/'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:centralization'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:centralization'],
               });
             }
 
@@ -4225,7 +4222,7 @@ jobs:
                    'For new cards: use useCached* hooks or pass demoData to useCache()',
                    'Games and pure UI components (modals, animations) do not need demo data',
                    'Test with localStorage.setItem("kc-demo-mode", "true")'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:demo-data'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:demo-data'],
               });
             }
 
@@ -4240,7 +4237,7 @@ jobs:
                    'Wrap complex components in ErrorBoundary',
                    'Use optional chaining (?.) for deep property access',
                    'Show user-visible error states, not just console.error'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:console-errors'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:console-errors'],
               });
             }
 
@@ -4255,7 +4252,7 @@ jobs:
                    'Check navigate() calls point to defined routes',
                    'Replace empty onClick handlers with proper actions or remove them',
                    'Use TypeScript to catch undefined handler references'], false),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:actions'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:actions'],
               });
             }
 
@@ -4270,7 +4267,7 @@ jobs:
                    'Replace "Loading..." text with Skeleton components',
                    'Add TTL validation to localStorage reads',
                    'Show visual indicators when data may be stale'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:stale-data'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:stale-data'],
               });
             }
 
@@ -4285,7 +4282,7 @@ jobs:
                    'Use consistent opacity values (10, 20, 50 rather than arbitrary values)',
                    'Pick one color family (purple vs violet) and use it consistently',
                    'Define semantic color tokens in tailwind.config.js'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:color'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:color'],
               });
             }
 
@@ -4300,7 +4297,7 @@ jobs:
                    'Add error handling with fallback display',
                    'Ensure proper cleanup of subscriptions on component unmount',
                    'Display user count prominently in header/layout'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:user-count'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:user-count'],
               });
             }
 
@@ -4316,7 +4313,7 @@ jobs:
                    'Add reset functionality to clear token count',
                    'Persist token usage across sessions',
                    'Consider adding usage predictions/estimates'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:token-counter'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:token-counter'],
               });
             }
 
@@ -4331,7 +4328,7 @@ jobs:
                    'Implement tour reset in Settings for users to replay',
                    'Persist tour completion state to avoid showing repeatedly',
                    'Add ARIA attributes to tour modals/tooltips for accessibility'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:tour'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:tour'],
               });
             }
 
@@ -4350,7 +4347,7 @@ jobs:
                    'Display installation instructions when no tools are detected',
                    'Add manual refresh button to update cluster list',
                    'Handle demo mode with mock cluster data'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:local-clusters'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:local-clusters'],
               });
             }
 
@@ -4366,7 +4363,7 @@ jobs:
                    'Use consistent animation duration across all components',
                    'Add refresh icons to data-fetching inventory cards',
                    'Use Tailwind animate-spin for consistent behavior'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:refresh-spin'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:refresh-spin'],
               });
             }
 
@@ -4383,7 +4380,7 @@ jobs:
                    'Fix table structure: ensure proper thead/tbody/tr hierarchy',
                    'Fix list items: ensure <li> is always inside <ul> or <ol>',
                    'Add role and tabIndex to clickable non-interactive elements for accessibility'], true),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:dom-errors'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:dom-errors'],
               });
             }
 
@@ -4398,7 +4395,7 @@ jobs:
                    'Use setError state to display inline error messages',
                    'Consider using error boundaries for component-level failures',
                    'Log errors to monitoring service AND show user notification'], true),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:silent-failures'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:silent-failures'],
               });
             }
 
@@ -4413,7 +4410,7 @@ jobs:
                    'Display success messages after save/update operations',
                    'Add error messages when API calls fail',
                    'Consider progress indicators for long-running operations'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:feedback-gaps'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:feedback-gaps'],
               });
             }
 
@@ -4428,7 +4425,7 @@ jobs:
                    'Show spinner or loading text on action buttons',
                    'Use skeleton components for content loading',
                    'Prevent double-submission with disabled state'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:loading-gaps'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:loading-gaps'],
               });
             }
 
@@ -4443,7 +4440,7 @@ jobs:
                    'Support Enter/Space to activate menu items',
                    'Add Home/End keys for list navigation',
                    'Ensure focus is visible on all interactive elements'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:keyboard-nav'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:keyboard-nav'],
               });
             }
 
@@ -4458,7 +4455,7 @@ jobs:
                    'Add role="dialog" and aria-modal to modal components',
                    'Use aria-labelledby to reference visible labels',
                    'Add aria-describedby for additional context'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:aria-gaps'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:aria-gaps'],
               });
             }
 
@@ -4473,7 +4470,7 @@ jobs:
                    'Ensure Escape key is handled for modal close',
                    'Trap focus within modals to prevent accidental navigation',
                    'Add confirmation for modals with pending changes'], true),
-                labels: ['bug', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:modal-safety'],
+                labels: ['bug', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:modal-safety'],
               });
             }
 
@@ -4488,7 +4485,7 @@ jobs:
                    'Handle Enter and Space keys for button-like elements',
                    'Consider using actual <button> elements instead of divs',
                    'Ensure all interactive elements are keyboard accessible'], true),
-                labels: ['enhancement', 'ai-fix-requested', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:event-parity'],
+                labels: ['enhancement', 'help wanted', 'auto-qa', 'triage/accepted', 'auto-qa:event-parity'],
               });
             }
 
