@@ -764,13 +764,18 @@ export function Dashboard() {
     snapshot(localCards)
     setLocalCards((prev) => prev.filter((c) => c.id !== cardId))
 
-    // Persist deletion to backend
-    if (dashboard?.id && !cardId.startsWith('demo-') && !cardId.startsWith('new-') && !cardId.startsWith('rec-') && !cardId.startsWith('template-') && !cardId.startsWith('restored-') && !cardId.startsWith('ai-')) {
+    // Persist deletion to backend — attempt for all cards regardless of ID prefix.
+    // If the backend returns 404 (card was local-only), that's fine. (#5215)
+    if (dashboard?.id) {
       try {
         await api.delete(`/api/cards/${cardId}`)
       } catch (error) {
-        console.error('Failed to delete card from backend:', error)
-        showToast('Failed to delete card from backend', 'error')
+        // Ignore 404 — card may have been local-only (e.g. demo-, new-, rec-, template- prefixed IDs)
+        const status = (error as { response?: { status?: number } })?.response?.status
+        if (status !== 404) {
+          console.error('Failed to delete card from backend:', error)
+          showToast('Failed to delete card from backend', 'error')
+        }
       }
     }
   }
