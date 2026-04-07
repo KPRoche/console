@@ -89,12 +89,11 @@ describe('CreateDashboardModal Component', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('shows health alert banner when system has warnings', () => {
+  it('does not show health alert banner (health removed from create form)', () => {
     vi.mocked(useDashboardHealth).mockReturnValue(mockHealthWarning)
     render(<CreateDashboardModal isOpen={true} onClose={vi.fn()} onCreate={vi.fn()} />)
-    const alert = screen.getByRole('alert')
-    expect(alert).toBeInTheDocument()
-    expect(alert).toHaveAttribute('aria-label', 'System health: 2 warnings')
+    // Health alert was removed from the Create Dashboard form — it should never render
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('disables Create button while async onCreate is in progress', async () => {
