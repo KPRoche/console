@@ -373,7 +373,14 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
   // Select a card mission — fetch full content on demand
   // ============================================================================
 
+  // Track the latest selection to prevent stale async responses from overwriting
+  const latestSelectionRef = useRef<string>('')
+
   const selectCardMission = async (mission: MissionExport) => {
+    // Use title + type as unique key (MissionExport has no id field)
+    const selectionKey = `${mission.title}::${mission.type}`
+    latestSelectionRef.current = selectionKey
+
     // Show index metadata immediately for instant feedback
     setSelectedMission(mission)
     setIsMissionLoading(true)
@@ -384,14 +391,19 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
     // Fetch full file content (steps, uninstall, upgrade, troubleshooting)
     try {
       const { mission: fullMission, raw } = await fetchMissionContent(mission)
-      // Only update if this mission is still selected (user might have navigated away)
-      setSelectedMission((current) => current?.title === mission.title ? fullMission : current)
-      setRawContent((current) => current === JSON.stringify(mission, null, 2) ? raw : current)
+      // Only update if this is still the latest selection (prevents race condition)
+      if (latestSelectionRef.current === selectionKey) {
+        setSelectedMission(fullMission)
+        setRawContent(raw)
+      }
     } catch {
-      // Keep the index metadata so basic info is still visible, but surface the error
-      setMissionContentError('Failed to load full mission content. Steps may be incomplete.')
+      if (latestSelectionRef.current === selectionKey) {
+        setMissionContentError('Failed to load full mission content. Steps may be incomplete.')
+      }
     } finally {
-      setIsMissionLoading(false)
+      if (latestSelectionRef.current === selectionKey) {
+        setIsMissionLoading(false)
+      }
     }
   }
 
