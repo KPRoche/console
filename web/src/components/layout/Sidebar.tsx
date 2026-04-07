@@ -464,13 +464,8 @@ export function Sidebar() {
         {!isCollapsed && (
           <button
             onClick={() => {
-              // Open Console Studio at Dashboards section
-              if (dashboardContext?.openAddCardModal) {
-                dashboardContext.openAddCardModal('dashboards')
-              } else {
-                // Open SidebarCustomizer directly — works from any page
-                setShowCustomizer(true)
-              }
+              // Always open SidebarCustomizer — reliable from any page
+              setShowCustomizer(true)
             }}
             className="w-full flex items-center gap-3 px-3 py-1.5 mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/30 rounded-lg transition-colors"
           >
