@@ -774,23 +774,13 @@ export function WorkloadDeployment(_props: WorkloadDeploymentProps) {
         />
       </div>
 
-      {/* Search + Add Workload */}
-      <div className="px-3 mb-2 flex gap-2 items-center">
-        <div className="flex-1">
-          <CardSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search workloads..."
-          />
-        </div>
-        <button
-          onClick={() => navigate('/missions/deploy-workload')}
-          className="flex items-center gap-1 px-2.5 py-1 text-2xs font-medium rounded-md bg-purple-600 hover:bg-purple-500 text-white transition-colors shrink-0"
-          title={t('workloads.addWorkload', 'Deploy a new workload')}
-        >
-          <Plus className="w-3 h-3" />
-          <span>{t('workloads.addWorkloadShort', 'Add')}</span>
-        </button>
+      {/* Search */}
+      <div className="px-3 mb-2">
+        <CardSearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search workloads..."
+        />
       </div>
 
       {/* Stats bar */}
