@@ -294,9 +294,10 @@ describe('useAllPods', () => {
     }))
     mockFetchSSE.mockResolvedValue(fakePods)
 
-    const { result } = renderHook(() => useAllPods())
+    // Use unique cluster key to avoid module-level cache interference from other tests
+    const { result } = renderHook(() => useAllPods('sse-resolve-test-cluster'))
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 5000 })
     expect(result.current.pods.length).toBe(20)
     expect(result.current.error).toBeNull()
   })
