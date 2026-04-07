@@ -257,7 +257,7 @@ export function ClusterCosts({ config }: ClusterCostsProps) {
   const gpuByCluster = (() => {
     const map: Record<string, number> = {}
     gpuNodes.forEach(node => {
-      const clusterKey = node.cluster.split('/')[0]
+      const clusterKey = (node.cluster ?? '').split('/')[0]
       map[clusterKey] = (map[clusterKey] || 0) + node.gpuCount
     })
     return map
