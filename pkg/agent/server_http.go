@@ -1293,6 +1293,11 @@ func (s *Server) handleAutoUpdateStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.updateChecker == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{"error": "update checker not initialized"})

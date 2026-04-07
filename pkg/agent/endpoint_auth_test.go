@@ -62,6 +62,60 @@ const (
 	// endpointScale scales a deployment (sensitive — mutating).
 	endpointScale = "/scale"
 
+	// endpointProviderCheck checks provider availability (sensitive — reveals config).
+	endpointProviderCheck = "/provider-check"
+
+	// endpointAutoUpdateStatus returns auto-update status (sensitive).
+	endpointAutoUpdateStatus = "/auto-update/status"
+
+	// endpointKagentiAgents lists kagenti agents (sensitive — reveals infra).
+	endpointKagentiAgents = "/kagenti/agents"
+
+	// endpointKagentiBuilds lists kagenti builds (sensitive — reveals infra).
+	endpointKagentiBuilds = "/kagenti/builds"
+
+	// endpointKagentiCards lists kagenti cards (sensitive — reveals infra).
+	endpointKagentiCards = "/kagenti/cards"
+
+	// endpointKagentiTools lists kagenti tools (sensitive — reveals infra).
+	endpointKagentiTools = "/kagenti/tools"
+
+	// endpointKagentiSummary returns kagenti summary (sensitive — reveals infra).
+	endpointKagentiSummary = "/kagenti/summary"
+
+	// endpointKagentCRDAgents lists kagent CRD agents (sensitive — reveals infra).
+	endpointKagentCRDAgents = "/kagent/agents"
+
+	// endpointKagentCRDTools lists kagent CRD tools (sensitive — reveals infra).
+	endpointKagentCRDTools = "/kagent/tools"
+
+	// endpointKagentCRDModels lists kagent CRD models (sensitive — reveals config).
+	endpointKagentCRDModels = "/kagent/models"
+
+	// endpointKagentCRDMemories lists kagent CRD memories (sensitive — reveals data).
+	endpointKagentCRDMemories = "/kagent/memories"
+
+	// endpointKagentCRDSummary returns kagent CRD summary (sensitive — reveals infra).
+	endpointKagentCRDSummary = "/kagent/summary"
+
+	// endpointPredictionsAI returns AI predictions (sensitive — reveals analysis).
+	endpointPredictionsAI = "/predictions/ai"
+
+	// endpointPredictionsAnalyze triggers prediction analysis (sensitive — mutating).
+	endpointPredictionsAnalyze = "/predictions/analyze"
+
+	// endpointPredictionsFeedback submits prediction feedback (sensitive — mutating).
+	endpointPredictionsFeedback = "/predictions/feedback"
+
+	// endpointPredictionsStats returns prediction statistics (sensitive).
+	endpointPredictionsStats = "/predictions/stats"
+
+	// endpointDeviceAlerts returns device alerts (sensitive — reveals telemetry).
+	endpointDeviceAlerts = "/device/alerts"
+
+	// endpointDeviceAlertsClear clears a device alert (sensitive — mutating).
+	endpointDeviceAlertsClear = "/device/alerts/clear"
+
 	// testTokenValue is the shared secret used to configure auth in tests.
 	testTokenValue = "test-secret-token-42"
 
@@ -99,6 +153,24 @@ var sensitiveEndpoints = []struct {
 	{endpointPods, "GET"},
 	{endpointNodes, "GET"},
 	{endpointScale, "POST"},
+	{endpointProviderCheck, "GET"},
+	{endpointAutoUpdateStatus, "GET"},
+	{endpointKagentiAgents, "GET"},
+	{endpointKagentiBuilds, "GET"},
+	{endpointKagentiCards, "GET"},
+	{endpointKagentiTools, "GET"},
+	{endpointKagentiSummary, "GET"},
+	{endpointKagentCRDAgents, "GET"},
+	{endpointKagentCRDTools, "GET"},
+	{endpointKagentCRDModels, "GET"},
+	{endpointKagentCRDMemories, "GET"},
+	{endpointKagentCRDSummary, "GET"},
+	{endpointPredictionsAI, "GET"},
+	{endpointPredictionsAnalyze, "POST"},
+	{endpointPredictionsFeedback, "POST"},
+	{endpointPredictionsStats, "GET"},
+	{endpointDeviceAlerts, "GET"},
+	{endpointDeviceAlertsClear, "POST"},
 }
 
 // endpointsLackingAuth are endpoints that SHOULD require auth but currently
@@ -455,9 +527,27 @@ func resolveEndpointHandler(s *Server, path string) func(http.ResponseWriter, *h
 		endpointRestartBackend:    s.handleRestartBackend,
 		endpointAutoUpdateTrigger: s.handleAutoUpdateTrigger,
 		endpointKubeconfigImport:  s.handleKubeconfigImportHTTP,
-		endpointPods:              s.handlePodsHTTP,
-		endpointNodes:             s.handleNodesHTTP,
-		endpointScale:             s.handleScaleHTTP,
+		endpointPods:               s.handlePodsHTTP,
+		endpointNodes:              s.handleNodesHTTP,
+		endpointScale:              s.handleScaleHTTP,
+		endpointProviderCheck:      s.handleProviderCheck,
+		endpointAutoUpdateStatus:   s.handleAutoUpdateStatus,
+		endpointKagentiAgents:      s.handleKagentiAgents,
+		endpointKagentiBuilds:      s.handleKagentiBuilds,
+		endpointKagentiCards:       s.handleKagentiCards,
+		endpointKagentiTools:       s.handleKagentiTools,
+		endpointKagentiSummary:     s.handleKagentiSummary,
+		endpointKagentCRDAgents:    s.handleKagentCRDAgents,
+		endpointKagentCRDTools:     s.handleKagentCRDTools,
+		endpointKagentCRDModels:    s.handleKagentCRDModels,
+		endpointKagentCRDMemories:  s.handleKagentCRDMemories,
+		endpointKagentCRDSummary:   s.handleKagentCRDSummary,
+		endpointPredictionsAI:      s.handlePredictionsAI,
+		endpointPredictionsAnalyze: s.handlePredictionsAnalyze,
+		endpointPredictionsFeedback: s.handlePredictionsFeedback,
+		endpointPredictionsStats:   s.handlePredictionsStats,
+		endpointDeviceAlerts:       s.handleDeviceAlerts,
+		endpointDeviceAlertsClear:  s.handleDeviceAlertsClear,
 	}
 
 	return handlers[path]

@@ -583,6 +583,11 @@ func (s *Server) handleProviderCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	providerName := r.URL.Query().Get("name")
 	if providerName == "" {
 		w.WriteHeader(http.StatusBadRequest)

@@ -115,6 +115,11 @@ func (s *Server) handleKagentCRDAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"agents": []any{}})
 		return
@@ -210,6 +215,11 @@ func (s *Server) handleKagentCRDTools(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -341,6 +351,11 @@ func (s *Server) handleKagentCRDModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"models": []any{}})
 		return
@@ -462,6 +477,11 @@ func (s *Server) handleKagentCRDMemories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"memories": []any{}})
 		return
@@ -524,6 +544,11 @@ func (s *Server) handleKagentCRDSummary(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

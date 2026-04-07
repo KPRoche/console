@@ -121,6 +121,11 @@ func (s *Server) handleKagentiAgents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"agents": []any{}})
 		return
@@ -198,6 +203,11 @@ func (s *Server) handleKagentiBuilds(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"builds": []any{}})
 		return
@@ -270,6 +280,11 @@ func (s *Server) handleKagentiCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"cards": []any{}})
 		return
@@ -334,6 +349,11 @@ func (s *Server) handleKagentiTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	if s.k8sClient == nil {
 		json.NewEncoder(w).Encode(map[string]any{"tools": []any{}})
 		return
@@ -395,6 +415,11 @@ func (s *Server) handleKagentiSummary(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if !s.validateToken(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 

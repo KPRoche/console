@@ -25,8 +25,8 @@ func fakeExecCommand(command string, args ...string) *exec.Cmd {
 	cmd := exec.Command(os.Args[0], cs...)
 	cmd.Env = []string{
 		"GO_WANT_HELPER_PROCESS=1",
-		fmt.Sprintf("MOCK_STDOUT=%s", mockStdout),
-		fmt.Sprintf("MOCK_STDERR=%s", mockStderr),
+		"MOCK_STDOUT=" + mockStdout,
+		"MOCK_STDERR=" + mockStderr,
 		fmt.Sprintf("MOCK_EXIT_CODE=%d", mockExitCode),
 		// Prevent coverage warning from polluting stderr
 		"GOCOVERDIR=" + os.TempDir(),
