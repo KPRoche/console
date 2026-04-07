@@ -435,9 +435,10 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
 
   // Fetch CronJob results for all clusters periodically
   useEffect(() => {
+    let unmounted = false
     const fetchCronJobResults = async () => {
       const token = localStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
-      if (!token) return
+      if (!token || unmounted) return
       const currentClusters = clustersRef.current
       if (!currentClusters.length) return
 
@@ -452,8 +453,6 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
               { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_DEFAULT_TIMEOUT_MS) }
             )
             if (resp.ok) {
-              // Use .catch() on .json() to prevent Firefox from firing unhandledrejection
-              // before the outer try/catch processes the rejection (microtask timing issue).
               const data = await resp.json().catch(() => null)
               if (data?.results && data.results.length > 0) {
                 results[cluster.name] = data.results
@@ -465,14 +464,13 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
         })
       )
 
-      cronJobResultsRef.current = results
+      if (!unmounted) cronJobResultsRef.current = results
     }
 
-    // Initial fetch after short delay
     const timer = setTimeout(fetchCronJobResults, INITIAL_FETCH_DELAY_MS)
-    // Refresh every 60 seconds
     const interval = setInterval(fetchCronJobResults, POLL_INTERVAL_SLOW_MS)
     return () => {
+      unmounted = true
       clearTimeout(timer)
       clearInterval(interval)
     }
@@ -480,14 +478,14 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
 
   // Fetch nightly E2E run data periodically (public endpoint, no auth needed)
   useEffect(() => {
+    let unmounted = false
     const fetchNightlyE2E = async () => {
+      if (unmounted) return
       try {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
         const resp = await fetch(`${API_BASE}/api/public/nightly-e2e/runs`, {
           signal: AbortSignal.timeout(FETCH_DEFAULT_TIMEOUT_MS) })
-        if (resp.ok) {
-          // Use .catch() on .json() to prevent Firefox from firing unhandledrejection
-          // before the outer try/catch processes the rejection (microtask timing issue).
+        if (resp.ok && !unmounted) {
           const data = await resp.json().catch(() => null)
           if (Array.isArray(data)) {
             nightlyE2ERef.current = data
@@ -501,6 +499,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(fetchNightlyE2E, SECONDARY_FETCH_DELAY_MS)
     const interval = setInterval(fetchNightlyE2E, NIGHTLY_E2E_POLL_INTERVAL_MS)
     return () => {
+      unmounted = true
       clearTimeout(timer)
       clearInterval(interval)
     }
