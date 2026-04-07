@@ -205,6 +205,11 @@ async function fetchAllFromIndex() {
     const parsed = await response.json()
     const missions: IndexEntry[] = parsed?.missions || []
 
+    // Clear arrays before populating to prevent duplicates when refetching
+    // after cache expiry while localStorage entries are still present (#5217)
+    missionCache.installers = []
+    missionCache.fixes = []
+
     for (const entry of missions) {
       const mission = indexEntryToMission(entry)
       if (entry.missionClass === 'install') {
