@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
+import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Plus, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, WifiOff, GripVertical, X, User, Pin, PinOff } from 'lucide-react'
@@ -354,7 +355,16 @@ export function Sidebar() {
           // Normal navigation mode
           <NavLink
             to={item.href}
-            onClick={(e) => { e.preventDefault(); emitSidebarNavigated(item.href); window.location.href = item.href }}
+            onClick={(e) => {
+              e.preventDefault()
+              emitSidebarNavigated(item.href)
+              // React Router v7's startTransition navigation is blocked by
+              // recharts' useSyncExternalStore infinite loops. Full page
+              // navigation is the only reliable workaround.
+              if (item.href !== location.pathname) {
+                window.location.href = item.href
+              }
+            }}
             onDoubleClick={(e) => handleDoubleClick(item, e)}
             onMouseEnter={() => prefetchDashboard(item.href)}
             className={({ isActive }) => cn(
