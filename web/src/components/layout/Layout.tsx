@@ -509,7 +509,7 @@ export function Layout({ children }: LayoutProps) {
               </Suspense>
             </PageErrorBoundary>
           ) : (
-            <Outlet />
+            <Outlet key={location.pathname} />
           )}
         </main>
       </div>
