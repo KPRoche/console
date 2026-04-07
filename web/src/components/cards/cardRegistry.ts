@@ -266,6 +266,10 @@ const MultiTenancyOverview = safeLazy(() => _multiTenancyBundle, 'MultiTenancyOv
 const TenantIsolationSetup = safeLazy(() => _multiTenancyBundle, 'TenantIsolationSetup')
 const TenantTopology = safeLazy(() => _multiTenancyBundle, 'TenantTopology')
 
+
+// vCluster status card
+const VClusterStatus = safeLazy(() => import('./VClusterStatus'), 'VClusterStatus')
+
 // Multi-cluster insights cards — share one chunk via barrel import
 const _insightsBundle = import('./insights').catch(() => undefined as never)
 const CrossClusterEventCorrelation = safeLazy(() => _insightsBundle, 'CrossClusterEventCorrelation')
