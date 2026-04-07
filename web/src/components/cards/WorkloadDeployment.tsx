@@ -790,10 +790,10 @@ export function WorkloadDeployment(_props: WorkloadDeploymentProps) {
         </div>
         <button
           onClick={() => setShowImportDialog(true)}
-          className="px-2.5 py-1.5 text-2xs font-medium rounded-md bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 transition-colors flex items-center gap-1 shrink-0"
+          className="h-9 px-3 text-xs font-medium rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 transition-colors flex items-center gap-1.5 shrink-0"
           aria-label="Add workload"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-3.5 w-3.5" />
           Add
         </button>
       </div>
