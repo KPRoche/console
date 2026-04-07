@@ -1,4 +1,5 @@
-import { Treemap, ResponsiveContainer, Tooltip } from 'recharts'
+import { useMemo } from 'react'
+import ReactECharts from 'echarts-for-react'
 import { CHART_TOOLTIP_CONTENT_STYLE } from '../../lib/constants'
 
 interface TreeMapItem {
@@ -18,75 +19,6 @@ interface TreeMapProps {
   formatValue?: (value: number) => string
 }
 
-// Custom content renderer for tree map cells
-interface CustomContentProps {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  name?: string
-  value?: number
-  color?: string
-  showLabels?: boolean
-  formatValue?: (value: number) => string
-}
-
-function CustomContent({
-  x = 0,
-  y = 0,
-  width = 0,
-  height = 0,
-  name,
-  value,
-  color,
-  showLabels = true,
-  formatValue = (v) => v.toString(),
-}: CustomContentProps) {
-  const showText = width > 40 && height > 30
-
-  return (
-    <g>
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={color}
-        stroke="#1a1a2e"
-        strokeWidth={2}
-        rx={4}
-        style={{
-          transition: 'all 0.2s ease',
-        }}
-      />
-      {showLabels && showText && (
-        <>
-          <text
-            x={x + width / 2}
-            y={y + height / 2 - 6}
-            textAnchor="middle"
-            fill="#fff"
-            fontSize={12}
-            fontWeight={500}
-          >
-            {name && name.length > 15 ? name.slice(0, 12) + '...' : name}
-          </text>
-          <text
-            x={x + width / 2}
-            y={y + height / 2 + 10}
-            textAnchor="middle"
-            fill="#fff"
-            fontSize={10}
-            opacity={0.7}
-          >
-            {value !== undefined ? formatValue(value) : ''}
-          </text>
-        </>
-      )}
-    </g>
-  )
-}
-
 const DEFAULT_COLORS = [
   '#9333ea',
   '#3b82f6',
@@ -100,6 +32,11 @@ const DEFAULT_COLORS = [
   '#ec4899',
 ]
 
+/** Minimum treemap cell width (px) to show label text */
+const MIN_LABEL_CELL_WIDTH = 40
+/** Minimum treemap cell height (px) to show label text */
+const MIN_LABEL_CELL_HEIGHT = 30
+
 export function TreeMap({
   data,
   height = 200,
@@ -108,11 +45,49 @@ export function TreeMap({
   showLabels = true,
   formatValue = (v) => v.toString(),
 }: TreeMapProps) {
-  // Add colors to data if not present
-  const coloredData = data.map((item, index) => ({
-    ...item,
-    color: item.color || colorScale[index % colorScale.length],
-  }))
+  const option = useMemo(() => {
+    const coloredData = data.map((item, index) => ({
+      name: item.name,
+      value: item.value,
+      itemStyle: { color: item.color || colorScale[index % colorScale.length], borderColor: '#1a1a2e', borderWidth: 2, borderRadius: 4 },
+    }))
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+        borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+        textStyle: { color: '#e0e0e0', fontSize: 12 },
+        formatter: (params: { name: string; value: number }) =>
+          `${params.name}: ${formatValue(params.value)}`,
+      },
+      series: [{
+        type: 'treemap',
+        data: coloredData,
+        width: '100%',
+        height: '100%',
+        roam: false,
+        nodeClick: false,
+        breadcrumb: { show: false },
+        label: {
+          show: showLabels,
+          formatter: (params: { name: string; value: number }) => {
+            const name = params.name.length > 15 ? params.name.slice(0, 12) + '...' : params.name
+            return `{name|${name}}\n{value|${formatValue(params.value)}}`
+          },
+          rich: {
+            name: { color: '#fff', fontSize: 12, fontWeight: 500, lineHeight: 18 },
+            value: { color: '#fff', fontSize: 10, opacity: 0.7, lineHeight: 14 },
+          },
+          minMargin: 4,
+        },
+        itemStyle: { borderColor: '#1a1a2e', borderWidth: 2, gapWidth: 2 },
+        levels: [{
+          itemStyle: { borderColor: '#1a1a2e', borderWidth: 2, gapWidth: 2 },
+        }],
+      }],
+    }
+  }, [data, colorScale, showLabels, formatValue])
 
   return (
     <div className="w-full">
@@ -120,21 +95,12 @@ export function TreeMap({
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
       <div style={{ minHeight: height, width: '100%' }}>
-      <ResponsiveContainer width="100%" height={height} minHeight={height}>
-        <Treemap
-          data={coloredData}
-          dataKey="value"
-          aspectRatio={4 / 3}
-          stroke="#1a1a2e"
-          fill="#9333ea"
-          content={<CustomContent showLabels={showLabels} formatValue={formatValue} />}
-        >
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-            formatter={(value) => [formatValue(value as number), 'Value']}
-          />
-        </Treemap>
-      </ResponsiveContainer>
+        <ReactECharts
+          option={option}
+          style={{ height, width: '100%' }}
+          notMerge={true}
+          opts={{ renderer: 'svg' }}
+        />
       </div>
     </div>
   )
@@ -156,19 +122,50 @@ export function NestedTreeMap({
   title,
   formatValue = (v) => v.toString(),
 }: NestedTreeMapProps) {
-  // Assign colors to children recursively
-  function assignColors(items: TreeMapItem[], depth = 0): TreeMapItem[] {
-    return items.map((item, index) => ({
-      ...item,
-      color: item.color || colorScale[(depth * 3 + index) % colorScale.length],
-      children: item.children ? assignColors(item.children, depth + 1) : undefined,
-    }))
-  }
+  const option = useMemo(() => {
+    function assignColors(items: TreeMapItem[], depth = 0): Array<{ name: string; value: number; children?: Array<unknown>; itemStyle: { color: string; borderColor: string; borderWidth: number } }> {
+      return items.map((item, index) => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: item.color || colorScale[(depth * 3 + index) % colorScale.length], borderColor: '#1a1a2e', borderWidth: 2 },
+        ...(item.children ? { children: assignColors(item.children, depth + 1) } : {}),
+      }))
+    }
 
-  const coloredData = {
-    ...data,
-    children: data.children ? assignColors(data.children) : [],
-  }
+    const coloredChildren = data.children ? assignColors(data.children) : []
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+        borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+        textStyle: { color: '#e0e0e0', fontSize: 12 },
+        formatter: (params: { name: string; value: number }) =>
+          `${params.name}: ${formatValue(params.value)}`,
+      },
+      series: [{
+        type: 'treemap',
+        data: coloredChildren,
+        width: '100%',
+        height: '100%',
+        roam: false,
+        nodeClick: false,
+        breadcrumb: { show: false },
+        label: {
+          show: true,
+          formatter: (params: { name: string; value: number }) => {
+            const name = params.name.length > 15 ? params.name.slice(0, 12) + '...' : params.name
+            return `{name|${name}}\n{value|${formatValue(params.value)}}`
+          },
+          rich: {
+            name: { color: '#fff', fontSize: 12, fontWeight: 500, lineHeight: 18 },
+            value: { color: '#fff', fontSize: 10, opacity: 0.7, lineHeight: 14 },
+          },
+        },
+        itemStyle: { borderColor: '#1a1a2e', borderWidth: 2, gapWidth: 2 },
+      }],
+    }
+  }, [data, colorScale, formatValue])
 
   return (
     <div className="w-full">
@@ -176,20 +173,12 @@ export function NestedTreeMap({
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
       <div style={{ minHeight: height, width: '100%' }}>
-      <ResponsiveContainer width="100%" height={height} minHeight={height}>
-        <Treemap
-          data={[coloredData]}
-          dataKey="value"
-          aspectRatio={4 / 3}
-          stroke="#1a1a2e"
-          content={<CustomContent showLabels={true} formatValue={formatValue} />}
-        >
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-            formatter={(value) => [formatValue(value as number), 'Value']}
-          />
-        </Treemap>
-      </ResponsiveContainer>
+        <ReactECharts
+          option={option}
+          style={{ height, width: '100%' }}
+          notMerge={true}
+          opts={{ renderer: 'svg' }}
+        />
       </div>
     </div>
   )

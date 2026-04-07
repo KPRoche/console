@@ -1,14 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { CheckCircle, AlertTriangle, Clock, Server } from 'lucide-react'
-import {
-  AreaChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer } from 'recharts'
+import ReactECharts from 'echarts-for-react'
 import { useClusters } from '../../hooks/useMCP'
 import { useCachedPodIssues } from '../../hooks/useCachedData'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
@@ -204,7 +196,7 @@ export function PodHealthTrend() {
     return () => { cancelled = true }
   }, [currentStats, clustersLoading, issuesLoading])
 
-  // Initialize history — seed multiple points in demo mode for visible chart
+  // Initialize history -- seed multiple points in demo mode for visible chart
   useEffect(() => {
     if (history.length === 0 && currentStats.total > 0) {
       let cancelled = false
@@ -243,6 +235,86 @@ export function PodHealthTrend() {
     }
   }, [currentStats, history.length])
 
+  const chartOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    grid: { left: 40, right: 5, top: 5, bottom: 25 },
+    xAxis: {
+      type: 'category' as const,
+      data: history.map(d => d.time),
+      axisLabel: { color: CHART_TICK_COLOR, fontSize: 10 },
+      axisLine: { lineStyle: { color: CHART_AXIS_STROKE } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      minInterval: 1,
+      axisLabel: { color: CHART_TICK_COLOR, fontSize: 10 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: CHART_GRID_STROKE, type: 'dashed' as const } },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+      borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+      textStyle: { color: CHART_TICK_COLOR, fontSize: 12 },
+    },
+    series: [
+      {
+        name: 'Issues',
+        type: 'line',
+        stack: 'total',
+        smooth: true,
+        data: history.map(d => d.issues),
+        lineStyle: { color: '#f97316', width: 2 },
+        itemStyle: { color: '#f97316' },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(249,115,22,0.4)' }, { offset: 1, color: 'rgba(249,115,22,0)' }] },
+        },
+        showSymbol: false,
+      },
+      {
+        name: 'Pending',
+        type: 'line',
+        stack: 'total',
+        smooth: true,
+        data: history.map(d => d.pending),
+        lineStyle: { color: '#eab308', width: 2 },
+        itemStyle: { color: '#eab308' },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(234,179,8,0.4)' }, { offset: 1, color: 'rgba(234,179,8,0)' }] },
+        },
+        showSymbol: false,
+      },
+      {
+        name: 'Healthy',
+        type: 'line',
+        stack: 'total',
+        smooth: true,
+        data: history.map(d => d.healthy),
+        lineStyle: { color: '#22c55e', width: 2 },
+        itemStyle: { color: '#22c55e' },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: 'rgba(34,197,94,0.4)' }, { offset: 1, color: 'rgba(34,197,94,0)' }] },
+        },
+        showSymbol: false,
+      },
+      {
+        name: 'Issues (trend)',
+        type: 'line',
+        data: history.map(d => d.issues),
+        smooth: true,
+        lineStyle: { color: '#f97316', width: 2, type: 'dashed' as const },
+        itemStyle: { color: '#f97316' },
+        showSymbol: false,
+        silent: true,
+      },
+    ],
+  }), [history])
+
   if (showSkeleton && history.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -262,7 +334,7 @@ export function PodHealthTrend() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Controls - single row: Time Range → Cluster Filter → Refresh */}
+      {/* Controls - single row: Time Range -> Cluster Filter -> Refresh */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {/* Cluster count indicator */}
@@ -337,79 +409,12 @@ export function PodHealthTrend() {
           </div>
         ) : (
           <div style={{ width: '100%', minHeight: CHART_HEIGHT_STANDARD, height: CHART_HEIGHT_STANDARD }}>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT_STANDARD}>
-            <AreaChart data={history} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-              <defs>
-                <linearGradient id="gradientHealthy" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradientIssues" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradientPending" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#eab308" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
-              <XAxis
-                dataKey="time"
-                tick={{ fill: CHART_TICK_COLOR, fontSize: 10 }}
-                axisLine={{ stroke: CHART_AXIS_STROKE }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: CHART_TICK_COLOR, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-                labelStyle={{ color: CHART_TICK_COLOR }}
-              />
-              <Area
-                type="basis"
-                dataKey="issues"
-                stackId="1"
-                stroke="#f97316"
-                strokeWidth={2}
-                fill="url(#gradientIssues)"
-                name="Issues"
-              />
-              <Area
-                type="basis"
-                dataKey="pending"
-                stackId="1"
-                stroke="#eab308"
-                strokeWidth={2}
-                fill="url(#gradientPending)"
-                name="Pending"
-              />
-              <Area
-                type="basis"
-                dataKey="healthy"
-                stackId="1"
-                stroke="#22c55e"
-                strokeWidth={2}
-                fill="url(#gradientHealthy)"
-                name="Healthy"
-              />
-              {/* Overlay line to make issues more visible */}
-              <Line
-                type="basis"
-                dataKey="issues"
-                stroke="#f97316"
-                strokeWidth={2}
-                strokeDasharray="5 3"
-                dot={false}
-                name="Issues (trend)"
-                legendType="none"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+            <ReactECharts
+              option={chartOption}
+              style={{ height: CHART_HEIGHT_STANDARD, width: '100%' }}
+              notMerge={true}
+              opts={{ renderer: 'svg' }}
+            />
           </div>
         )}
       </div>

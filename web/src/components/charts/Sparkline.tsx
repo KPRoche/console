@@ -1,4 +1,5 @@
-import { LineChart, Line, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { useMemo } from 'react'
+import ReactECharts from 'echarts-for-react'
 
 interface SparklineProps {
   data: number[]
@@ -17,46 +18,42 @@ export function Sparkline({
   fill = false,
   showDot = false,
 }: SparklineProps) {
-  const chartData = data.map((value, index) => ({ value, index }))
-
-  if (fill) {
-    return (
-      <div style={{ width: width || '100%', height, minHeight: height }}>
-        <ResponsiveContainer width="100%" height={height} minHeight={height}>
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id={`sparkline-gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              strokeWidth={1.5}
-              fill={`url(#sparkline-gradient-${color})`}
-              dot={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    )
-  }
+  const option = useMemo(() => ({
+    backgroundColor: 'transparent',
+    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+    xAxis: { type: 'category' as const, show: false, data: data.map((_, i) => i) },
+    yAxis: { type: 'value' as const, show: false },
+    series: [{
+      type: 'line',
+      data,
+      smooth: true,
+      showSymbol: showDot,
+      symbolSize: showDot ? 4 : 0,
+      lineStyle: { color, width: 1.5 },
+      itemStyle: { color },
+      ...(fill ? {
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: color + '4D' },
+              { offset: 1, color: color + '00' },
+            ],
+          },
+        },
+      } : {}),
+    }],
+  }), [data, color, fill, showDot])
 
   return (
     <div style={{ width: width || '100%', height, minHeight: height }}>
-      <ResponsiveContainer width="100%" height={height} minHeight={height}>
-        <LineChart data={chartData}>
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={1.5}
-            dot={showDot ? { fill: color, r: 2 } : false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <ReactECharts
+        option={option}
+        style={{ height, width: '100%' }}
+        notMerge={true}
+        opts={{ renderer: 'svg' }}
+      />
     </div>
   )
 }
@@ -80,7 +77,7 @@ export function StatWithSparkline({
   unit = '',
 }: StatWithSparklineProps) {
   const trendColor = trend === undefined ? '' : trend >= 0 ? 'text-green-400' : 'text-red-400'
-  const trendIcon = trend === undefined ? '' : trend >= 0 ? '↑' : '↓'
+  const trendIcon = trend === undefined ? '' : trend >= 0 ? '\u2191' : '\u2193'
 
   return (
     <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">

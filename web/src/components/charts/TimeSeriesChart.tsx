@@ -1,14 +1,5 @@
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from 'recharts'
+import { useMemo } from 'react'
+import ReactECharts from 'echarts-for-react'
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TICK_COLOR, CHART_TOOLTIP_TEXT_COLOR } from '../../lib/constants'
 
 interface DataPoint {
@@ -40,61 +31,59 @@ export function TimeSeriesChart({
   unit = '',
   title,
 }: TimeSeriesChartProps) {
-  const gradientId = `gradient-${dataKey}`
-
-  if (gradient) {
-    return (
-      <div className="w-full">
-        {title && (
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
-        )}
-        <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
-        <ResponsiveContainer width="100%" height={height} minHeight={100}>
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            {showGrid && (
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-            )}
-            {showAxis && (
-              <>
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: '#888', fontSize: 10 }}
-                  axisLine={{ stroke: '#333' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#888', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) => `${v}${unit}`}
-                />
-              </>
-            )}
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-              labelStyle={{ color: CHART_TICK_COLOR }}
-              itemStyle={{ color: CHART_TOOLTIP_TEXT_COLOR }}
-              formatter={(value) => [`${value}${unit}`, dataKey]}
-            />
-            <Area
-              type="monotone"
-              dataKey={dataKey}
-              stroke={color}
-              strokeWidth={2}
-              fill={`url(#${gradientId})`}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-        </div>
-      </div>
-    )
-  }
+  const option = useMemo(() => ({
+    backgroundColor: 'transparent',
+    grid: { left: showAxis ? 40 : 0, right: 5, top: 5, bottom: showAxis ? 25 : 0 },
+    xAxis: {
+      type: 'category' as const,
+      data: data.map(d => d.time),
+      show: showAxis,
+      axisLabel: { color: '#888', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#333' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      show: showAxis,
+      axisLabel: { color: '#888', fontSize: 10, formatter: (v: number) => `${v}${unit}` },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: showGrid ? { lineStyle: { color: '#333', type: 'dashed' as const } } : { show: false },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+      borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+      textStyle: { color: CHART_TOOLTIP_TEXT_COLOR, fontSize: 12 },
+      formatter: (params: Array<{ name: string; value: number }>) => {
+        const p = Array.isArray(params) ? params[0] : params
+        return `<span style="color:${CHART_TICK_COLOR}">${p.name}</span><br/>${p.value}${unit}`
+      },
+    },
+    series: [{
+      type: gradient ? 'line' : 'line',
+      data: data.map(d => d[dataKey]),
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { color, width: 2 },
+      itemStyle: { color },
+      ...(gradient ? {
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: color + '4D' },
+              { offset: 1, color: color + '00' },
+            ],
+          },
+        },
+      } : {}),
+      ...(!gradient ? {
+        emphasis: { itemStyle: { color, borderWidth: 0 } },
+      } : {}),
+    }],
+  }), [data, dataKey, color, gradient, showGrid, showAxis, unit])
 
   return (
     <div className="w-full">
@@ -102,39 +91,12 @@ export function TimeSeriesChart({
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
       <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
-      <ResponsiveContainer width="100%" height={height} minHeight={100}>
-        <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          {showGrid && (
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          )}
-          {showAxis && (
-            <>
-              <XAxis
-                dataKey="time"
-                tick={{ fill: '#888', fontSize: 10 }}
-                axisLine={{ stroke: '#333' }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#888', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-            </>
-          )}
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-          />
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: color }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+        <ReactECharts
+          option={option}
+          style={{ height, width: '100%' }}
+          notMerge={true}
+          opts={{ renderer: 'svg' }}
+        />
       </div>
     </div>
   )
@@ -160,44 +122,52 @@ export function MultiSeriesChart({
   showGrid = false,
   title,
 }: MultiSeriesChartProps) {
+  const option = useMemo(() => ({
+    backgroundColor: 'transparent',
+    grid: { left: 40, right: 5, top: 5, bottom: 25 },
+    xAxis: {
+      type: 'category' as const,
+      data: data.map(d => d.time),
+      axisLabel: { color: '#888', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#333' } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      axisLabel: { color: '#888', fontSize: 10 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: showGrid ? { lineStyle: { color: '#333', type: 'dashed' as const } } : { show: false },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+      borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+      textStyle: { color: CHART_TOOLTIP_TEXT_COLOR, fontSize: 12 },
+    },
+    series: series.map(s => ({
+      name: s.name || s.dataKey,
+      type: 'line',
+      data: data.map(d => d[s.dataKey]),
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { color: s.color, width: 2 },
+      itemStyle: { color: s.color },
+    })),
+  }), [data, series, showGrid])
+
   return (
     <div className="w-full">
       {title && (
         <h4 className="text-sm font-medium text-muted-foreground mb-2">{title}</h4>
       )}
       <div style={{ minHeight: Math.max(height, 100), width: '100%' }}>
-      <ResponsiveContainer width="100%" height={height} minHeight={100}>
-        <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          {showGrid && (
-            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          )}
-          <XAxis
-            dataKey="time"
-            tick={{ fill: '#888', fontSize: 10 }}
-            axisLine={{ stroke: '#333' }}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: '#888', fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-          />
-          {series.map((s) => (
-            <Line
-              key={s.dataKey}
-              type="monotone"
-              dataKey={s.dataKey}
-              stroke={s.color}
-              strokeWidth={2}
-              dot={false}
-              name={s.name || s.dataKey}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+        <ReactECharts
+          option={option}
+          style={{ height, width: '100%' }}
+          notMerge={true}
+          opts={{ renderer: 'svg' }}
+        />
       </div>
     </div>
   )

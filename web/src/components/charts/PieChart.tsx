@@ -1,4 +1,5 @@
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { useMemo } from 'react'
+import ReactECharts from 'echarts-for-react'
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_TEXT_COLOR, CHART_TOOLTIP_LABEL_COLOR } from '../../lib/constants'
 
 interface DataItem {
@@ -29,6 +30,39 @@ export function PieChart({
 }: PieChartProps) {
   const isDonut = innerRadius > 0
 
+  const option = useMemo(() => {
+    /** Outer radius as percentage string for echarts */
+    const outerRadiusPct = `${Math.round(((size / 2 - 5) / (size / 2)) * 100)}%`
+    const innerRadiusPct = innerRadius > 0 ? `${Math.round((innerRadius / (size / 2)) * 100)}%` : '0%'
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item' as const,
+        backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+        borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+        textStyle: { color: CHART_TOOLTIP_TEXT_COLOR, fontSize: 12 },
+        formatter: (params: { name: string; value: number; percent: number }) =>
+          `<span style="color:${CHART_TOOLTIP_LABEL_COLOR};font-weight:500">${params.name}</span><br/><span style="color:${CHART_TOOLTIP_TEXT_COLOR}">${params.value} (${params.percent}%)</span>`,
+      },
+      series: [{
+        type: 'pie',
+        radius: [innerRadiusPct, outerRadiusPct],
+        center: ['50%', '50%'],
+        padAngle: 2,
+        data: data.map(d => ({
+          value: d.value,
+          name: d.name,
+          itemStyle: { color: d.color },
+        })),
+        label: { show: false },
+        emphasis: {
+          itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' },
+        },
+      }],
+    }
+  }, [data, size, innerRadius])
+
   return (
     <div className="w-full">
       {title && (
@@ -36,30 +70,14 @@ export function PieChart({
       )}
       <div className="flex items-center gap-4">
         <div className="relative" style={{ width: size, height: size, minWidth: size, minHeight: size }}>
-          <ResponsiveContainer width={size} height={size} minWidth={size} minHeight={size}>
-            <RechartsPieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={innerRadius}
-                outerRadius={size / 2 - 5}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ ...CHART_TOOLTIP_CONTENT_STYLE, color: CHART_TOOLTIP_TEXT_COLOR }}
-                labelStyle={{ color: CHART_TOOLTIP_LABEL_COLOR, fontWeight: 500 }}
-                itemStyle={{ color: CHART_TOOLTIP_TEXT_COLOR }}
-              />
-            </RechartsPieChart>
-          </ResponsiveContainer>
+          <ReactECharts
+            option={option}
+            style={{ height: size, width: size }}
+            notMerge={true}
+            opts={{ renderer: 'svg' }}
+          />
           {isDonut && (centerLabel || centerValue) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               {centerValue && (
                 <span className="text-2xl font-bold text-foreground">{centerValue}</span>
               )}

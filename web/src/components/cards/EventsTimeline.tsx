@@ -1,13 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Activity, AlertTriangle, CheckCircle, Clock, Server } from 'lucide-react'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer } from 'recharts'
+import ReactECharts from 'echarts-for-react'
 import { useClusters } from '../../hooks/useMCP'
 import { useCachedEvents } from '../../hooks/useCachedData'
 import { useGlobalFilters } from '../../hooks/useGlobalFilters'
@@ -179,6 +172,72 @@ function EventsTimelineInternal() {
   const totalNormal = timeSeriesData.reduce((sum, d) => sum + d.normal, 0)
   const peakEvents = Math.max(0, ...timeSeriesData.map(d => d.total))
 
+  const chartOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    grid: { left: 40, right: 5, top: 5, bottom: 25 },
+    xAxis: {
+      type: 'category' as const,
+      data: timeSeriesData.map(d => d.time),
+      axisLabel: { color: CHART_TICK_COLOR, fontSize: 10 },
+      axisLine: { lineStyle: { color: CHART_AXIS_STROKE } },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value' as const,
+      minInterval: 1,
+      axisLabel: { color: CHART_TICK_COLOR, fontSize: 10 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: CHART_GRID_STROKE, type: 'dashed' as const } },
+    },
+    tooltip: {
+      trigger: 'axis' as const,
+      backgroundColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).backgroundColor as string,
+      borderColor: (CHART_TOOLTIP_CONTENT_STYLE as Record<string, unknown>).borderColor as string,
+      textStyle: { color: CHART_TICK_COLOR, fontSize: 12 },
+    },
+    series: [
+      {
+        name: t('common:common.warnings'),
+        type: 'line',
+        stack: 'total',
+        step: 'end' as const,
+        data: timeSeriesData.map(d => d.warnings),
+        lineStyle: { color: '#f97316', width: 2 },
+        itemStyle: { color: '#f97316' },
+        areaStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(249,115,22,0.4)' },
+              { offset: 1, color: 'rgba(249,115,22,0)' },
+            ],
+          },
+        },
+        showSymbol: false,
+      },
+      {
+        name: t('common:common.normal'),
+        type: 'line',
+        stack: 'total',
+        step: 'end' as const,
+        data: timeSeriesData.map(d => d.normal),
+        lineStyle: { color: '#22c55e', width: 2 },
+        itemStyle: { color: '#22c55e' },
+        areaStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(34,197,94,0.4)' },
+              { offset: 1, color: 'rgba(34,197,94,0)' },
+            ],
+          },
+        },
+        showSymbol: false,
+      },
+    ],
+  }), [timeSeriesData, t])
+
   if (showSkeleton) {
     return (
       <div className="h-full flex flex-col min-h-card">
@@ -203,7 +262,7 @@ function EventsTimelineInternal() {
 
   return (
     <div className="h-full flex flex-col content-loaded">
-      {/* Controls - single row: Time Range → Cluster Filter → Refresh */}
+      {/* Controls - single row: Time Range -> Cluster Filter -> Refresh */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <RefreshIndicator
@@ -284,55 +343,12 @@ function EventsTimelineInternal() {
           </div>
         ) : (
           <div style={{ width: '100%', minHeight: CHART_HEIGHT_STANDARD, height: CHART_HEIGHT_STANDARD }} role="img" aria-label={`Events timeline chart showing ${totalWarnings} warnings and ${totalNormal} normal events, peak ${peakEvents} events`}>
-          <ResponsiveContainer width="100%" height={CHART_HEIGHT_STANDARD}>
-            <AreaChart data={timeSeriesData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-              <defs>
-                <linearGradient id="gradientWarnings" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradientNormal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
-              <XAxis
-                dataKey="time"
-                tick={{ fill: CHART_TICK_COLOR, fontSize: 10 }}
-                axisLine={{ stroke: CHART_AXIS_STROKE }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: CHART_TICK_COLOR, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-                labelStyle={{ color: CHART_TICK_COLOR }}
-              />
-              <Area
-                type="stepAfter"
-                dataKey="warnings"
-                stackId="1"
-                stroke="#f97316"
-                strokeWidth={2}
-                fill="url(#gradientWarnings)"
-                name={t('common:common.warnings')}
-              />
-              <Area
-                type="stepAfter"
-                dataKey="normal"
-                stackId="1"
-                stroke="#22c55e"
-                strokeWidth={2}
-                fill="url(#gradientNormal)"
-                name={t('common:common.normal')}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+            <ReactECharts
+              option={chartOption}
+              style={{ height: CHART_HEIGHT_STANDARD, width: '100%' }}
+              notMerge={true}
+              opts={{ renderer: 'svg' }}
+            />
           </div>
         )}
       </div>
