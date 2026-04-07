@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
-import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { Plus, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, WifiOff, GripVertical, X, User, Pin, PinOff } from 'lucide-react'
@@ -355,16 +354,7 @@ export function Sidebar() {
           // Normal navigation mode
           <NavLink
             to={item.href}
-            onClick={(e) => {
-              e.preventDefault()
-              emitSidebarNavigated(item.href)
-              // React Router v7's startTransition navigation is blocked by
-              // recharts' useSyncExternalStore infinite loops. Full page
-              // navigation is the only reliable workaround.
-              if (item.href !== location.pathname) {
-                window.location.href = item.href
-              }
-            }}
+            onClick={() => emitSidebarNavigated(item.href)}
             onDoubleClick={(e) => handleDoubleClick(item, e)}
             onMouseEnter={() => prefetchDashboard(item.href)}
             className={({ isActive }) => cn(
@@ -601,8 +591,8 @@ export function Sidebar() {
             className={cn(
               "p-1.5 rounded-full border border-border bg-background shadow-md transition-colors",
               isPinned
-                ? "bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border-purple-500/30"
-                : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
+                ? "bg-purple-900 text-purple-400 hover:bg-purple-800 border-purple-500/50"
+                : "bg-background text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
             )}
             title={isPinned ? t('layout.sidebar.unpinSidebar') : t('layout.sidebar.pinSidebar')}
           >

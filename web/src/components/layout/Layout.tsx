@@ -358,7 +358,7 @@ export function Layout({ children }: LayoutProps) {
           <div
             style={{ top: demoBannerTop, left: sidebarWidthPx }}
             className={cn(
-              "fixed right-0 z-30 bg-background border-b border-yellow-500/20 transition-[left] duration-300",
+              "fixed right-0 z-30 bg-background border-b border-border/30 transition-[left] duration-300",
             )}>
             <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 py-1.5 px-3 md:px-4">
               {isAuthenticatedNoAgent
@@ -500,9 +500,7 @@ export function Layout({ children }: LayoutProps) {
           className="relative flex-1 p-4 pb-24 md:p-6 md:pb-28 transition-[margin] duration-300 overflow-y-auto scroll-enhanced min-w-0"
         >
           <NavigationProgress />
-          <Suspense fallback={null} key={location.pathname}>
-            <Outlet />
-          </Suspense>
+          <Outlet />
         </main>
       </div>
 
