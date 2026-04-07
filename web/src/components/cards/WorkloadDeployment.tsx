@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDraggable } from '@dnd-kit/core'
 import {
   Box,
@@ -7,6 +8,7 @@ import {
   XCircle,
   AlertTriangle,
   Layers,
+  Plus,
   Server,
   Database,
   Gauge,
@@ -528,6 +530,7 @@ interface WorkloadDeploymentProps {
 
 export function WorkloadDeployment(_props: WorkloadDeploymentProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [typeFilter, setTypeFilter] = useState<WorkloadType | 'All'>('All')
   const [statusFilter, setStatusFilter] = useState<WorkloadStatus | 'All'>('All')
   const [selectedWorkload, setSelectedWorkload] = useState<Workload | null>(null)
@@ -772,13 +775,23 @@ export function WorkloadDeployment(_props: WorkloadDeploymentProps) {
         />
       </div>
 
-      {/* Search */}
-      <div className="px-3 mb-2">
-        <CardSearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search workloads..."
-        />
+      {/* Search + Add Workload */}
+      <div className="px-3 mb-2 flex gap-2">
+        <div className="flex-1">
+          <CardSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search workloads..."
+          />
+        </div>
+        <button
+          onClick={() => navigate('/deploy')}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-colors shrink-0"
+          title={t('workloads.addWorkload', 'Add Workload')}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{t('workloads.addWorkloadShort', 'Add')}</span>
+        </button>
       </div>
 
       {/* Stats bar */}
