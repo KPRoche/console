@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     disconnectPresence()
   }
 
-  const setDemoMode = () => {
+  const setDemoMode = useCallback(() => {
     // If user explicitly disabled demo mode, respect their choice.
     // They want AI mode (agent) or live mode (backend) — not demo fallback.
     const userExplicitlyDisabledDemo = localStorage.getItem(STORAGE_KEY_DEMO_MODE) === 'false'
@@ -211,7 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // reflect demo state immediately — without this, the in-cluster banner won't
     // render because Layout's auto-demo-enable effect skips when isInClusterMode.
     setGlobalDemoMode(true)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const refreshUser = useCallback(async (overrideToken?: string) => {
     const effectiveToken = overrideToken || localStorage.getItem(STORAGE_KEY_TOKEN)

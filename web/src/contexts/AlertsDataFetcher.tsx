@@ -34,7 +34,8 @@ export default function AlertsDataFetcher({ onData }: Props) {
       isLoading: isGPULoading || isPodIssuesLoading || isClustersLoading,
       error: errors.length > 0 ? (errors || []).join('; ') : null,
     })
-  }, [gpuNodes, podIssues, clusters, isGPULoading, isPodIssuesLoading, isClustersLoading, gpuError, podIssuesError, clustersError, onData])
+  // eslint-disable-next-line react-hooks/exhaustive-deps — onData is stable (useState setter)
+  }, [gpuNodes, podIssues, clusters, isGPULoading, isPodIssuesLoading, isClustersLoading, gpuError, podIssuesError, clustersError])
 
   return null
 }

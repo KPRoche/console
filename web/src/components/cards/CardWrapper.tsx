@@ -569,9 +569,24 @@ export function CardWrapper({
 
   // Report callback for CardDataContext (childDataState is declared earlier for refresh animation)
   // Must be useCallback — CardDataContext children use this in useLayoutEffect deps
-  // Stable reference required — useLayoutEffect in CardDataContext depends on this
+  // Stable reference required — useLayoutEffect in CardDataContext depends on this.
+  // Use functional update to compare prev state and skip no-op updates that would
+  // otherwise trigger infinite re-renders (new object reference, same values).
   const reportCallback = useCallback((state: CardDataState) => {
-    setChildDataState(state)
+    setChildDataState(prev => {
+      if (prev &&
+        prev.isFailed === state.isFailed &&
+        prev.consecutiveFailures === state.consecutiveFailures &&
+        prev.errorMessage === state.errorMessage &&
+        prev.isLoading === state.isLoading &&
+        prev.isRefreshing === state.isRefreshing &&
+        prev.hasData === state.hasData &&
+        prev.isDemoData === state.isDemoData &&
+        prev.lastUpdated === state.lastUpdated) {
+        return prev
+      }
+      return state
+    })
   }, [])
   const reportCtx = useMemo(() => ({ report: reportCallback }), [reportCallback])
 

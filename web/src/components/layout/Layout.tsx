@@ -27,7 +27,7 @@ import { TourProvider } from '../../hooks/useTour'
 import { SetupInstructionsDialog } from '../setup/SetupInstructionsDialog'
 import { InClusterAgentDialog } from '../setup/InClusterAgentDialog'
 import { AgentSetupDialog } from '../agent/AgentSetupDialog'
-import { KeepAliveOutlet } from './KeepAliveOutlet'
+import { Outlet } from 'react-router-dom'
 import { PageErrorBoundary } from '../PageErrorBoundary'
 import { UpdateProgressBanner } from '../updates/UpdateProgressBanner'
 import { useUpdateProgress } from '../../hooks/useUpdateProgress'
@@ -500,15 +500,7 @@ export function Layout({ children }: LayoutProps) {
           className="relative flex-1 p-4 pb-24 md:p-6 md:pb-28 transition-[margin] duration-300 overflow-y-auto scroll-enhanced min-w-0"
         >
           <NavigationProgress />
-          {children ? (
-            <PageErrorBoundary>
-              <Suspense fallback={<ContentLoadingSkeleton />}>
-                {children}
-              </Suspense>
-            </PageErrorBoundary>
-          ) : (
-            <KeepAliveOutlet />
-          )}
+          <Outlet />
         </main>
       </div>
 
