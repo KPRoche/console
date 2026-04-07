@@ -376,10 +376,10 @@ export function useCardData<T, S extends string = string>(
   const totalPages = Math.ceil(sorted.length / effectivePerPage) || 1
   const needsPagination = itemsPerPage !== 'unlimited' && sorted.length > effectivePerPage
 
-  // Reset page when filters change
+  // Reset page when filters change (but not on sort — sorting preserves page position)
   useEffect(() => {
     setCurrentPage(1)
-  }, [filterResult.search, filterResult.localClusterFilter, sortResult.sortBy])
+  }, [filterResult.search, filterResult.localClusterFilter])
 
   // Ensure current page is valid
   useEffect(() => {
