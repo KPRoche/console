@@ -42,6 +42,9 @@ import { copyToClipboard } from '../../lib/clipboard'
 // Minimum duration to show spin animation (ensures at least one full rotation)
 const MIN_SPIN_DURATION = 500
 
+/** One hour in milliseconds — default snooze duration for card swaps */
+const ONE_HOUR_MS = 60 * 60 * 1000
+
 // Format relative time (e.g., "2m ago", "1h ago")
 function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
@@ -707,7 +710,7 @@ export function CardWrapper({
     return () => clearInterval(interval)
   }, [pendingSwap, onSwap])
 
-  const handleSnooze = (durationMs: number = 3600000) => {
+  const handleSnooze = (durationMs: number = ONE_HOUR_MS) => {
     if (!pendingSwap || !cardId) return
 
     snoozeSwap({
@@ -1247,7 +1250,7 @@ export function CardWrapper({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleSnooze(3600000)}
+                    onClick={() => handleSnooze(ONE_HOUR_MS)}
                     className="rounded"
                     title={t('cardWrapper.snoozeTooltip')}
                   >

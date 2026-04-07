@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
+import { POLL_INTERVAL_SLOW_MS } from '../lib/constants/network'
+import { STORAGE_KEY_SNOOZED_CARDS } from '../lib/constants/storage'
 import { emitSnoozed, emitUnsnoozed } from '../lib/analytics'
+
+/** Default snooze duration: 1 hour */
+const DEFAULT_SNOOZE_DURATION_MS = 60 * 60 * 1000
 
 export interface SnoozedSwap {
   id: string
@@ -9,85 +14,153 @@ export interface SnoozedSwap {
   newCardType: string
   newCardTitle: string
   reason: string
-  snoozedAt: Date
-  snoozedUntil: Date
+  snoozedAt: number // timestamp (ms)
+  snoozedUntil: number // timestamp (ms)
 }
 
-// Simple in-memory store - in production this would sync with backend
-let snoozedSwaps: SnoozedSwap[] = []
+interface StoredState {
+  swaps: SnoozedSwap[]
+}
+
+// Module-level state for cross-component sharing
+let state: StoredState = { swaps: [] }
 const listeners: Set<() => void> = new Set()
 
 function notifyListeners() {
   listeners.forEach((listener) => listener())
 }
 
+function loadState(): StoredState {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_SNOOZED_CARDS)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Clean up expired snoozes on load
+      const now = Date.now()
+      parsed.swaps = (parsed.swaps || []).filter(
+        (s: SnoozedSwap) => s.snoozedUntil > now
+      )
+      return parsed
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { swaps: [] }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY_SNOOZED_CARDS, JSON.stringify(state))
+  } catch {
+    // Ignore write errors (e.g. private browsing, quota exceeded)
+  }
+}
+
+// Initialize on module load
+state = loadState()
+
 export function useSnoozedCards() {
-  const [swaps, setSwaps] = useState<SnoozedSwap[]>(snoozedSwaps)
+  const [localState, setLocalState] = useState<StoredState>(state)
 
   useEffect(() => {
-    const listener = () => setSwaps([...snoozedSwaps])
+    const listener = () => setLocalState({ ...state })
     listeners.add(listener)
+
+    // Periodically clean up expired snoozes
+    const checkExpired = () => {
+      const now = Date.now()
+      const hadExpired = state.swaps.some(s => s.snoozedUntil <= now)
+      if (hadExpired) {
+        state.swaps = state.swaps.filter(s => s.snoozedUntil > now)
+        saveState()
+        notifyListeners()
+      }
+    }
+
+    const intervalId = setInterval(checkExpired, POLL_INTERVAL_SLOW_MS)
+
     return () => {
       listeners.delete(listener)
+      clearInterval(intervalId)
     }
   }, [])
 
-  const snoozeSwap = (swap: Omit<SnoozedSwap, 'id' | 'snoozedAt' | 'snoozedUntil'>, durationMs: number = 3600000) => {
+  const snoozeSwap = (swap: Omit<SnoozedSwap, 'id' | 'snoozedAt' | 'snoozedUntil'>, durationMs: number = DEFAULT_SNOOZE_DURATION_MS) => {
+    const now = Date.now()
     const newSwap: SnoozedSwap = {
       ...swap,
-      id: `snooze-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      snoozedAt: new Date(),
-      snoozedUntil: new Date(Date.now() + durationMs) }
-    snoozedSwaps = [...snoozedSwaps, newSwap]
+      id: `snooze-${now}-${Math.random().toString(36).slice(2)}`,
+      snoozedAt: now,
+      snoozedUntil: now + durationMs,
+    }
+    state.swaps = [...state.swaps, newSwap]
+    saveState()
     notifyListeners()
     emitSnoozed('card')
     return newSwap
   }
 
   const unsnoozeSwap = (id: string) => {
-    const swap = snoozedSwaps.find((s) => s.id === id)
-    snoozedSwaps = snoozedSwaps.filter((s) => s.id !== id)
+    const swap = state.swaps.find((s) => s.id === id)
+    state.swaps = state.swaps.filter((s) => s.id !== id)
+    saveState()
     notifyListeners()
     emitUnsnoozed('card')
     return swap
   }
 
   const dismissSwap = (id: string) => {
-    snoozedSwaps = snoozedSwaps.filter((s) => s.id !== id)
+    state.swaps = state.swaps.filter((s) => s.id !== id)
+    saveState()
     notifyListeners()
   }
 
   const getExpiredSwaps = () => {
-    const now = new Date()
-    return snoozedSwaps.filter((s) => s.snoozedUntil <= now)
+    const now = Date.now()
+    return state.swaps.filter((s) => s.snoozedUntil <= now)
   }
 
   const getActiveSwaps = () => {
-    const now = new Date()
-    return snoozedSwaps.filter((s) => s.snoozedUntil > now)
+    const now = Date.now()
+    return state.swaps.filter((s) => s.snoozedUntil > now)
+  }
+
+  const isCardSnoozed = (cardId: string): boolean => {
+    const now = Date.now()
+    return state.swaps.some(s => s.originalCardId === cardId && s.snoozedUntil > now)
   }
 
   return {
-    snoozedSwaps: swaps,
+    snoozedSwaps: localState.swaps,
     snoozeSwap,
     unsnoozeSwap,
     dismissSwap,
     getExpiredSwaps,
-    getActiveSwaps }
+    getActiveSwaps,
+    isCardSnoozed,
+  }
 }
 
 // Helper to format time remaining
-export function formatTimeRemaining(until: Date): string {
-  const now = new Date()
-  const diff = until.getTime() - now.getTime()
+export function formatTimeRemaining(until: Date | number): string {
+  const untilMs = typeof until === 'number' ? until : until.getTime()
+  const now = Date.now()
+  const diff = untilMs - now
 
   if (diff <= 0) return 'Expired'
 
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
+  /** Milliseconds per minute */
+  const MS_PER_MINUTE = 60_000
+  /** Minutes per hour */
+  const MINUTES_PER_HOUR = 60
+  /** Hours per day */
+  const HOURS_PER_DAY = 24
 
-  if (days > 0) return `${days}d ${hours % 24}h`
-  if (hours > 0) return `${hours}h ${minutes % 60}m`
+  const minutes = Math.floor(diff / MS_PER_MINUTE)
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR)
+  const days = Math.floor(hours / HOURS_PER_DAY)
+
+  if (days > 0) return `${days}d ${hours % HOURS_PER_DAY}h`
+  if (hours > 0) return `${hours}h ${minutes % MINUTES_PER_HOUR}m`
   return `${minutes}m`
 }

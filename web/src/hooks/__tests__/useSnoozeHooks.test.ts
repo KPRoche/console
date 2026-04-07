@@ -509,6 +509,7 @@ describe('formatSnoozeRemaining', () => {
 describe('useSnoozedCards', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    localStorageMock.clear()
     vi.resetModules()
   })
 
@@ -613,16 +614,20 @@ describe('useSnoozedCards', () => {
     expect(result.current.getActiveSwaps()).toHaveLength(1)
     expect(result.current.getExpiredSwaps()).toHaveLength(0)
 
-    // Advance past the 1 hour duration
+    // Advance past the 1 hour duration — the periodic cleanup timer
+    // fires every 60s and removes expired swaps from state automatically.
     const EXTRA_MS = 1000
-    vi.advanceTimersByTime(ONE_HOUR_MS + EXTRA_MS)
+    act(() => {
+      vi.advanceTimersByTime(ONE_HOUR_MS + EXTRA_MS)
+    })
 
-    // After expiry — should be expired
+    // After expiry + cleanup — both lists should be empty
+    // (expired swaps are auto-removed by the periodic timer)
     expect(result.current.getActiveSwaps()).toHaveLength(0)
-    expect(result.current.getExpiredSwaps()).toHaveLength(1)
+    expect(result.current.snoozedSwaps).toHaveLength(0)
   })
 
-  it('getExpiredSwaps returns only expired swaps', async () => {
+  it('expired swaps are auto-cleaned by periodic timer', async () => {
     const { useSnoozedCards } = await importHook()
     const { result } = renderHook(() => useSnoozedCards())
 
@@ -631,12 +636,14 @@ describe('useSnoozedCards', () => {
       result.current.snoozeSwap(swapInput, SHORT_DURATION_MS)
     })
 
-    const EXTRA_MS = 100
-    vi.advanceTimersByTime(SHORT_DURATION_MS + EXTRA_MS)
+    // Advance past expiry + cleanup interval
+    const CLEANUP_INTERVAL_MS = 60_000
+    act(() => {
+      vi.advanceTimersByTime(SHORT_DURATION_MS + CLEANUP_INTERVAL_MS)
+    })
 
-    const expired = result.current.getExpiredSwaps()
-    expect(expired).toHaveLength(1)
-    expect(expired[0].originalCardId).toBe('card-1')
+    // Auto-cleaned — no swaps left
+    expect(result.current.snoozedSwaps).toHaveLength(0)
   })
 
   // --- NEW REGRESSION TESTS ---
@@ -657,13 +664,13 @@ describe('useSnoozedCards', () => {
     const { useSnoozedCards } = await importHook()
     const { result } = renderHook(() => useSnoozedCards())
 
-    let created: { snoozedAt: Date; snoozedUntil: Date } | undefined
+    let created: { snoozedAt: number; snoozedUntil: number } | undefined
     act(() => {
       created = result.current.snoozeSwap(swapInput) as typeof created
     })
 
     const ONE_HOUR_MS = 60 * 60 * 1000
-    const diff = created!.snoozedUntil.getTime() - created!.snoozedAt.getTime()
+    const diff = created!.snoozedUntil - created!.snoozedAt
     expect(diff).toBe(ONE_HOUR_MS)
   })
 
@@ -1107,7 +1114,13 @@ describe('formatTimeRemaining (missions)', () => {
 
 describe('useSnoozedRecommendations', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    localStorageMock.clear()
     vi.resetModules()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   async function importHook() {
@@ -1231,43 +1244,44 @@ describe('useSnoozedRecommendations', () => {
     expect(result.current.isDismissed('rec-perm')).toBe(true)
   })
 
-  // useSnoozedRecommendations has NO expiration logic — snoozes persist
-  // indefinitely until manually unsnoozed or dismissed. This test confirms
-  // that behavior.
-  it('has no automatic expiration (snooze persists indefinitely)', async () => {
-    vi.useFakeTimers()
+  // useSnoozedRecommendations now expires after 24 hours (default duration)
+  it('expires snooze after default duration (24 hours)', async () => {
     const { useSnoozedRecommendations } = await importHook()
     const { result } = renderHook(() => useSnoozedRecommendations())
-    const rec = makeCardRecommendation('rec-forever')
+    const rec = makeCardRecommendation('rec-expire')
 
     act(() => {
       result.current.snoozeRecommendation(rec)
     })
 
-    // Advance time by 7 days
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
-    vi.advanceTimersByTime(SEVEN_DAYS_MS)
+    // Still snoozed after 23 hours
+    const TWENTY_THREE_HOURS_MS = 23 * 60 * 60 * 1000
+    act(() => {
+      vi.advanceTimersByTime(TWENTY_THREE_HOURS_MS)
+    })
+    expect(result.current.isSnoozed('rec-expire')).toBe(true)
 
-    // Still snoozed
-    expect(result.current.isSnoozed('rec-forever')).toBe(true)
-    expect(result.current.snoozedRecommendations).toHaveLength(1)
-    vi.useRealTimers()
+    // Expired after 25 hours (past the 24h default)
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000
+    act(() => {
+      vi.advanceTimersByTime(TWO_HOURS_MS)
+    })
+    expect(result.current.isSnoozed('rec-expire')).toBe(false)
   })
 
-  // useSnoozedRecommendations is in-memory only — no localStorage
-  it('does not use localStorage (in-memory only)', async () => {
+  // useSnoozedRecommendations now persists to localStorage
+  it('persists to localStorage', async () => {
     localStorageMock.clear()
-    const callsBefore = localStorageMock.setItem.mock.calls.length
 
     const { useSnoozedRecommendations } = await importHook()
     const { result } = renderHook(() => useSnoozedRecommendations())
 
     act(() => {
-      result.current.snoozeRecommendation(makeCardRecommendation('rec-mem'))
+      result.current.snoozeRecommendation(makeCardRecommendation('rec-persist'))
     })
 
-    // No new localStorage.setItem calls from this hook
-    expect(localStorageMock.setItem.mock.calls.length).toBe(callsBefore)
+    // Should have called localStorage.setItem
+    expect(localStorageMock.setItem).toHaveBeenCalled()
   })
 
   // --- NEW REGRESSION TESTS ---
