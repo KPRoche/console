@@ -59,11 +59,10 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react({
-      babel: {
-        plugins: [
-          ['babel-plugin-react-compiler', {}],
-        ],
-      },
+      // React Compiler disabled — it strips useCallback/useMemo that are
+      // load-bearing for useLayoutEffect dependency stability in CardDataContext,
+      // causing infinite re-render loops (React error #185) in production builds.
+      // Re-enable only after adding 'use no memo' directives to all affected files.
     }),
     // Inject build commit hash into the HTML <meta name="app-build-id"> tag
     // so the stale-HTML detection script can compare against the server.
