@@ -284,10 +284,10 @@ export function fetchSSE<T>(options: SSEFetchOptions<T>): Promise<T[]> {
             return
           }
 
-          // Don't retry on auth errors (401) — expected in demo mode
-          const isAuthError = err.message?.includes('401')
-          if (isAuthError) {
-            console.debug('[SSE] Auth error — skipping retries (demo mode)')
+          // Don't retry on auth (401) or service unavailable (503) — expected in demo mode
+          const isNonRetryable = err.message?.includes('401') || err.message?.includes('503')
+          if (isNonRetryable) {
+            console.debug('[SSE] Non-retryable error — skipping retries (demo mode)')
             resolve(accumulated)
             return
           }
