@@ -155,6 +155,8 @@ export function MissionSidebar() {
   const [viewingMission, setViewingMission] = useState<MissionExport | null>(null)
   const [viewingMissionRaw, setViewingMissionRaw] = useState(false)
   const newMissionInputRef = useRef<HTMLTextAreaElement>(null)
+  /** Ref to track the first-import toast countdown interval so it can be cleared on unmount or re-import */
+  const toastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Cluster selection for install missions
   const [pendingRunMissionId, setPendingRunMissionId] = useState<string | null>(null)
   const [isDirectImporting, setIsDirectImporting] = useState(false)
@@ -162,6 +164,15 @@ export function MissionSidebar() {
   const [showSaveResolutionDialog, setShowSaveResolutionDialog] = useState(false)
   // Reset dialog when active mission changes to prevent stale dialog for a different mission
   useEffect(() => { setShowSaveResolutionDialog(false) }, [activeMission?.id])
+  // Clean up first-import toast interval on unmount to prevent timer leak (#5211)
+  useEffect(() => {
+    return () => {
+      if (toastIntervalRef.current) {
+        clearInterval(toastIntervalRef.current)
+        toastIntervalRef.current = null
+      }
+    }
+  }, [])
   // Resolution panel state (fullscreen left sidebar)
   const [resolutionPanelView, setResolutionPanelView] = useState<'related' | 'history'>('related')
   const { findSimilarResolutions, allResolutions } = useResolutions()
@@ -348,10 +359,17 @@ export function MissionSidebar() {
       /** Countdown duration in seconds for first-import toast */
       const FIRST_IMPORT_COUNTDOWN_S = 60
       setToastCountdown(FIRST_IMPORT_COUNTDOWN_S)
-      const interval = setInterval(() => {
+      // Clear any previous interval to prevent leaks on rapid re-imports (#5211)
+      if (toastIntervalRef.current) {
+        clearInterval(toastIntervalRef.current)
+      }
+      toastIntervalRef.current = setInterval(() => {
         setToastCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(interval)
+            if (toastIntervalRef.current) {
+              clearInterval(toastIntervalRef.current)
+              toastIntervalRef.current = null
+            }
             setShowSavedToast(null)
             return 0
           }
