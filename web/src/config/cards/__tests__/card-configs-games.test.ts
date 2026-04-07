@@ -7,7 +7,6 @@ import { flappyPodConfig } from '../flappy-pod'
 import { game2048Config } from '../game-2048'
 import { kubeBertConfig } from '../kube-bert'
 import { kubeChessConfig } from '../kube-chess'
-import { kubeCraftConfig } from '../kube-craft'
 import { kubeDoomConfig } from '../kube-doom'
 import { kubeGalagaConfig } from '../kube-galaga'
 import { kubeKartConfig } from '../kube-kart'
@@ -33,7 +32,6 @@ const gameCards = [
   { name: 'game2048', config: game2048Config },
   { name: 'kubeBert', config: kubeBertConfig },
   { name: 'kubeChess', config: kubeChessConfig },
-  { name: 'kubeCraft', config: kubeCraftConfig },
   { name: 'kubeDoom', config: kubeDoomConfig },
   { name: 'kubeGalaga', config: kubeGalagaConfig },
   { name: 'kubeKart', config: kubeKartConfig },

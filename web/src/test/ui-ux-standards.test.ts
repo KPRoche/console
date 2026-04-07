@@ -76,8 +76,8 @@ const ARCADE_GAME_FILES = new Set([
   'ContainerTetris.tsx', 'FlappyPod.tsx', 'PodSweeper.tsx', 'Game2048.tsx',
   'Checkers.tsx', 'KubeChess.tsx', 'Solitaire.tsx', 'MatchGame.tsx',
   'Kubedle.tsx', 'SudokuGame.tsx', 'PodBrothers.tsx', 'KubeKart.tsx',
-  'KubePong.tsx', 'KubeSnake.tsx', 'KubeGalaga.tsx', 'KubeCraft.tsx',
-  'KubeCraft3D.tsx', 'KubeDoom.tsx', 'PodCrosser.tsx', 'KubeBert.tsx',
+  'KubePong.tsx', 'KubeSnake.tsx', 'KubeGalaga.tsx',
+  'KubeDoom.tsx', 'PodCrosser.tsx', 'KubeBert.tsx',
   'MissileCommand.tsx',
 ])
 

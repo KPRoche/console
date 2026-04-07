@@ -36,8 +36,6 @@ export const arcadeDashboardConfig: UnifiedDashboardConfig = {
     { id: 'solitaire-1', cardType: 'solitaire', title: 'Kube Solitaire', position: { w: 6, h: 4 } },
     // Flappy
     { id: 'flappy-1', cardType: 'flappy_pod', title: 'Flappy Pod', position: { w: 5, h: 4 } },
-    // Craft
-    { id: 'craft-1', cardType: 'kube_craft', title: 'Kube Craft', position: { w: 6, h: 4 } },
     // FPS
     { id: 'doom-1', cardType: 'kube_doom', title: 'Kube Doom', position: { w: 6, h: 4 } },
   ],

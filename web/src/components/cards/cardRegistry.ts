@@ -149,13 +149,10 @@ const KubeSnake = safeLazy(() => _arcadeBundle, 'KubeSnake')
 const KubeGalaga = safeLazy(() => _arcadeBundle, 'KubeGalaga')
 const KubeBert = safeLazy(() => _arcadeBundle, 'KubeBert')
 const KubeDoom = safeLazy(() => _arcadeBundle, 'KubeDoom')
-const KubeCraft = safeLazy(() => _arcadeBundle, 'KubeCraft')
 const IframeEmbed = safeLazy(() => import('./IframeEmbed'), 'IframeEmbed')
 const NetworkUtils = safeLazy(() => import('./NetworkUtils'), 'NetworkUtils')
 const MobileBrowser = safeLazy(() => import('./MobileBrowser'), 'MobileBrowser')
 const KubeChess = safeLazy(() => _arcadeBundle, 'KubeChess')
-// Temporarily disabled to reduce bundle size (saves ~469KB)
-// const KubeCraft3D = safeLazy(() => import('./KubeCraft3D'), 'KubeCraft3D')
 const ServiceExports = safeLazy(() => import('./ServiceExports'), 'ServiceExports')
 const ServiceImports = safeLazy(() => import('./ServiceImports'), 'ServiceImports')
 const GatewayStatus = safeLazy(() => import('./GatewayStatus'), 'GatewayStatus')
@@ -461,7 +458,6 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   kube_galaga: KubeGalaga,
   kube_bert: KubeBert,
   kube_doom: KubeDoom,
-  kube_craft: KubeCraft,
   // Generic Iframe Embed card
   iframe_embed: IframeEmbed,
   network_utils: NetworkUtils,
@@ -469,8 +465,6 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   mobile_browser: MobileBrowser,
   // Kube Chess card
   kube_chess: KubeChess,
-  // KubeCraft 3D card - Temporarily disabled to reduce bundle size
-  // kube_craft_3d: KubeCraft3D,
   // MCS (Multi-Cluster Service) cards
   service_exports: ServiceExports,
   service_imports: ServiceImports,
@@ -1010,7 +1004,6 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   kube_galaga: () => import('./arcade-bundle'),
   kube_bert: () => import('./arcade-bundle'),
   kube_doom: () => import('./arcade-bundle'),
-  kube_craft: () => import('./arcade-bundle'),
   kube_chess: () => import('./arcade-bundle'),
   // Inspektor Gadget cards
   network_trace: () => import('./gadget/NetworkTraceCard'),
@@ -1417,14 +1410,11 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   kube_snake: 5,
   kube_galaga: 5,
   kube_doom: 6,
-  kube_craft: 5,
   iframe_embed: 6,
   network_utils: 5,
   mobile_browser: 5,
   kube_chess: 5,
   kube_bert: 5,
-  // kube_craft_3d: 6,  // Temporarily disabled
-
   // Wide cards (7-8 columns) - charts and trends
   pod_health_trend: 8,
   events_timeline: 8,

@@ -78,7 +78,6 @@ import { ingressStatusConfig } from './ingress-status'
 import { jobStatusConfig } from './job-status'
 import { kubeBertConfig } from './kube-bert'
 import { kubeChessConfig } from './kube-chess'
-import { kubeCraftConfig } from './kube-craft'
 import { kubeDoomConfig } from './kube-doom'
 import { kubeGalagaConfig } from './kube-galaga'
 import { kubeKartConfig } from './kube-kart'
@@ -241,7 +240,6 @@ export const CARD_CONFIGS: CardConfigRegistry = {
   job_status: jobStatusConfig,
   kube_bert: kubeBertConfig,
   kube_chess: kubeChessConfig,
-  kube_craft: kubeCraftConfig,
   kube_doom: kubeDoomConfig,
   kube_galaga: kubeGalagaConfig,
   kube_kart: kubeKartConfig,
@@ -492,7 +490,6 @@ export {
   jobStatusConfig,
   kubeBertConfig,
   kubeChessConfig,
-  kubeCraftConfig,
   kubeDoomConfig,
   kubeGalagaConfig,
   kubeKartConfig,

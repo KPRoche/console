@@ -524,8 +524,6 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
       { card_type: 'kube_pong', title: 'Kube Pong', position: { w: 4, h: 4 } },
       { card_type: 'kube_snake', title: 'Kube Snake', position: { w: 4, h: 4 } },
       { card_type: 'kube_galaga', title: 'Kube Galaga', position: { w: 4, h: 4 } },
-      { card_type: 'kube_craft', title: 'KubeCraft', position: { w: 4, h: 4 } },
-      { card_type: 'kube_craft_3d', title: 'KubeCraft 3D', position: { w: 4, h: 4 } },
       { card_type: 'kube_doom', title: 'Kube Doom', position: { w: 6, h: 4 } },
       { card_type: 'flappy_pod', title: 'Flappy Pod', position: { w: 4, h: 4 } },
       { card_type: 'pod_crosser', title: 'Pod Crosser', position: { w: 4, h: 4 } },

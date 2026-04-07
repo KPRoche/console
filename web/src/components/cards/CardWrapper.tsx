@@ -96,7 +96,7 @@ const FULLSCREEN_EXPANDED_CARDS = new Set([
   'flappy_pod', 'kube_pong', 'kube_kong', 'game_2048', 'kube_man',
   'kube_galaga', 'kube_chess', 'checkers', 'pod_crosser', 'pod_brothers',
   'pod_pitfall', 'match_game', 'solitaire', 'kubedle', 'pod_sweeper',
-  'kube_craft', 'kube_doom', 'kube_kart',
+  'kube_doom', 'kube_kart',
 ])
 
 /** Dimensions of the card's content container (updated via ResizeObserver) */

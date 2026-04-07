@@ -288,7 +288,6 @@ export const CARD_CATALOG = {
     { type: 'kube_pong', title: 'Kube Pong', description: 'Classic Pong game - play against AI with adjustable difficulty', visualization: 'status' },
     { type: 'kube_snake', title: 'Kube Snake', description: 'Classic Snake game - grow by collecting dots without hitting walls', visualization: 'status' },
     { type: 'kube_galaga', title: 'Kube Galaga', description: 'Space shooter with enemy waves and power-ups', visualization: 'status' },
-    { type: 'kube_craft', title: 'KubeCraft 2D', description: '2D Minecraft-style block builder with terrain generation', visualization: 'status' },
     { type: 'kube_bert', title: 'Kube Bert', description: 'Q*bert-style pyramid hopper — change every tile while dodging enemies', visualization: 'status' },
     { type: 'missile_command', title: 'Missile Command', description: 'Defend your Kubernetes clusters from incoming missiles', visualization: 'status' },
     { type: 'kube_doom', title: 'Kube Doom', description: 'Raycasting FPS - eliminate rogue CrashPods, OOMKillers, and ZombieDeploys', visualization: 'status' },

@@ -20,8 +20,8 @@ const NON_MIGRATION_CARDS = new Set([
   'kube_man', 'kube_kong', 'node_invaders', 'pod_pitfall', 'container_tetris',
   'flappy_pod', 'pod_sweeper', 'game_2048', 'checkers', 'kube_chess',
   'solitaire', 'match_game', 'kubedle', 'sudoku_game', 'pod_brothers',
-  'kube_kart', 'kube_pong', 'kube_snake', 'kube_galaga', 'kube_craft',
-  'kube_craft_3d', 'kube_doom', 'pod_crosser',
+  'kube_kart', 'kube_pong', 'kube_snake', 'kube_galaga',
+  'kube_doom', 'pod_crosser',
   // Embedded/utility
   'iframe_embed', 'mobile_browser', 'kubectl',
   // Weather has animated backgrounds

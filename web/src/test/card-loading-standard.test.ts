@@ -69,8 +69,8 @@ const NO_CACHED_HOOK_EXEMPT = new Set([
   'ContainerTetris.tsx', 'FlappyPod.tsx', 'PodSweeper.tsx', 'Game2048.tsx',
   'Checkers.tsx', 'KubeChess.tsx', 'Solitaire.tsx', 'MatchGame.tsx',
   'Kubedle.tsx', 'SudokuGame.tsx', 'PodBrothers.tsx', 'KubeKart.tsx',
-  'KubePong.tsx', 'KubeSnake.tsx', 'KubeGalaga.tsx', 'KubeCraft.tsx',
-  'KubeCraft3D.tsx', 'KubeDoom.tsx', 'PodCrosser.tsx',
+  'KubePong.tsx', 'KubeSnake.tsx', 'KubeGalaga.tsx',
+  'KubeDoom.tsx', 'PodCrosser.tsx',
   // Embed/iframe cards
   'IframeEmbed.tsx', 'MobileBrowser.tsx',
   // Pure UI cards

@@ -244,7 +244,6 @@ export const CARD_TITLES: Record<string, string> = {
   kube_snake: 'Kube Snake',
   kube_galaga: 'Kube Galaga',
   kube_doom: 'Kube Doom',
-  kube_craft: 'Kube Craft',
   kube_chess: 'Kube Chess',
   missile_command: 'Missile Command',
   kube_bert: 'Kube-BERT',
@@ -526,7 +525,6 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   kube_snake: 'Snake game collecting Kubernetes resources.',
   kube_galaga: 'Galaga-style shooter defending against threats.',
   kube_doom: 'First-person debugging adventure.',
-  kube_craft: 'Build and manage your cluster world.',
   kube_chess: 'Chess game with Kubernetes-themed pieces.',
   missile_command: 'Missile Command arcade game defending your cluster.',
   kube_bert: 'Q*bert style platformer navigating Kubernetes pyramids.',
@@ -600,7 +598,6 @@ export const DEMO_EXEMPT_CARDS = new Set([
   'pod_sweeper',
   'kube_pong',
   'kube_galaga',
-  'kube_craft',
   'kube_doom',
   'dynamic_card',
   // Cluster admin cards - no demo/live concept

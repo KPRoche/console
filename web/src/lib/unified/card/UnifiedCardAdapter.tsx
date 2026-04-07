@@ -224,8 +224,8 @@ export const UNIFIED_EXCLUDED_CARDS = new Set<string>([
   'kube_man', 'kube_kong', 'node_invaders', 'pod_pitfall', 'container_tetris',
   'flappy_pod', 'pod_sweeper', 'game_2048', 'checkers', 'kube_chess',
   'solitaire', 'match_game', 'kubedle', 'sudoku_game', 'pod_brothers',
-  'kube_kart', 'kube_pong', 'kube_snake', 'kube_galaga', 'kube_craft',
-  'kube_craft_3d', 'kube_doom', 'pod_crosser',
+  'kube_kart', 'kube_pong', 'kube_snake', 'kube_galaga',
+  'kube_doom', 'pod_crosser',
 
   // Embedded content
   'iframe_embed', 'mobile_browser', 'kubectl',
