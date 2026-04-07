@@ -265,10 +265,22 @@ export function useStatsConfig(storageKey: string = 'cluster-stats-config') {
         return merged
       }
     } catch {
-      // Ignore parse errors
+      // Toast shown in useEffect below after mount
     }
     return DEFAULT_STAT_BLOCKS
   })
+
+  // Notify user if saved stats configuration was corrupt and had to be reset
+  useEffect(() => {
+    const saved = safeGetItem(storageKey)
+    if (saved) {
+      try {
+        JSON.parse(saved)
+      } catch {
+        showToast('Stats configuration was corrupted and has been reset to defaults.', 'warning')
+      }
+    }
+  }, [storageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveBlocks = (newBlocks: StatBlockConfig[]) => {
     setBlocks(newBlocks)

@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 import { LOCAL_AGENT_HTTP_URL, STORAGE_KEY_CLUSTER_LAYOUT, STORAGE_KEY_CLUSTER_ORDER, FETCH_DEFAULT_TIMEOUT_MS } from '../../lib/constants'
 import { safeGetItem, safeSetItem } from '../../lib/utils/localStorage'
 import { useModalState } from '../../lib/modals'
+import { useToast } from '../ui/Toast'
 import { useUniversalStats, createMergedStatValueGetter } from '../../hooks/useUniversalStats'
 import type { StatBlockValue } from '../ui/StatsOverview'
 import { formatMemoryStat } from '../../lib/formatStats'
@@ -54,6 +55,7 @@ export function Clusters() {
   const { startMission } = useMissions()
   const { showKeyPrompt: pruneShowKeyPrompt, checkKeyAndRun: pruneCheckKeyAndRun, goToSettings: pruneGoToSettings, dismissPrompt: pruneDismissPrompt } = useApiKeyCheck()
   const { getStatValue: getUniversalStatValue } = useUniversalStats()
+  const { showToast } = useToast()
 
   // When demo mode is OFF and agent is not connected, force skeleton display
   // Also show skeleton during mode switching for smooth transitions
@@ -107,6 +109,19 @@ export function Clusters() {
     }
   })
   const [sortAsc, setSortAsc] = useState(true)
+
+  // Notify user if saved cluster sort configuration was corrupt and had to be reset
+  useEffect(() => {
+    const savedOrder = safeGetItem(STORAGE_KEY_CLUSTER_ORDER)
+    if (savedOrder) {
+      try {
+        JSON.parse(savedOrder)
+      } catch {
+        showToast('Cluster sort preferences were corrupted and have been reset to defaults.', 'warning')
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Convenience aliases so downstream code stays unchanged
   const sortBy = sortState.by
   const customOrder = sortState.customOrder
