@@ -1917,7 +1917,7 @@ export function MissionBrowser({ isOpen, onClose, onImport, initialMission }: Mi
             {/* ============================================================ */}
             {/* FIXES TAB */}
             {/* ============================================================ */}
-            {!selectedMission && !unstructuredContent && filteredEntries.length === 0 && activeTab === 'fixes' && (
+            {!selectedMission && !unstructuredContent && activeTab === 'fixes' && (
               <div className="space-y-4">
                 {/* Fixer filters */}
                 <div className="flex flex-wrap items-center gap-2">
