@@ -34,13 +34,10 @@ export function useModalNavigation({
   // Handle keyboard events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Escape should always work, even in input fields.
-      // stopImmediatePropagation prevents parent modals from also closing
-      // when a nested modal handles Escape first.
+      // Escape should always work, even in input fields
       if (e.key === 'Escape') {
         if (enableEscape) {
           e.preventDefault()
-          e.stopImmediatePropagation()
           onClose()
         }
         return

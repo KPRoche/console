@@ -20,7 +20,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'cluster-overview',
     name: 'Cluster Overview',
     description: 'Health, resources, and issues across all clusters',
-    icon: 'Globe',
+    icon: '🌐',
     category: 'cluster',
     cards: [
       { card_type: 'provider_health', position: { w: 4, h: 3 } },
@@ -38,7 +38,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'cluster-resource-tree',
     name: 'Resource Explorer',
     description: 'Hierarchical tree view of all cluster resources',
-    icon: 'TreePine',
+    icon: '🌳',
     category: 'cluster',
     cards: [
       { card_type: 'cluster_resource_tree', position: { w: 12, h: 6 } },
@@ -48,7 +48,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'cluster-comparison',
     name: 'Cluster Comparison',
     description: 'Compare metrics and resources across clusters',
-    icon: 'Scale',
+    icon: '⚖️',
     category: 'cluster',
     cards: [
       { card_type: 'cluster_comparison', position: { w: 8, h: 3 } },
@@ -61,7 +61,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'single-cluster-focus',
     name: 'Single Cluster Focus',
     description: 'Deep dive into a specific cluster',
-    icon: 'Search',
+    icon: '🔍',
     category: 'cluster',
     cards: [
       { card_type: 'cluster_focus', position: { w: 6, h: 3 } },
@@ -76,7 +76,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'provider-status',
     name: 'Provider Status',
     description: 'Health and connectivity status of AI and cloud infrastructure providers',
-    icon: 'Heart',
+    icon: '🏥',
     category: 'cluster',
     cards: [
       { card_type: 'provider_health', position: { w: 6, h: 3 } },
@@ -91,7 +91,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'namespace-dashboard',
     name: 'Namespace Dashboard',
     description: 'Quotas, RBAC, and events for a namespace',
-    icon: 'FolderOpen',
+    icon: '📁',
     category: 'namespace',
     cards: [
       { card_type: 'namespace_overview', position: { w: 6, h: 2 } },
@@ -107,7 +107,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'gitops-overview',
     name: 'GitOps Overview',
     description: 'Helm releases, Kustomizations, and drift detection',
-    icon: 'RefreshCw',
+    icon: '🔄',
     category: 'gitops',
     cards: [
       { card_type: 'gitops_drift', position: { w: 4, h: 2 } },
@@ -121,7 +121,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'helm-management',
     name: 'Helm Management',
     description: 'Complete Helm releases management',
-    icon: 'Anchor',
+    icon: '⚓',
     category: 'gitops',
     cards: [
       { card_type: 'helm_release_status', position: { w: 6, h: 3 } },
@@ -134,7 +134,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'flux-dashboard',
     name: 'Flux Dashboard',
     description: 'Kustomizations and overlay management',
-    icon: 'Waves',
+    icon: '🌊',
     category: 'gitops',
     cards: [
       { card_type: 'kustomization_status', position: { w: 6, h: 3 } },
@@ -147,7 +147,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'argocd-dashboard',
     name: 'ArgoCD Dashboard',
     description: 'Monitor ArgoCD applications, sync status, and health',
-    icon: 'GitBranch',
+    icon: '🐙',
     category: 'gitops',
     cards: [
       { card_type: 'argocd_applications', position: { w: 6, h: 3 } },
@@ -162,7 +162,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'security-overview',
     name: 'Security Overview',
     description: 'Security issues and RBAC across clusters',
-    icon: 'Lock',
+    icon: '🔒',
     category: 'security',
     cards: [
       { card_type: 'security_issues', position: { w: 6, h: 3 } },
@@ -176,7 +176,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'operator-management',
     name: 'Operator Management',
     description: 'OLM operators, subscriptions, and CRDs',
-    icon: 'Package',
+    icon: '📦',
     category: 'custom',
     cards: [
       { card_type: 'operator_status', position: { w: 4, h: 3 } },
@@ -190,7 +190,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'gpu-dashboard',
     name: 'GPU Dashboard',
     description: 'GPU utilization, inventory, and status',
-    icon: 'Gamepad2',
+    icon: '🎮',
     category: 'gpu',
     cards: [
       { card_type: 'hardware_health', title: 'Hardware Health', position: { w: 6, h: 3 } },
@@ -209,7 +209,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'app-monitoring',
     name: 'Application Monitoring',
     description: 'Deployments, pods, and application status',
-    icon: 'Smartphone',
+    icon: '📱',
     category: 'custom',
     cards: [
       { card_type: 'app_status', position: { w: 4, h: 2 } },
@@ -226,7 +226,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'troubleshooting',
     name: 'Troubleshooting',
     description: 'Events, issues, and diagnostics',
-    icon: 'Wrench',
+    icon: '🔧',
     category: 'custom',
     cards: [
       { card_type: 'event_stream', position: { w: 6, h: 3 } },
@@ -242,7 +242,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'storage-overview',
     name: 'Storage Overview',
     description: 'PVs, PVCs, and storage classes',
-    icon: 'Database',
+    icon: '💾',
     category: 'storage',
     cards: [
       { card_type: 'storage_overview', position: { w: 4, h: 3 } },
@@ -256,7 +256,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'compute-overview',
     name: 'Compute Overview',
     description: 'CPU, memory, and node resources',
-    icon: 'Settings',
+    icon: '⚙️',
     category: 'compute',
     cards: [
       { card_type: 'compute_overview', position: { w: 4, h: 3 } },
@@ -273,7 +273,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'network-overview',
     name: 'Network Overview',
     description: 'Network policies, services, and connectivity',
-    icon: 'Globe',
+    icon: '🌐',
     category: 'network',
     cards: [
       { card_type: 'network_overview', position: { w: 4, h: 3 } },
@@ -292,7 +292,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'ai-dashboard',
     name: 'AI Dashboard',
     description: 'AI-powered cluster analysis and troubleshooting',
-    icon: 'Bot',
+    icon: '🤖',
     category: 'ai',
     cards: [
       { card_type: 'console_ai_offline_detection', title: 'Offline Detection', position: { w: 6, h: 3 } },
@@ -311,7 +311,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'alerting-dashboard',
     name: 'Alerting Dashboard',
     description: 'Active alerts, rules, and AI-powered diagnostics',
-    icon: 'Bell',
+    icon: '🔔',
     category: 'alerting',
     cards: [
       { card_type: 'active_alerts', position: { w: 6, h: 3 } },
@@ -327,7 +327,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'cost-management',
     name: 'Cost Management',
     description: 'Resource costs, allocation, and optimization recommendations',
-    icon: 'DollarSign',
+    icon: '💰',
     category: 'cost',
     cards: [
       { card_type: 'cluster_costs', position: { w: 6, h: 4 } },
@@ -343,7 +343,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'weather-dashboard',
     name: 'Weather Dashboard',
     description: 'Weather conditions with multi-day forecasts and animated conditions',
-    icon: 'Cloud',
+    icon: '🌤️',
     category: 'custom',
     cards: [
       { card_type: 'weather', position: { w: 6, h: 4 } },
@@ -355,7 +355,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'compliance-overview',
     name: 'Compliance Overview',
     description: 'Policy enforcement, security compliance, and audit readiness',
-    icon: 'ClipboardList',
+    icon: '📋',
     category: 'compliance',
     cards: [
       { card_type: 'compliance_score', title: 'Compliance Score', position: { w: 4, h: 2 } },
@@ -369,7 +369,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'policy-enforcement',
     name: 'Policy Enforcement',
     description: 'OPA Gatekeeper, Kyverno, and Kubescape policy violations',
-    icon: 'Shield',
+    icon: '🛡️',
     category: 'compliance',
     cards: [
       { card_type: 'opa_policies', position: { w: 4, h: 3 } },
@@ -382,7 +382,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'security-scanning',
     name: 'Security Scanning',
     description: 'Vulnerability scanning with Trivy and runtime monitoring with Falco',
-    icon: 'Search',
+    icon: '🔍',
     category: 'compliance',
     cards: [
       { card_type: 'trivy_scan', title: 'Trivy Vulnerabilities', position: { w: 6, h: 4 } },
@@ -395,7 +395,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'audit-readiness',
     name: 'Audit Readiness',
     description: 'Prepare for compliance audits with CIS, NSA, and PCI-DSS frameworks',
-    icon: 'CheckCircle',
+    icon: '✅',
     category: 'compliance',
     cards: [
       { card_type: 'compliance_score', position: { w: 4, h: 2 } },
@@ -411,7 +411,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'prow-dashboard',
     name: 'Prow CI Dashboard',
     description: 'Monitor Prow CI/CD jobs, ProwJobs, and test results',
-    icon: 'Ship',
+    icon: '🚢',
     category: 'workloads',
     cards: [
       { card_type: 'prow_ci_monitor', title: 'Prow CI Monitor', position: { w: 6, h: 4 } },
@@ -426,7 +426,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'llm-inference',
     name: 'llm-d inference dashboard',
     description: 'Monitor vLLM, llm-d, and AI inference workloads',
-    icon: 'Bot',
+    icon: '🤖',
     category: 'workloads',
     cards: [
       { card_type: 'llmd_stack_monitor', title: 'llm-d Stack Monitor', position: { w: 6, h: 4 } },
@@ -442,7 +442,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'ml-platform',
     name: 'ML Platform Dashboard',
     description: 'Monitor ML training jobs, notebooks, and model serving',
-    icon: 'LayoutDashboard',
+    icon: '🧠',
     category: 'workloads',
     cards: [
       { card_type: 'ml_jobs', title: 'ML Training Jobs', position: { w: 6, h: 3 } },
@@ -459,7 +459,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'arcade-classics',
     name: 'Arcade Classics',
     description: 'Classic games with a Kubernetes twist - Tetris, 2048, Minesweeper, and more',
-    icon: 'Gamepad2',
+    icon: '🎮',
     category: 'arcade',
     cards: [
       { card_type: 'checkers', title: 'Kube Checkers', position: { w: 4, h: 4 } },
@@ -473,7 +473,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'arcade-action',
     name: 'Arcade Action',
     description: 'Fast-paced action games - Flappy Pod, Node Invaders, Kube Kong, and more',
-    icon: 'Rocket',
+    icon: '🚀',
     category: 'arcade',
     cards: [
       { card_type: 'flappy_pod', title: 'Flappy Pod', position: { w: 4, h: 4 } },
@@ -490,7 +490,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'arcade-puzzle',
     name: 'Arcade Puzzles',
     description: 'Brain teasers and puzzle games - Kubedle, Match Game, and more',
-    icon: 'LayoutDashboard',
+    icon: '🧩',
     category: 'arcade',
     cards: [
       { card_type: 'kubedle', title: 'Kubedle', position: { w: 4, h: 4 } },
@@ -502,7 +502,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'arcade-all',
     name: 'Full Arcade',
     description: 'All available Kubernetes-themed arcade games',
-    icon: 'LayoutDashboard',
+    icon: '🎪',
     category: 'arcade',
     cards: [
       { card_type: 'checkers', title: 'Kube Checkers', position: { w: 4, h: 4 } },
@@ -537,7 +537,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'live-trends',
     name: 'Live Trends',
     description: 'Real-time timeseries charts for events, pods, resources, and GPU utilization',
-    icon: 'LayoutDashboard',
+    icon: '📈',
     category: 'custom',
     cards: [
       { card_type: 'events_timeline', position: { w: 6, h: 3 } },
@@ -552,7 +552,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'events-dashboard',
     name: 'Events Dashboard',
     description: 'Comprehensive event monitoring with summaries, warnings, and live feed',
-    icon: 'ClipboardList',
+    icon: '📋',
     category: 'custom',
     cards: [
       { card_type: 'event_summary', position: { w: 6, h: 3 } },
@@ -568,7 +568,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'multi-tenancy',
     name: 'Multi-Tenancy',
     description: 'Monitor and configure tenant isolation with OVN, KubeFlex, K3s, and KubeVirt',
-    icon: 'Users',
+    icon: '\u{1F3E2}',
     category: 'security',
     cards: [
       { card_type: 'tenant_topology', position: { w: 6, h: 6 } },
@@ -586,7 +586,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'secrets-management',
     name: 'Secrets Management',
     description: 'Vault secrets, external secrets, and certificate management',
-    icon: 'LayoutDashboard',
+    icon: '🔑',
     category: 'security',
     cards: [
       { card_type: 'vault_secrets', position: { w: 4, h: 3 } },
@@ -600,7 +600,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'utilities',
     name: 'Utilities',
     description: 'Kubectl terminal, network tools, browser, and external integrations',
-    icon: 'LayoutDashboard',
+    icon: '🧰',
     category: 'custom',
     cards: [
       { card_type: 'kubectl', position: { w: 6, h: 4 } },
@@ -619,7 +619,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'deploy-overview',
     name: 'Deployment Overview',
     description: 'Monitor deployment status, issues, and progress across clusters',
-    icon: 'Rocket',
+    icon: '🚀',
     category: 'deploy',
     cards: [
       { card_type: 'workload_deployment', title: 'Workloads', position: { w: 4, h: 2 } },
@@ -636,7 +636,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'deploy-gitops',
     name: 'GitOps Deployments',
     description: 'ArgoCD applications, sync status, and drift detection',
-    icon: 'RefreshCw',
+    icon: '🔄',
     category: 'deploy',
     cards: [
       { card_type: 'gitops_drift', position: { w: 6, h: 2 } },
@@ -649,7 +649,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'deploy-helm',
     name: 'Helm Deployments',
     description: 'Helm releases, history, and chart versions',
-    icon: 'LayoutDashboard',
+    icon: '⛵',
     category: 'deploy',
     cards: [
       { card_type: 'helm_release_status', position: { w: 6, h: 2 } },
@@ -662,7 +662,7 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
     id: 'deploy-full',
     name: 'Full Deployment Dashboard',
     description: 'Complete deployment monitoring with GitOps, Helm, and Kustomize',
-    icon: 'Package',
+    icon: '📦',
     category: 'deploy',
     cards: [
       { card_type: 'workload_deployment', title: 'Workloads', position: { w: 4, h: 2 } },
@@ -681,20 +681,20 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
 ]
 
 export const TEMPLATE_CATEGORIES = [
-  { id: 'cluster', name: 'Cluster', icon: 'Globe' },
-  { id: 'namespace', name: 'Namespace', icon: 'FolderOpen' },
-  { id: 'workloads', name: 'Workloads', icon: 'Box' },
-  { id: 'alerting', name: 'Alerting', icon: 'Bell' },
-  { id: 'compliance', name: 'Compliance', icon: 'ClipboardCheck' },
-  { id: 'cost', name: 'Cost Management', icon: 'DollarSign' },
-  { id: 'storage', name: 'Storage', icon: 'Database' },
-  { id: 'compute', name: 'Compute', icon: 'Cpu' },
-  { id: 'network', name: 'Network', icon: 'Globe' },
-  { id: 'gitops', name: 'GitOps', icon: 'GitBranch' },
-  { id: 'security', name: 'Security', icon: 'Shield' },
-  { id: 'gpu', name: 'GPU', icon: 'Zap' },
-  { id: 'ai', name: 'AI Assistant', icon: 'Sparkles' },
-  { id: 'arcade', name: 'Arcade', icon: 'Gamepad2' },
-  { id: 'deploy', name: 'Deploy', icon: 'Rocket' },
-  { id: 'custom', name: 'Other', icon: 'LayoutGrid' },
+  { id: 'cluster', name: 'Cluster', icon: '🌐' },
+  { id: 'namespace', name: 'Namespace', icon: '📁' },
+  { id: 'workloads', name: 'Workloads', icon: '🏗️' },
+  { id: 'alerting', name: 'Alerting', icon: '🔔' },
+  { id: 'compliance', name: 'Compliance', icon: '📋' },
+  { id: 'cost', name: 'Cost Management', icon: '💰' },
+  { id: 'storage', name: 'Storage', icon: '💾' },
+  { id: 'compute', name: 'Compute', icon: '⚙️' },
+  { id: 'network', name: 'Network', icon: '🌐' },
+  { id: 'gitops', name: 'GitOps', icon: '🔄' },
+  { id: 'security', name: 'Security', icon: '🔒' },
+  { id: 'gpu', name: 'GPU', icon: '🎮' },
+  { id: 'ai', name: 'AI Assistant', icon: '🤖' },
+  { id: 'arcade', name: 'Arcade', icon: '🕹️' },
+  { id: 'deploy', name: 'Deploy', icon: '🚀' },
+  { id: 'custom', name: 'Other', icon: '📌' },
 ] as const

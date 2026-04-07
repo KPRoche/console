@@ -713,22 +713,6 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Your personalized multi-cluster overview",
-    "studio": {
-      "title": "Console Studio",
-      "search": "Search cards, collections, dashboards...",
-      "sections": {
-        "cards": "Cards",
-        "browse": "Browse Catalog",
-        "aiSuggestions": "AI Suggestions",
-        "navigation": "Navigation",
-        "sidebar": "Sidebar Items",
-        "addPages": "Add Pages",
-        "collections": "Card Collections",
-        "cardCollections": "Card Collections",
-        "dashboards": "Dashboards",
-        "manageDashboards": "Manage Dashboards"
-      }
-    },
     "resetWarning": "This action cannot be undone",
     "noTemplates": "No templates in this category",
     "actions": {
@@ -981,9 +965,9 @@
     },
     "cardFactory": {
       "title": "Card Factory",
-      "declarativeTab": "Build",
-      "customCodeTab": "Code",
-      "aiCreateTab": "AI Assist",
+      "declarativeTab": "Declarative",
+      "customCodeTab": "Custom Code",
+      "aiCreateTab": "AI Create",
       "manageTab": "Manage",
       "titleRequired": "Title *",
       "widthLabel": "Width (columns)",
@@ -1027,7 +1011,7 @@
     "statFactory": {
       "title": "Stat Block Factory",
       "buildTab": "Build",
-      "aiGenerateTab": "AI Assist",
+      "aiGenerateTab": "AI Generate",
       "manageTab": "Manage",
       "titleLabel": "Title",
       "typeIdLabel": "Type ID",
