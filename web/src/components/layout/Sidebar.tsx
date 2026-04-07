@@ -354,7 +354,7 @@ export function Sidebar() {
           // Normal navigation mode
           <NavLink
             to={item.href}
-            onClick={() => emitSidebarNavigated(item.href)}
+            onClick={(e) => { e.preventDefault(); emitSidebarNavigated(item.href); window.location.href = item.href }}
             onDoubleClick={(e) => handleDoubleClick(item, e)}
             onMouseEnter={() => prefetchDashboard(item.href)}
             className={({ isActive }) => cn(
