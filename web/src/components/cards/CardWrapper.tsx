@@ -571,6 +571,7 @@ export function CardWrapper({
 
   // Report callback for CardDataContext (childDataState is declared earlier for refresh animation)
   // Must be useCallback — CardDataContext children use this in useLayoutEffect deps
+  // Stable reference required — useLayoutEffect in CardDataContext depends on this
   const reportCallback = useCallback((state: CardDataState) => {
     setChildDataState(state)
   }, [])
