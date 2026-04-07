@@ -18,7 +18,10 @@ import { StatBlockFactoryModal } from '../StatBlockFactoryModal'
 import { CreateDashboardModal } from '../CreateDashboardModal'
 import { WidgetExportModal } from '../../widgets/WidgetExportModal'
 import { DEFAULT_SECTION, type CustomizerSection } from './customizerNav'
+import { useNavigate } from 'react-router-dom'
 import { useDashboards } from '../../../hooks/useDashboards'
+import { useSidebarConfig } from '../../../hooks/useSidebarConfig'
+import { suggestIconSync } from '../../../lib/icons'
 import type { CardSuggestion, HoveredCard } from '../shared/cardCatalog'
 import type { DashboardTemplate } from '../templates'
 
@@ -77,6 +80,8 @@ export function DashboardCustomizer({
   const globalSearch = ''
   const [hoveredCard, setHoveredCard] = useState<HoveredCard | null>(null)
   const { dashboards, createDashboard: _createDashboard } = useDashboards()
+  const { addItem } = useSidebarConfig()
+  const navigate = useNavigate()
 
   const handleHoverCard = useCallback((card: HoveredCard | null) => setHoveredCard(card), [])
   const handleAddCards = useCallback((cards: CardSuggestion[]) => { onAddCards(cards); onClose() }, [onAddCards, onClose])
@@ -151,10 +156,14 @@ export function DashboardCustomizer({
               isOpen={true}
               onClose={() => setUserSelectedSection('dashboards')}
               onCreate={async (name, _template, _description) => {
-                await _createDashboard(name)
-                // Close Studio — the SidebarCustomizer's handleCreateDashboard
-                // handles sidebar item creation and navigation
+                // Add sidebar item and navigate immediately
+                const localId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                const href = `/custom-dashboard/${localId}`
+                addItem({ name, icon: suggestIconSync(name), href, type: 'link' }, 'primary')
                 onClose()
+                navigate(href)
+                // Persist to backend in background
+                _createDashboard(name).catch(() => { /* offline — sidebar item already added */ })
               }}
               existingNames={dashboards.map(d => d.name)}
               embedded
