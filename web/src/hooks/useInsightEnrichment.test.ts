@@ -1317,20 +1317,23 @@ describe('useInsightEnrichment — debounce behavior on rapid updates', () => {
     const insightB = makeInsight({ id: 'rapid-b', severity: 'warning' })
     const insightC = makeInsight({ id: 'rapid-c', severity: 'critical' })
 
+    // The hook uses insightsKey = heuristicInsights.length as the effect
+    // dependency, so changing array length triggers the debounce reset.
+    // Use arrays of increasing length to exercise the debounce path.
     const { rerender } = renderHook(
       ({ insights }) => useInsightEnrichment(insights),
       { initialProps: { insights: [insightA] } },
     )
 
-    // Advance 1s (less than 2s debounce) and change insights
+    // Advance 1s (less than 2s debounce) and change insights (length 1 -> 2)
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
-    rerender({ insights: [insightB] })
+    rerender({ insights: [insightA, insightB] })
 
-    // Advance another 1s and change again
+    // Advance another 1s and change again (length 2 -> 3)
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
-    rerender({ insights: [insightC] })
+    rerender({ insights: [insightA, insightB, insightC] })
 
-    // No fetch yet — debounce keeps resetting
+    // No fetch yet — debounce keeps resetting because length keeps changing
     expect(mockFetch).not.toHaveBeenCalled()
 
     // Now wait the full 2s debounce from the last change
@@ -1340,7 +1343,8 @@ describe('useInsightEnrichment — debounce behavior on rapid updates', () => {
     // Only one fetch call with the latest insights
     expect(mockFetch).toHaveBeenCalledOnce()
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string)
-    expect(body.insights[0].id).toBe('rapid-c')
+    expect(body.insights).toHaveLength(3)
+    expect(body.insights[2].id).toBe('rapid-c')
   })
 })
 
