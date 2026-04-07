@@ -78,8 +78,9 @@ kill_project_port() {
     sleep 1
 }
 
-# Verify a port is free after cleanup. Returns 0 if free, 1 if occupied.
-# Prints an actionable error message when the port is blocked.
+# Verify a port is free of PROJECT processes after cleanup. Returns 0 if free
+# (or only unrelated processes remain), 1 if a project process still holds it.
+# Unrelated processes (e.g., Chrome helpers) are warned but don't block startup.
 verify_port_free() {
     local port="$1"
     local tcp_state="${2:-}"
@@ -91,15 +92,26 @@ verify_port_free() {
         pids=$(lsof -ti ":${port}" 2>/dev/null || true)
     fi
 
-    if [ -n "$pids" ]; then
-        echo -e "${RED:-}Error: Port ${port} is still in use after cleanup.${NC:-}"
-        for pid in $pids; do
-            local cmd
-            cmd=$(ps -p "$pid" -o args= 2>/dev/null || true)
-            echo -e "${RED:-}  PID ${pid}: ${cmd:-unknown}${NC:-}"
-        done
-        echo -e "${RED:-}Manually stop the process(es) above, then try again:${NC:-}"
-        echo -e "${RED:-}  kill ${pids}${NC:-}"
+    [ -z "$pids" ] && return 0
+
+    local project_blocking=false
+    for pid in $pids; do
+        local cmd
+        cmd=$(ps -p "$pid" -o args= 2>/dev/null || true)
+        # Check if this is a project process
+        if echo "$cmd" | grep -qF "${SCRIPT_DIR:-__no_match__}" \
+           || echo "$cmd" | grep -q "cmd/console" \
+           || echo "$cmd" | grep -q "kc-agent" \
+           || echo "$cmd" | grep -q "kubestellar.*console"; then
+            echo -e "${RED:-}Error: Port ${port} still held by project process (PID ${pid}: ${cmd:-unknown})${NC:-}"
+            echo -e "${RED:-}  kill ${pid}${NC:-}"
+            project_blocking=true
+        else
+            echo -e "${YELLOW:-}Note: Port ${port} also used by unrelated process (PID ${pid}: ${cmd:-unknown}) — ignoring.${NC:-}"
+        fi
+    done
+
+    if [ "$project_blocking" = true ]; then
         return 1
     fi
     return 0
