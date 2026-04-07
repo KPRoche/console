@@ -132,7 +132,7 @@ export function ClusterChangelog() {
                     {ts && <span className="text-xs text-muted-foreground">{formatTime(ts)}</span>}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {event.object}: {event.message}
+                    {event.object || 'Unknown'}: {event.message || ''}
                   </div>
                 </div>
               </div>

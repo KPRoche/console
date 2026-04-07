@@ -237,7 +237,7 @@ export function HardwareHealthCard() {
       const query = search.toLowerCase()
       result = result.filter(alert =>
         alert.nodeName.toLowerCase().includes(query) ||
-        alert.cluster.toLowerCase().includes(query) ||
+        (alert.cluster || '').toLowerCase().includes(query) ||
         alert.deviceType.toLowerCase().includes(query)
       )
     }
@@ -292,7 +292,7 @@ export function HardwareHealthCard() {
           cmp = a.nodeName.localeCompare(b.nodeName)
           break
         case 'cluster':
-          cmp = a.cluster.localeCompare(b.cluster)
+          cmp = (a.cluster || '').localeCompare(b.cluster || '')
           break
         case 'deviceType':
           cmp = a.deviceType.localeCompare(b.deviceType)
@@ -364,7 +364,7 @@ export function HardwareHealthCard() {
       const query = search.toLowerCase()
       result = result.filter(node =>
         node.nodeName.toLowerCase().includes(query) ||
-        node.cluster.toLowerCase().includes(query)
+        (node.cluster || '').toLowerCase().includes(query)
       )
     }
 
@@ -392,7 +392,7 @@ export function HardwareHealthCard() {
           cmp = a.nodeName.localeCompare(b.nodeName)
           break
         case 'cluster':
-          cmp = a.cluster.localeCompare(b.cluster)
+          cmp = (a.cluster || '').localeCompare(b.cluster || '')
           break
         case 'totalDevices':
         default: {

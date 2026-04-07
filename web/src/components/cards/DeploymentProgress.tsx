@@ -103,7 +103,7 @@ export function DeploymentProgress({ config }: DeploymentProgressProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   // Pre-filter to progressing deployments only, then apply card-specific status filter
-  const progressingDeployments = deployments.filter((d) => d.readyReplicas < d.replicas)
+  const progressingDeployments = deployments.filter((d) => (d.readyReplicas ?? 0) < (d.replicas ?? 0))
 
   // Status counts (computed from all progressing deployments before status filter)
   const statusCounts = {

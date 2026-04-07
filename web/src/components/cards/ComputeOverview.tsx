@@ -47,10 +47,10 @@ export function ComputeOverview() {
   const filteredGPUNodes = (() => {
     let result = gpuNodes
     if (!isAllClustersSelected) {
-      result = result.filter(n => selectedClusters.some(c => n.cluster.startsWith(c)))
+      result = result.filter(n => selectedClusters.some(c => (n.cluster ?? '').startsWith(c)))
     }
     if (localClusterFilter.length > 0) {
-      result = result.filter(n => localClusterFilter.some(c => n.cluster.startsWith(c)))
+      result = result.filter(n => localClusterFilter.some(c => (n.cluster ?? '').startsWith(c)))
     }
     return result
   })()
@@ -89,7 +89,7 @@ export function ComputeOverview() {
       availableGPUs: totalGPUs - allocatedGPUs,
       gpuUtilization,
       gpuTypes: Array.from(gpuTypes.entries()).sort((a, b) => b[1] - a[1]),
-      clustersWithGPU: new Set(filteredGPUNodes.map(n => n.cluster.split('/')[0])).size,
+      clustersWithGPU: new Set(filteredGPUNodes.map(n => (n.cluster ?? '').split('/')[0])).size,
       healthyClusters,
       degradedClusters,
       offlineClusters }
