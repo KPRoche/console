@@ -292,11 +292,12 @@ describe('useCardData deep branches', () => {
     expect(result.current.needsPagination).toBe(false)
   })
 
-  it('sorting changes reset page to 1', () => {
+  it('sorting changes preserve current page', () => {
     const { result } = renderHook(() => useCardData(items, config))
     act(() => { result.current.goToPage(3) })
     act(() => { result.current.sorting.setSortBy('priority') })
-    expect(result.current.currentPage).toBe(1)
+    // Sort no longer resets page — user stays on current page (#5209)
+    expect(result.current.currentPage).toBe(3)
   })
 })
 

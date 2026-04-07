@@ -582,12 +582,13 @@ describe('useCardData — additional coverage', () => {
     expect(result.current.currentPage).toBe(1)
   })
 
-  it('sorting change resets currentPage to 1', () => {
+  it('sorting change preserves currentPage', () => {
     const { result } = renderHook(() => useCardData(items, config))
     act(() => { result.current.goToPage(2) })
     expect(result.current.currentPage).toBe(2)
     act(() => { result.current.sorting.setSortBy('value') })
-    expect(result.current.currentPage).toBe(1)
+    // Sort no longer resets page — user stays on current page (#5209)
+    expect(result.current.currentPage).toBe(2)
   })
 
   it('local cluster filter change resets page to 1', () => {
