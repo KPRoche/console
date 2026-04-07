@@ -22,6 +22,10 @@ vi.mock('../../../../lib/modals', () => ({
   ConfirmDialog: () => null,
 }))
 
+vi.mock('../../../../components/ui/Toast', () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}))
+
 describe('ThemeSection', () => {
   it('exports ThemeSection', async () => {
     const mod = await import('../ThemeSection')

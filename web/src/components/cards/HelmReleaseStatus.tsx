@@ -69,8 +69,8 @@ export function HelmReleaseStatus({ config }: HelmReleaseStatusProps) {
   // Transform API data to display format
   const allReleases = allHelmReleases.map(r => {
       // Parse chart name and version (e.g., "prometheus-25.8.0" -> chart: "prometheus", version: "25.8.0")
-      const chartParts = r.chart.match(/^(.+)-(\d+\.\d+\.\d+.*)$/)
-      const chartName = chartParts ? chartParts[1] : r.chart
+      const chartParts = (r.chart || '').match(/^(.+)-(\d+\.\d+\.\d+.*)$/)
+      const chartName = chartParts ? chartParts[1] : r.chart || ''
       const chartVersion = chartParts ? chartParts[2] : ''
 
       return {
