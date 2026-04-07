@@ -779,19 +779,17 @@ export function WorkloadDeployment(_props: WorkloadDeploymentProps) {
         />
       </div>
 
-      {/* Search + Add */}
-      <div className="px-3 mb-2 flex items-start gap-2">
-        <div className="flex-1">
-          <CardSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Search workloads..."
-            className="!mb-0"
-          />
-        </div>
+      {/* Search + Add — button matches input: same py-1.5, same rounded-md, same text-xs */}
+      <div className="px-3 mb-2 flex gap-2">
+        <CardSearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search workloads..."
+          className="!mb-0 flex-1"
+        />
         <button
           onClick={() => setShowImportDialog(true)}
-          className="px-3 py-1.5 text-xs font-medium rounded-md bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 transition-colors flex items-center gap-1.5 shrink-0"
+          className="self-start px-3 py-1.5 text-xs font-medium rounded-md bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
           aria-label="Add workload"
         >
           <Plus className="h-3.5 w-3.5" />
