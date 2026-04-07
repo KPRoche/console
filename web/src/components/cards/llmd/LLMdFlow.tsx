@@ -863,7 +863,10 @@ export function LLMdFlow() {
   }
 
   // Update metrics periodically and track history for all metric types
+  const flowMetricsInitRef = useRef(false)
   useEffect(() => {
+    if (flowMetricsInitRef.current) return
+    flowMetricsInitRef.current = true
     const updateMetrics = () => {
       const newMetrics = generateLiveMetrics()
       setServerMetrics(newMetrics)

@@ -452,9 +452,13 @@ function RSSFeedInternal({ config }: RSSFeedProps) {
   }, [activeFeed?.url, activeFeed?.name, activeFeed?.isAggregate, activeFeed?.sourceUrls, isDemoMode, feeds, fetchSingleFeed])
 
   // Fetch on mount and when feed changes
+  const feedInitRef = useRef(false)
   useEffect(() => {
+    if (feedInitRef.current) return
+    feedInitRef.current = true
     fetchFeed()
-  }, [fetchFeed])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Reset source filter when feed changes
   useEffect(() => {
