@@ -590,6 +590,7 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   kubeflex_status: KubeflexStatus,
   k3s_status: K3sStatus,
   kubevirt_status: KubevirtStatus,
+  vcluster_status: VClusterStatus,
   multi_tenancy_overview: MultiTenancyOverview,
   tenant_isolation_setup: TenantIsolationSetup,
   tenant_topology: TenantTopology,
@@ -745,6 +746,7 @@ export const DEMO_DATA_CARDS = new Set([
   'crossplane_managed_resources',
   // KubeVela - demo until KubeVela is installed
   'kubevela_status',
+  'vcluster_status',
 ])
 
 /**
@@ -900,6 +902,7 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   multi_tenancy_overview: () => _multiTenancyBundle,
   tenant_isolation_setup: () => _multiTenancyBundle,
   tenant_topology: () => _multiTenancyBundle,
+  vcluster_status: () => import('./VClusterStatus'),
   // Cluster admin — all share one chunk via barrel
   predictive_health: () => import('./cluster-admin-bundle'),
   node_debug: () => import('./cluster-admin-bundle'),
@@ -1067,6 +1070,7 @@ export function prefetchDemoCardChunks(): void {
     () => import('./kagent/KagentSecurity'),
     () => import('./kagent/KagentTopology'),
     () => import('./crossplane-status/CrossplaneManagedResources'),
+    () => import('./VClusterStatus'),
   ]
   startupChunks.forEach(load => load().catch(() => {}))
 }
@@ -1300,6 +1304,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   kubeflex_status: 6,
   k3s_status: 6,
   kubevirt_status: 6,
+  vcluster_status: 6,
   multi_tenancy_overview: 6,
   tenant_isolation_setup: 6,
   tenant_topology: 6,

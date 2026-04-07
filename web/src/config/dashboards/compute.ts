@@ -90,6 +90,16 @@ export const computeDashboardConfig: UnifiedDashboardConfig = {
       cardType: 'pod_issues',
       position: { w: 6, h: 3, x: 6, y: 3 },
     },
+    {
+      id: 'compute-6',
+      cardType: 'vcluster_status',
+      position: { w: 6, h: 3, x: 0, y: 6 },
+    },
+    {
+      id: 'compute-7',
+      cardType: 'kubevirt_status',
+      position: { w: 6, h: 3, x: 6, y: 6 },
+    },
   ],
 
   availableCardTypes: [
@@ -99,6 +109,8 @@ export const computeDashboardConfig: UnifiedDashboardConfig = {
     'pod_issues',
     'cluster_metrics',
     'deployment_status',
+    'vcluster_status',
+    'kubevirt_status',
   ],
 
   features: {

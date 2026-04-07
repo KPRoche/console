@@ -160,6 +160,7 @@ import { trivyScanConfig } from './trivy-scan'
 import { upgradeStatusConfig } from './upgrade-status'
 import { userManagementConfig } from './user-management'
 import { vaultSecretsConfig } from './vault-secrets'
+import { vclusterStatusConfig } from './vcluster-status'
 import { warningEventsConfig } from './warning-events'
 import { weatherConfig } from './weather'
 import { workloadDeploymentConfig } from './workload-deployment'
@@ -323,6 +324,7 @@ export const CARD_CONFIGS: CardConfigRegistry = {
   upgrade_status: upgradeStatusConfig,
   user_management: userManagementConfig,
   vault_secrets: vaultSecretsConfig,
+  vcluster_status: vclusterStatusConfig,
   warning_events: warningEventsConfig,
   weather: weatherConfig,
   workload_deployment: workloadDeploymentConfig,
@@ -573,6 +575,7 @@ export {
   upgradeStatusConfig,
   userManagementConfig,
   vaultSecretsConfig,
+  vclusterStatusConfig,
   warningEventsConfig,
   weatherConfig,
   workloadDeploymentConfig,

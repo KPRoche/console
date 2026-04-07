@@ -3287,5 +3287,19 @@
     "addRepo": "Add repo",
     "done": "Done",
     "removeRepo": "Remove repo"
+  },
+  "vclusterStatus": {
+    "loadFailed": "Failed to load vClusters",
+    "nVClusters": "{{count}} vClusters",
+    "nVClusters_one": "{{count}} vCluster",
+    "nVClusters_other": "{{count}} vClusters",
+    "searchPlaceholder": "Search vClusters...",
+    "total": "Total",
+    "running": "Running",
+    "paused": "Paused",
+    "healthWarning": "vCluster Health Issue",
+    "failedCount": "{{count}} vClusters in failed state",
+    "failedCount_one": "{{count}} vCluster in failed state",
+    "failedCount_other": "{{count}} vClusters in failed state"
   }
 }
