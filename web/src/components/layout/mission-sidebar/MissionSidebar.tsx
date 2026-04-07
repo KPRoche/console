@@ -406,7 +406,7 @@ export function MissionSidebar() {
       if (e.key === 'Escape') {
         if (isFullScreen) {
           setFullScreen(false)
-          closeSidebar()
+          // Only exit fullscreen — don't close sidebar (second Escape will close it)
         } else if (isSidebarOpen) {
           closeSidebar()
         }
