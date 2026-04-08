@@ -44,8 +44,8 @@ export function HeatMap({
 }: HeatMapProps) {
   // Calculate min/max from data if not provided
   const values = data.map((d) => d.value)
-  const minVal = min ?? Math.min(...values)
-  const maxVal = max ?? Math.max(...values)
+  const minVal = min ?? (values.length > 0 ? Math.min(...values) : 0)
+  const maxVal = max ?? (values.length > 0 ? Math.max(...values) : 0)
 
   // Get unique x and y values if labels not provided
   const uniqueX = xLabels || [...new Set(data.map((d) => String(d.x)))]

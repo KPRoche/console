@@ -174,7 +174,7 @@ export function Compute() {
 
   const handleCompare = () => {
     if (selectedForComparison.length >= 2) {
-      navigate(`${ROUTES.COMPUTE_COMPARE}?clusters=${selectedForComparison.join(',')}`)
+      navigate(`${ROUTES.COMPUTE_COMPARE}?clusters=${selectedForComparison.map(encodeURIComponent).join(',')}`)
     }
   }
 
