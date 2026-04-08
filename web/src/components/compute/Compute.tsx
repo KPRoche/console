@@ -57,10 +57,12 @@ export function Compute() {
     }
   }, [searchParams, setSearchParams, location.pathname])
 
-  // Trigger refresh when navigating to this page (location.key changes on each navigation)
+  // Trigger refresh only when navigating TO this page (not on every navigation event)
   useEffect(() => {
-    refetch()
-  }, [location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (location.pathname === '/compute') {
+      refetch()
+    }
+  }, [location.key, location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter clusters based on global selection
   const filteredClusters = clusters.filter(c =>
