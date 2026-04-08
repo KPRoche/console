@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-04-07T03:57:21Z",
+  "last_updated": "2026-04-08T03:58:11Z",
   "rolling_window_days": 30,
   "categories": {
     "performance": {
@@ -26,31 +26,31 @@
     },
     "operator": {
       "merged": 11,
-      "closed": 124,
+      "closed": 129,
       "acceptance_rate": 0.08,
       "status": "blocked",
-      "last_evaluated": "2026-04-07T03:57:21Z"
+      "last_evaluated": "2026-04-08T03:58:11Z"
     },
     "sre": {
       "merged": 2,
-      "closed": 20,
+      "closed": 21,
       "acceptance_rate": 0.09,
       "status": "blocked",
-      "last_evaluated": "2026-04-07T03:57:21Z"
+      "last_evaluated": "2026-04-08T03:58:11Z"
     },
     "features": {
       "merged": 3,
-      "closed": 7,
-      "acceptance_rate": 0.3,
+      "closed": 8,
+      "acceptance_rate": 0.27,
       "status": "normal",
-      "last_evaluated": "2026-04-06T04:00:46Z"
+      "last_evaluated": "2026-04-08T03:58:11Z"
     },
     "resilience": {
       "merged": 37,
-      "closed": 50,
-      "acceptance_rate": 0.43,
+      "closed": 53,
+      "acceptance_rate": 0.41,
       "status": "normal",
-      "last_evaluated": "2026-04-07T03:57:21Z"
+      "last_evaluated": "2026-04-08T03:58:11Z"
     },
     "consistency": {
       "merged": 15,
@@ -116,15 +116,6 @@
     ]
   },
   "history": [
-    {
-      "date": "2026-03-05",
-      "total_merged": 83,
-      "total_closed": 44,
-      "categories_blocked": [],
-      "categories_boosted": [
-        "consistency"
-      ]
-    },
     {
       "date": "2026-03-06",
       "total_merged": 93,
@@ -338,6 +329,16 @@
         "sre"
       ],
       "categories_boosted": []
+    },
+    {
+      "date": "2026-04-08",
+      "total_merged": 131,
+      "total_closed": 288,
+      "categories_blocked": [
+        "operator",
+        "sre"
+      ],
+      "categories_boosted": []
     }
   ],
   "rotation_weights": {
@@ -346,8 +347,8 @@
     "a11y": 0.93,
     "operator": 0,
     "sre": 0,
-    "features": 0.45,
-    "resilience": 0.65,
+    "features": 0.41,
+    "resilience": 0.62,
     "consistency": 0.68
   },
   "max_issues_override": 2,
