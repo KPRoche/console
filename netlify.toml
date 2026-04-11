@@ -102,6 +102,12 @@
   to = "/.netlify/functions/medium-blog"
   status = 200
 
+# Quantum API proxy — proxy to Netlify Function
+[[redirects]]
+  from = "/api/quantum/*"
+  to = "/.netlify/functions/quantum-proxy"
+  status = 200
+
 # YouTube thumbnail proxy — serves thumbnails through our origin to avoid MSW blocking
 [[redirects]]
   from = "/api/youtube/thumbnail/*"

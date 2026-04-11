@@ -119,6 +119,12 @@ const MLNotebooks = safeLazy(() => _workloadDetectionBundle, 'MLNotebooks')
 const GitHubActivity = safeLazy(() => import('./GitHubActivity'), 'GitHubActivity')
 const RSSFeed = safeLazy(() => import('./rss'), 'RSSFeed')
 const Kubectl = safeLazy(() => import('./Kubectl'), 'Kubectl')
+// Quantum computing cards — share one chunk via barrel import
+const _quantumBundle = import('./quantum-bundle').catch(() => undefined as never)
+const QuantumControlPanel = safeLazy(() => _quantumBundle, 'QuantumControlPanel')
+const QuantumQubitGrid = safeLazy(() => _quantumBundle, 'QuantumQubitGrid')
+const QuantumStatus = safeLazy(() => _quantumBundle, 'QuantumStatus')
+const QuantumCircuitViewer = safeLazy(() => _quantumBundle, 'QuantumCircuitViewer')
 // Arcade/game cards — share one chunk via barrel import.
 // Eagerly start loading the bundle at module parse time so all 24 game cards
 // share one HTTP request instead of 24 separate ones. This also ensures that
@@ -335,6 +341,11 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   gpu_namespace_allocations: GPUNamespaceAllocations,
   gpu_inventory_history: GPUInventoryHistory,
   security_issues: SecurityIssues,
+  // Quantum computing cards
+  quantum_control: QuantumControlPanel,
+  quantum_qubit_grid: QuantumQubitGrid,
+  quantum_status: QuantumStatus,
+  quantum_circuit_viewer: QuantumCircuitViewer,
   // Live data trend cards
   events_timeline: EventsTimeline,
   pod_health_trend: PodHealthTrend,

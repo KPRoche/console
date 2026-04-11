@@ -203,6 +203,7 @@ fi
 
 # Environment
 unset CLAUDECODE  # Allow AI Missions to spawn claude-code even when started from a Claude Code session
+export PATH="/home/kproche/.local/bin:$PATH"  # Ensure claude CLI is available to backend
 export SKIP_ONBOARDING=true
 if [ "$USE_DEV_SERVER" = true ]; then
     export DEV_MODE=true

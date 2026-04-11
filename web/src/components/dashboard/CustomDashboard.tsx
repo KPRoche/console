@@ -361,9 +361,9 @@ export function CustomDashboard() {
   const isFetching = isLoading || isRefreshing || showIndicator
 
   // Initial load
-  useEffect(() => {
-    loadDashboard()
-  }, [loadDashboard])
+useEffect(() => {
+  loadDashboard()
+}, [id, loadDashboard])
 
   // Propagate auto-refresh state to global cache layer
   useEffect(() => {

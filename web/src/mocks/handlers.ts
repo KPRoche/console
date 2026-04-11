@@ -685,6 +685,50 @@ export const handlers = [
     ])
   }),
 
+  // ── Quantum API endpoints ──────────────────────────────────────────
+  // Quantum Control Panel and Qubit Grid cards use these endpoints
+  http.get('/api/quantum/status', () => {
+    return HttpResponse.json({
+      status: 'ready',
+      backend: 'Aer Simulator',
+      version: '1.0.0',
+      circuits_executed: 42,
+    })
+  }),
+
+  http.get('/api/quantum/qubits/simple', () => {
+    return HttpResponse.json({
+      qubits: [0, 1, 2, 3, 4],
+      native_gates: ['u', 'cx'],
+    })
+  }),
+
+  http.post('/api/quantum/execute', () => {
+    return HttpResponse.json({
+      job_id: 'demo-job-123',
+      status: 'completed',
+      result: {
+        counts: {
+          '000': 512,
+          '111': 512,
+        },
+      },
+    })
+  }),
+
+  http.post('/api/quantum/loop/start', () => {
+    return HttpResponse.json({
+      status: 'started',
+      loop_id: 'demo-loop-456',
+    })
+  }),
+
+  http.post('/api/quantum/loop/stop', () => {
+    return HttpResponse.json({
+      status: 'stopped',
+    })
+  }),
+
   // ── Catch-all for unmocked API routes ────────────────────────────
   // On Netlify, unhandled /api/* and /health requests fall through to the SPA
   // catch-all which returns index.html (200 OK, text/html). Code calling

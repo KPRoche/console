@@ -1057,6 +1057,11 @@ func (s *Server) setupRoutes() {
 	// GitHub webhook (public endpoint, uses signature verification)
 	s.app.Post("/webhooks/github", feedback.HandleGitHubWebhook)
 
+	// Quantum API proxy routes
+	quantumHandler := handlers.NewQuantumProxyHandler()
+	api.Get("/quantum/*", quantumHandler.ProxyRequest)
+	api.Post("/quantum/*", quantumHandler.ProxyPostRequest)
+
 	// WebSocket for real-time updates
 	s.app.Use("/ws", middleware.WebSocketUpgrade())
 	s.app.Get("/ws", websocket.New(func(c *websocket.Conn) {
