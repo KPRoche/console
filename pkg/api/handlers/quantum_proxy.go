@@ -15,10 +15,11 @@ type QuantumProxyHandler struct {
 }
 
 func NewQuantumProxyHandler() *QuantumProxyHandler {
-	// Get service URL from env, default to in-cluster DNS
+	// Get service URL from env, default to localhost port-forward
+	// The port-forward bridges kubectl to localhost:5000 in dev environments
 	url := os.Getenv("QUANTUM_SERVICE_URL")
 	if url == "" {
-		url = "http://quantum-kc-demo.quantum.svc.cluster.local:5000"
+		url = "http://localhost:5000"
 	}
 	return &QuantumProxyHandler{
 		quantumServiceURL: url,
