@@ -41,12 +41,10 @@ func (h *QuantumProxyHandler) ProxyRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
 	}
 
-	// Copy headers
-	for key, values := range c.Request().Header {
-		for _, value := range values {
-			req.Header.Add(key, value)
-		}
-	}
+	// Copy headers from Fiber request to HTTP request
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		req.Header.Add(string(key), string(value))
+	})
 
 	// Execute request
 	client := &http.Client{}
@@ -80,12 +78,10 @@ func (h *QuantumProxyHandler) ProxyPostRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
 	}
 
-	// Copy headers
-	for key, values := range c.Request().Header {
-		for _, value := range values {
-			req.Header.Add(key, value)
-		}
-	}
+	// Copy headers from Fiber request to HTTP request
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		req.Header.Add(string(key), string(value))
+	})
 
 	// Execute request
 	client := &http.Client{}
