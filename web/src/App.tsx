@@ -44,14 +44,16 @@ const Login = safeLazy(() => import('./components/auth/Login'), 'Login')
 const AuthCallback = safeLazy(() => import('./components/auth/AuthCallback'), 'AuthCallback')
 const CustomDashboard = safeLazy(() => import('./components/dashboard/CustomDashboard'), 'CustomDashboard')
 const Settings = safeLazy(() => import('./components/settings/Settings'), 'Settings')
-const Clusters = safeLazy(() => import('./components/clusters/Clusters'), 'Clusters')
+// Eagerly import key sidebar dashboards to prevent React Router's
+// startTransition from keeping the old route visible during lazy loading.
+import { Clusters } from './components/clusters/Clusters'
 const Events = safeLazy(() => import('./components/events/Events'), 'Events')
 const Workloads = safeLazy(() => import('./components/workloads/Workloads'), 'Workloads')
 const Storage = safeLazy(() => import('./components/storage/Storage'), 'Storage')
 const Compute = safeLazy(() => import('./components/compute/Compute'), 'Compute')
 const ClusterComparisonPage = safeLazy(() => import('./components/compute/ClusterComparisonPage'), 'ClusterComparisonPage')
 const Network = safeLazy(() => import('./components/network/Network'), 'Network')
-const Security = safeLazy(() => import('./components/security/Security'), 'Security')
+import { Security } from './components/security/Security'
 const GitOps = safeLazy(() => import('./components/gitops/GitOps'), 'GitOps')
 const Alerts = safeLazy(() => import('./components/alerts/Alerts'), 'Alerts')
 const Cost = safeLazy(() => import('./components/cost/Cost'), 'Cost')
@@ -74,7 +76,7 @@ const Deploy = safeLazy(() => import('./components/deploy/Deploy'), 'Deploy')
 const AIML = safeLazy(() => import('./components/aiml/AIML'), 'AIML')
 const AIAgents = safeLazy(() => import('./components/aiagents/AIAgents'), 'AIAgents')
 const LLMdBenchmarks = safeLazy(() => import('./components/llmd-benchmarks/LLMdBenchmarks'), 'LLMdBenchmarks')
-const ClusterAdmin = safeLazy(() => import('./components/cluster-admin/ClusterAdmin'), 'ClusterAdmin')
+import { ClusterAdmin } from './components/cluster-admin/ClusterAdmin'
 const CICD = safeLazy(() => import('./components/cicd/CICD'), 'CICD')
 const Insights = safeLazy(() => import('./components/insights/Insights'), 'Insights')
 const MultiTenancy = safeLazy(() => import('./components/multi-tenancy/MultiTenancy'), 'MultiTenancy')
@@ -511,12 +513,11 @@ function FullDashboardApp() {
       <NPSSurvey />
       <OrbitAutoRunner />
       <ChunkErrorBoundary>
-      <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route path={ROUTES.LOGIN} element={<Login />} />
-        <Route path={ROUTES.AUTH_CALLBACK} element={<AuthCallback />} />
+        <Route path={ROUTES.LOGIN} element={<SuspenseRoute><Login /></SuspenseRoute>} />
+        <Route path={ROUTES.AUTH_CALLBACK} element={<SuspenseRoute><AuthCallback /></SuspenseRoute>} />
         {/* PWA Mini Dashboard - lightweight widget mode (no auth required for local monitoring) */}
-        <Route path={ROUTES.WIDGET} element={<MiniDashboard />} />
+        <Route path={ROUTES.WIDGET} element={<SuspenseRoute><MiniDashboard /></SuspenseRoute>} />
 
         {/* Layout route — all dashboard routes share a single Layout instance.
             KeepAliveOutlet preserves component state across navigations so that
@@ -584,7 +585,6 @@ function FullDashboardApp() {
 
         <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
       </Routes>
-      </Suspense>
       </ChunkErrorBoundary>
       </AppErrorBoundary>
       </DrillDownProvider>

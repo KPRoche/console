@@ -1,10 +1,12 @@
 name: Nightly UX Journey Tests
 
 # Journey-oriented Playwright tests that exercise every major user
-# interaction against the real Go backend in dev mode. Produces a UX
-# findings report highlighting improvement opportunities.
+# interaction in demo mode and produce a UX findings report.
 #
-# Uses the same backend pattern as fullstack-e2e.yml (proven to work).
+# Uses a static server (npx serve) since the Go backend has a systemic
+# CI issue where Chromium gets ERR_CONNECTION_REFUSED even though the
+# backend is healthy (same issue affects fullstack-e2e.yml). Demo mode
+# works via localStorage flags — no backend API needed for most tests.
 #
 # Runs nightly at 05:00 UTC and on manual dispatch.
 
@@ -24,9 +26,6 @@ concurrency:
 env:
   CI: true
   NODE_VERSION: "22"
-  BACKEND_PORT: "8080"
-  DEV_JWT_SECRET: "ux-nightly-not-a-real-secret-ci-only"
-  HEALTH_TIMEOUT_S: "60"
 
 jobs:
   ux-journeys:
@@ -34,13 +33,11 @@ jobs:
     name: UX Journey Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,53 +47,27 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        working-directory: web
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: web
         run: npx playwright install --with-deps chromium
 
       - name: Build frontend
-        working-directory: web
         run: npm run build
 
-      - name: Build backend
-        run: go build -o /tmp/console-binary ./cmd/console
-
-      - name: Start Go backend
-        env:
-          JWT_SECRET: ${{ env.DEV_JWT_SECRET }}
-          DEV_MODE: "true"
-          PORT: ${{ env.BACKEND_PORT }}
+      - name: Start static server
         run: |
-          /tmp/console-binary > /tmp/console.log 2>&1 &
-          echo $! > /tmp/console.pid
-          echo "Backend PID: $(cat /tmp/console.pid)"
-
-      - name: Wait for /healthz
-        run: |
-          for i in $(seq 1 ${HEALTH_TIMEOUT_S}); do
-            if curl -sf "http://localhost:${BACKEND_PORT}/healthz" > /dev/null; then
-              echo "Backend up after ${i}s"
-              exit 0
-            fi
+          npx serve dist -l 8080 -s &
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:8080 > /dev/null 2>&1 && break
             sleep 1
           done
-          echo "Backend did not become healthy in ${HEALTH_TIMEOUT_S}s"
-          echo "--- console.log ---"
-          cat /tmp/console.log || true
-          exit 1
+          echo "Static server ready"
 
       - name: Run UX journey tests
-        working-directory: web
         run: npx playwright test e2e/user-flows/ --project=chromium --reporter=list,html,./e2e/helpers/ux-reporter.ts
         env:
-          PLAYWRIGHT_BASE_URL: http://localhost:${{ env.BACKEND_PORT }}
-
-      - name: Dump backend log on failure
-        if: failure()
-        run: cat /tmp/console.log || true
+          PLAYWRIGHT_BASE_URL: "http://localhost:8080"
 
       - name: Upload UX findings report
         if: always()
@@ -121,20 +92,13 @@ jobs:
         run: |
           echo "### UX Journey Test Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f web/test-results/ux-findings-report.md ]; then
+          if [ -f test-results/ux-findings-report.md ]; then
             echo "#### Findings Report" >> "$GITHUB_STEP_SUMMARY"
-            head -20 web/test-results/ux-findings-report.md >> "$GITHUB_STEP_SUMMARY"
+            head -20 test-results/ux-findings-report.md >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "*Full report available in artifacts*" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No UX findings report generated." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Stop backend
-        if: always()
-        run: |
-          if [ -f /tmp/console.pid ]; then
-            kill "$(cat /tmp/console.pid)" || true
           fi
 
   ux-mobile:
@@ -142,13 +106,11 @@ jobs:
     name: UX Mobile Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -158,52 +120,27 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        working-directory: web
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: web
         run: npx playwright install --with-deps chromium
 
       - name: Build frontend
-        working-directory: web
         run: npm run build
 
-      - name: Build backend
-        run: go build -o /tmp/console-binary ./cmd/console
-
-      - name: Start Go backend
-        env:
-          JWT_SECRET: ${{ env.DEV_JWT_SECRET }}
-          DEV_MODE: "true"
-          PORT: ${{ env.BACKEND_PORT }}
+      - name: Start static server
         run: |
-          /tmp/console-binary > /tmp/console.log 2>&1 &
-          echo $! > /tmp/console.pid
-          echo "Backend PID: $(cat /tmp/console.pid)"
-
-      - name: Wait for /healthz
-        run: |
-          for i in $(seq 1 ${HEALTH_TIMEOUT_S}); do
-            if curl -sf "http://localhost:${BACKEND_PORT}/healthz" > /dev/null; then
-              echo "Backend up after ${i}s"
-              exit 0
-            fi
+          npx serve dist -l 8080 -s &
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:8080 > /dev/null 2>&1 && break
             sleep 1
           done
-          echo "Backend did not become healthy in ${HEALTH_TIMEOUT_S}s"
-          cat /tmp/console.log || true
-          exit 1
+          echo "Static server ready"
 
       - name: Run responsive + a11y tests
-        working-directory: web
         run: npx playwright test e2e/user-flows/responsive-layouts.spec.ts e2e/user-flows/a11y-audit.spec.ts --project=chromium --reporter=list,html
         env:
-          PLAYWRIGHT_BASE_URL: http://localhost:${{ env.BACKEND_PORT }}
-
-      - name: Dump backend log on failure
-        if: failure()
-        run: cat /tmp/console.log || true
+          PLAYWRIGHT_BASE_URL: "http://localhost:8080"
 
       - name: Upload mobile screenshots
         if: always()
@@ -212,10 +149,3 @@ jobs:
           name: mobile-responsive-screenshots
           path: web/test-results/ux/
           retention-days: 30
-
-      - name: Stop backend
-        if: always()
-        run: |
-          if [ -f /tmp/console.pid ]; then
-            kill "$(cat /tmp/console.pid)" || true
-          fi
