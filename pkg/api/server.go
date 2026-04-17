@@ -564,6 +564,7 @@ func (s *Server) setupRoutes() {
 	s.app.Get("/auth/github/callback", authLimiter, auth.GitHubCallback)
 	s.app.Post("/auth/refresh", authLimiter, auth.RefreshToken)
 	s.app.Post("/auth/logout", authLimiter, auth.Logout)
+	s.app.Get("/auth/dev-token", authLimiter, auth.GetDevToken)
 
 	// Active users endpoint (public — returns only aggregate counts, no sensitive data)
 	s.app.Get("/api/active-users", func(c *fiber.Ctx) error {
@@ -642,7 +643,12 @@ func (s *Server) setupRoutes() {
 	missions.RegisterPublicRoutes(s.app.Group("/api/missions"))
 
 	// API routes (protected) — with rate limiting
+	// In dev mode, use higher limit for aggressive polling (quantum cards, etc.)
+	// In prod, use stricter limit to prevent abuse
 	apiLimiterMaxRequests := 200        // max requests per window per IP
+	if s.config.DevMode {
+		apiLimiterMaxRequests = 1000    // dev: allow more requests for card polling
+	}
 	apiLimiterWindow := 1 * time.Minute // sliding window duration
 	apiLimiter := limiter.New(limiter.Config{
 		Max:        apiLimiterMaxRequests,

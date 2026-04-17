@@ -108,9 +108,18 @@ export const QuantumControlPanel: React.FC = () => {
       const res = await fetch('/api/quantum/status', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       })
 
-      if (!res.ok) throw new Error('Failed to fetch status')
+      if (!res.ok) {
+        const errorBody = await res.text()
+        console.error('[Quantum] Request failed:', {
+          status: res.status,
+          statusText: res.statusText,
+          body: errorBody,
+        })
+        throw new Error(`Failed to fetch status (${res.status}): ${errorBody}`)
+      }
 
       const data = await res.json()
       setStatus(data)
@@ -136,10 +145,17 @@ export const QuantumControlPanel: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching status:', err)
+      console.debug('[Quantum] Auth Debug:', {
+        hasCredentials: true,
+        url: '/api/quantum/status',
+        error: err instanceof Error ? err.message : String(err),
+        isOnline: navigator.onLine,
+      })
       setError(err instanceof Error ? err.message : 'Unknown error')
       setConsecutiveFailures(prev => {
         const newFailures = prev + 1
         if (newFailures >= 3) {
+          console.warn('[Quantum] Falling back to demo after 3 failures')
           setStatus(DEMO_STATUS)
         }
         return newFailures
@@ -170,6 +186,7 @@ export const QuantumControlPanel: React.FC = () => {
       const response = await fetch('/api/quantum/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           qasm_file: control.qasm_file,
           backend: control.backend,
@@ -196,6 +213,7 @@ export const QuantumControlPanel: React.FC = () => {
           const statusRes = await fetch('/api/quantum/status', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           })
           if (statusRes.ok) {
             const data = await statusRes.json()
@@ -223,6 +241,7 @@ export const QuantumControlPanel: React.FC = () => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       })
 
       if (!response.ok) throw new Error('Failed to toggle loop mode')
@@ -232,6 +251,7 @@ export const QuantumControlPanel: React.FC = () => {
       const statusRes = await fetch('/api/quantum/status', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       })
       if (statusRes.ok) {
         const statusData = await statusRes.json()

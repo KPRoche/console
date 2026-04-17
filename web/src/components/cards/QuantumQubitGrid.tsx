@@ -182,9 +182,18 @@ export const QuantumQubitGrid: React.FC = () => {
         const res = await fetch('/api/quantum/qubits/simple', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         })
 
-        if (!res.ok) throw new Error(`API error: ${res.status}`)
+        if (!res.ok) {
+          const errorBody = await res.text()
+          console.error('[QuantumQubitGrid] Request failed:', {
+            status: res.status,
+            statusText: res.statusText,
+            body: errorBody,
+          })
+          throw new Error(`API error: ${res.status} - ${errorBody}`)
+        }
 
         const result = await res.json()
         if (result.error) {
@@ -200,6 +209,7 @@ export const QuantumQubitGrid: React.FC = () => {
           const statusRes = await fetch('/api/quantum/status', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
           })
 
           if (statusRes.ok) {
@@ -212,6 +222,12 @@ export const QuantumQubitGrid: React.FC = () => {
         setConsecutiveFailures(0)
       } catch (err) {
         console.error('Error fetching qubits:', err)
+        console.debug('[QuantumQubitGrid] Auth Debug:', {
+          hasCredentials: true,
+          url: '/api/quantum/qubits/simple',
+          error: err instanceof Error ? err.message : String(err),
+          isOnline: navigator.onLine,
+        })
         setError(err instanceof Error ? err.message : 'Unknown error')
         setConsecutiveFailures(prev => prev + 1)
       } finally {
