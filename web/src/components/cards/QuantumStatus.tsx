@@ -1,27 +1,131 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { CardWrapper } from './CardWrapper'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
+import { StatusBadge } from '../ui/StatusBadge'
+
+interface QuantumStatusResponse {
+  status: string
+  running: boolean
+  loop_mode: boolean
+  message: string
+  qasm_file: string
+  last_result_time?: string
+  execution_mode: string
+  control_system?: {
+    status: string
+    command: string
+    description: string
+  }
+  backend_info?: {
+    name?: string
+    simulator?: boolean
+  }
+}
 
 interface QuantumStatusProps {
   isDemoData?: boolean
 }
 
+const DEMO_STATUS: QuantumStatusResponse = {
+  status: 'idle',
+  running: false,
+  loop_mode: false,
+  message: 'Quantum system ready',
+  qasm_file: 'demo.qasm',
+  execution_mode: 'control-based',
+  backend_info: {
+    name: 'aer',
+    simulator: true,
+  },
+}
+
 export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false }) => {
-  const { showSkeleton } = useCardLoadingState({
-    isLoading: false,
-    hasAnyData: true,
-    isFailed: false,
-    consecutiveFailures: 0,
+  const [statusData, setStatusData] = useState<QuantumStatusResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isFailed, setIsFailed] = useState(false)
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0)
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (isDemoData) {
+        setStatusData(DEMO_STATUS)
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch('/api/quantum/status')
+        if (!response.ok) {
+          setIsFailed(true)
+          setConsecutiveFailures((prev) => prev + 1)
+          setStatusData(DEMO_STATUS)
+          return
+        }
+        const data = await response.json()
+        setStatusData(data)
+        setIsFailed(false)
+        setConsecutiveFailures(0)
+      } catch (error) {
+        console.error('Failed to fetch quantum status:', error)
+        setIsFailed(true)
+        setConsecutiveFailures((prev) => prev + 1)
+        setStatusData(DEMO_STATUS)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 3000)
+    return () => clearInterval(interval)
+  }, [isDemoData])
+
+  const { showSkeleton, isRefreshing } = useCardLoadingState({
+    isLoading,
+    hasAnyData: statusData !== null,
+    isFailed,
+    consecutiveFailures,
     isDemoData,
+    isRefreshing: false,
   })
 
   if (showSkeleton) {
     return (
-      <div className="p-4">
-        <Skeleton variant="text" width="80%" height={24} />
+      <div className="p-4 space-y-3">
+        <Skeleton variant="text" width="80%" height={20} />
+        <Skeleton variant="text" width="60%" height={20} />
+        <Skeleton variant="text" width="70%" height={20} />
       </div>
     )
+  }
+
+  if (!statusData) {
+    return (
+      <CardWrapper
+        cardType="quantum_status"
+        title="Quantum Status"
+        isDemoData={isDemoData}
+        isRefreshing={isRefreshing}
+      >
+        <div className="p-4 text-center text-muted-foreground">
+          <p>Unable to load quantum status</p>
+        </div>
+      </CardWrapper>
+    )
+  }
+
+  const getStatusColor = (status: string): 'green' | 'blue' | 'yellow' => {
+    switch (status?.toLowerCase()) {
+      case 'loop_running':
+      case 'running':
+        return 'green'
+      case 'idle':
+      case 'stopped':
+        return 'blue'
+      default:
+        return 'yellow'
+    }
   }
 
   return (
@@ -29,11 +133,93 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
       cardType="quantum_status"
       title="Quantum Status"
       isDemoData={isDemoData}
-      isRefreshing={false}
+      isRefreshing={isRefreshing}
     >
-      <div className="p-4 text-center text-muted-foreground">
-        <p>Quantum Status card - Coming soon</p>
-        <p className="text-sm mt-2">This card will display quantum system status and metrics.</p>
+      <div className="p-4 space-y-4">
+        {/* Status Overview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Status</span>
+            <StatusBadge color={getStatusColor(statusData.status)} size="sm">
+              {statusData.status}
+            </StatusBadge>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Execution Mode</span>
+            <span className="text-sm font-medium">{statusData.execution_mode}</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Loop Mode</span>
+            <StatusBadge color={statusData.loop_mode ? 'green' : 'gray'} size="sm">
+              {statusData.loop_mode ? 'Active' : 'Inactive'}
+            </StatusBadge>
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-3" />
+
+        {/* Circuit Info */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Circuit File</span>
+            <span className="text-sm font-mono">{statusData.qasm_file}</span>
+          </div>
+
+          {statusData.backend_info?.name && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Backend</span>
+              <StatusBadge color="cyan" size="sm" variant="outline">
+                {statusData.backend_info.name}
+                {statusData.backend_info.simulator ? ' (Simulator)' : ''}
+              </StatusBadge>
+            </div>
+          )}
+        </div>
+
+        {/* Control System Status */}
+        {statusData.control_system && (
+          <>
+            <div className="border-t border-border pt-3" />
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground">Control System</div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Command</span>
+                <span className="text-sm font-medium">{statusData.control_system.command}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <StatusBadge color="purple" size="sm" variant="outline">
+                  {statusData.control_system.status}
+                </StatusBadge>
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">
+                {statusData.control_system.description}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Last Update */}
+        {statusData.last_result_time && (
+          <>
+            <div className="border-t border-border pt-3" />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Last Update</span>
+              <span className="text-xs font-mono text-muted-foreground">
+                {new Date(statusData.last_result_time).toLocaleTimeString()}
+              </span>
+            </div>
+          </>
+        )}
+
+        {/* Message */}
+        {statusData.message && (
+          <div className="bg-secondary/50 rounded px-3 py-2">
+            <p className="text-xs text-muted-foreground">{statusData.message}</p>
+          </div>
+        )}
       </div>
     </CardWrapper>
   )

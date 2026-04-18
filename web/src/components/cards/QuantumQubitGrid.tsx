@@ -142,7 +142,7 @@ export const QuantumQubitGrid: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
-  const [refreshInterval, setRefreshInterval] = useState(2000)
+  const [refreshInterval, setRefreshInterval] = useState(4000)
   const [selectedMask, setSelectedMask] = useState<MaskKey>('ibm_qx5')
 
   const isDemoFallback = consecutiveFailures >= 3
