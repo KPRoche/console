@@ -269,6 +269,8 @@ export const CARD_TITLES: Record<string, string> = {
   strimzi_status: 'Strimzi',
   // Flatcar Container Linux
   flatcar_status: 'Flatcar',
+  // Artifact Hub
+  artifact_hub_status: 'Artifact Hub',
   // Fluentd log collector
   fluentd_status: 'Fluentd',
   // Lima VM
@@ -510,6 +512,8 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   strimzi_status: 'Strimzi runs Apache Kafka on Kubernetes for event streaming and messaging. This card shows Kafka cluster health, topic status, and consumer group lag — helping you spot message backlogs before they cause issues.',
   // Flatcar Container Linux
   flatcar_status: 'Flatcar Container Linux node status, version info, and update readiness.',
+  // Artifact Hub
+  artifact_hub_status: 'Artifact Hub package discovery and repository sync status.',
   // Fluentd log collector
   fluentd_status: 'Fluentd log collector pod health, buffer status, and throughput.',
   // Lima VM

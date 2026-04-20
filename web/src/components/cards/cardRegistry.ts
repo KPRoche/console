@@ -248,6 +248,8 @@ const CrioStatus = safeLazy(() => import('./crio_status'), 'CrioStatus')
 const LimaStatus = safeLazy(() => import('./lima_status'), 'LimaStatus')
 // CloudEvents monitoring card
 const CloudEventsStatus = safeLazy(() => import('./cloudevents_status'), 'CloudEventsStatus')
+// Artifact Hub package discovery card
+const ArtifactHubStatus = safeLazy(() => import('./artifact_hub_status'), 'ArtifactHubStatus')
 // Strimzi Kafka operator card
 const StrimziStatus = safeLazy(() => import('./strimzi_status'), 'StrimziStatus')
 // KubeVela application delivery card
@@ -577,6 +579,8 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   crio_status: CrioStatus,
   // Lima VM
   lima_status: LimaStatus,
+  // Artifact Hub
+  artifact_hub_status: ArtifactHubStatus,
   // CloudEvents messaging
   cloudevents_status: CloudEventsStatus,
   // Strimzi Kafka operator
@@ -993,6 +997,8 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   buildpacks_status: () => import('./buildpacks-status'),
   // KEDA
   keda_status: () => import('./keda_status'),
+  // Artifact Hub
+  artifact_hub_status: () => import('./artifact_hub_status'),
   // CloudEvents
   cloudevents_status: () => import('./cloudevents_status'),
   // CRI-O
@@ -1190,6 +1196,7 @@ export const LIVE_DATA_CARDS = new Set([
   'control_plane_health',
   'node_conditions',
   'dns_health',
+  'artifact_hub_status',
   'coredns_status',
   'keda_status',
   'crio_status',
@@ -1332,6 +1339,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   node_conditions: 6,
   admission_webhooks: 6,
   dns_health: 4,
+  artifact_hub_status: 6,
   coredns_status: 6,
   keda_status: 6,
   crio_status: 6,
