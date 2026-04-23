@@ -77,6 +77,7 @@ const HelmValuesDiff = safeLazy(() => import('./HelmValuesDiff'), 'HelmValuesDif
 const HelmHistory = safeLazy(() => _deployBundle, 'HelmHistory')
 const ChartVersions = safeLazy(() => _deployBundle, 'ChartVersions')
 const KustomizationStatus = safeLazy(() => _deployBundle, 'KustomizationStatus')
+const FluxStatus = safeLazy(() => import('./flux_status'), 'FluxStatus')
 const OverlayComparison = safeLazy(() => _deployBundle, 'OverlayComparison')
 const ArgoCDApplications = safeLazy(() => _deployBundle, 'ArgoCDApplications')
 const ArgoCDApplicationSets = safeLazy(() => _deployBundle, 'ArgoCDApplicationSets')
@@ -449,6 +450,7 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   chart_versions: ChartVersions,
   // Kustomize-scoped cards
   kustomization_status: KustomizationStatus,
+  flux_status: FluxStatus,
   overlay_comparison: OverlayComparison,
   // ArgoCD cards
   argocd_applications: ArgoCDApplications,
@@ -987,6 +989,7 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   helm_history: () => import('./deploy-bundle'),
   chart_versions: () => import('./deploy-bundle'),
   kustomization_status: () => import('./deploy-bundle'),
+  flux_status: () => import('./flux_status'),
   overlay_comparison: () => import('./deploy-bundle'),
   argocd_applications: () => import('./deploy-bundle'),
   argocd_applicationsets: () => import('./deploy-bundle'),
@@ -1557,6 +1560,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   argocd_applicationsets: 6,
   argocd_sync_status: 6,
   kustomization_status: 6,
+  flux_status: 6,
   pvc_status: 6,
   gpu_status: 6,
   gpu_inventory: 6,

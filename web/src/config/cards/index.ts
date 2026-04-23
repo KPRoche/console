@@ -60,6 +60,7 @@ import { game2048Config } from './game-2048'
 import { gatewayStatusConfig } from './gateway-status'
 import { githubActivityConfig } from './github-activity'
 import { githubCiMonitorConfig } from './github-ci-monitor'
+import { fluxStatusConfig } from './flux-status'
 import { nightlyReleasePulseConfig } from './nightly-release-pulse'
 import { workflowMatrixConfig } from './workflow-matrix'
 import { pipelineFlowConfig } from './pipeline-flow'
@@ -239,6 +240,7 @@ export const CARD_CONFIGS: CardConfigRegistry = {
   gateway_status: gatewayStatusConfig,
   github_activity: githubActivityConfig,
   github_ci_monitor: githubCiMonitorConfig,
+  flux_status: fluxStatusConfig,
   nightly_release_pulse: nightlyReleasePulseConfig,
   workflow_matrix: workflowMatrixConfig,
   pipeline_flow: pipelineFlowConfig,
