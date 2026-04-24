@@ -19,7 +19,8 @@ interface QuantumStatusResponse {
   }
   backend_info?: {
     name?: string
-    simulator?: boolean
+    shots?: number
+    type?: 'simulator' | 'noise_model' | 'real'
   }
 }
 
@@ -36,7 +37,8 @@ const DEMO_STATUS: QuantumStatusResponse = {
   execution_mode: 'control-based',
   backend_info: {
     name: 'aer',
-    simulator: true,
+    shots: 1024,
+    type: 'simulator',
   },
 }
 
@@ -168,13 +170,42 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
           </div>
 
           {statusData.backend_info?.name && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Backend</span>
-              <StatusBadge color="cyan" size="sm" variant="outline">
-                {statusData.backend_info.name}
-                {statusData.backend_info.simulator ? ' (Simulator)' : ''}
-              </StatusBadge>
-            </div>
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Backend</span>
+                <span className="text-sm font-mono">{statusData.backend_info.name}</span>
+              </div>
+
+              {statusData.backend_info.type && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Type</span>
+                  <StatusBadge
+                    color={
+                      statusData.backend_info.type === 'real'
+                        ? 'green'
+                        : statusData.backend_info.type === 'noise_model'
+                          ? 'orange'
+                          : 'blue'
+                    }
+                    size="sm"
+                    variant="outline"
+                  >
+                    {statusData.backend_info.type === 'real'
+                      ? 'Real Hardware'
+                      : statusData.backend_info.type === 'noise_model'
+                        ? 'Noise Model'
+                        : 'Simulator'}
+                  </StatusBadge>
+                </div>
+              )}
+
+              {statusData.backend_info.shots && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Shots</span>
+                  <span className="text-sm font-medium">{statusData.backend_info.shots}</span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

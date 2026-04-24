@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { CardWrapper } from './CardWrapper'
-import { AlertCircle, Play, RotateCcw, Zap } from 'lucide-react'
+import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 
 interface ControlState {
@@ -90,6 +90,13 @@ export const QuantumControlPanel: React.FC = () => {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [hasInitialized, setHasInitialized] = useState(false)
 
+  // IBM Quantum credentials
+  const [ibmAuthenticated, setIbmAuthenticated] = useState(false)
+  const [showCredentialModal, setShowCredentialModal] = useState(false)
+  const [credentialForm, setCredentialForm] = useState({ apiKey: '', crn: '' })
+  const [credentialError, setCredentialError] = useState<string | null>(null)
+  const [credentialSaving, setCredentialSaving] = useState(false)
+
   const isDemoFallback = consecutiveFailures >= 3
 
   useReportCardDataState({
@@ -166,9 +173,62 @@ export const QuantumControlPanel: React.FC = () => {
     }
   }, [])//control.backend, control.shots])
 
+  // Fetch IBM Quantum auth status
+  const fetchAuthStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/quantum/auth/status', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setIbmAuthenticated(data.authenticated === true)
+      }
+    } catch (err) {
+      console.error('Error fetching auth status:', err)
+    }
+  }, [])
+
+  // Save IBM Quantum credentials
+  const handleSaveCredentials = async () => {
+    if (!credentialForm.apiKey.trim() || !credentialForm.crn.trim()) {
+      setCredentialError('Both API Key and CRN are required')
+      return
+    }
+
+    setCredentialSaving(true)
+    setCredentialError(null)
+    try {
+      const res = await fetch('/api/quantum/auth/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          api_key: credentialForm.apiKey,
+          crn: credentialForm.crn,
+        }),
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save credentials')
+      }
+
+      setIbmAuthenticated(true)
+      setCredentialForm({ apiKey: '', crn: '' })
+      setShowCredentialModal(false)
+    } catch (err) {
+      setCredentialError(err instanceof Error ? err.message : 'Failed to save credentials')
+    } finally {
+      setCredentialSaving(false)
+    }
+  }
+
   // Initialize on mount
   useEffect(() => {
     fetchStatus(true)
+    fetchAuthStatus()
     setHasInitialized(true)
   }, [])
 
@@ -258,7 +318,7 @@ export const QuantumControlPanel: React.FC = () => {
         setStatus(statusData)
         setControl(prev => ({
           ...prev,
-          loop_mode: statusData.loop_mode || !prev.loop_mode,
+          loop_mode: statusData.loop_mode,
         }))
       }
       setError(null)
@@ -286,6 +346,27 @@ export const QuantumControlPanel: React.FC = () => {
         )}
 
         <div className="space-y-4">
+          {/* IBM Credentials Button */}
+          <button
+            onClick={() => setShowCredentialModal(true)}
+            className="w-full px-3 py-2 flex items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">IBM Credentials</span>
+            </div>
+            <div className={`flex items-center gap-1 text-xs font-semibold ${ibmAuthenticated ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              {ibmAuthenticated ? (
+                <>
+                  <Check className="w-3 h-3" />
+                  Configured
+                </>
+              ) : (
+                'Not configured'
+              )}
+            </div>
+          </button>
+
           {/* Backend Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -300,7 +381,18 @@ export const QuantumControlPanel: React.FC = () => {
               <option value="aer">Aer Simulator</option>
               <option value="sim">QASM Simulator</option>
               <option value="qx5">IBM 5-qubit</option>
+              {ibmAuthenticated && (
+                <>
+                  <option value="least">IBM Least Busy (Real Hardware)</option>
+                  <option value="aer_noise">Aer with Real Noise Model</option>
+                </>
+              )}
             </select>
+            {control.backend === 'aer_noise' && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Simulates your least busy backend with its real noise characteristics
+              </p>
+            )}
           </div>
 
           {/* Shots Configuration */}
@@ -483,6 +575,111 @@ export const QuantumControlPanel: React.FC = () => {
             Control-based execution via API proxy
           </p>
         </div>
+
+        {/* IBM Credentials Modal */}
+        {showCredentialModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  IBM Quantum Credentials
+                </h4>
+                <button
+                  onClick={() => {
+                    setShowCredentialModal(false)
+                    setCredentialError(null)
+                  }}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4 space-y-4">
+                {credentialError && (
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-red-700 dark:text-red-300">{credentialError}</p>
+                  </div>
+                )}
+
+                {ibmAuthenticated && (
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-start gap-2">
+                    <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-green-700 dark:text-green-300">Credentials are configured. Enter new credentials to update.</p>
+                  </div>
+                )}
+
+                {/* API Key Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    API Key
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Your IBM Quantum API Key"
+                    value={credentialForm.apiKey}
+                    onChange={e => setCredentialForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                    disabled={credentialSaving}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
+                  />
+                </div>
+
+                {/* CRN Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    CRN (Cloud Resource Name)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="crn:v1:bluemix:public:quantum-computing:..."
+                    value={credentialForm.crn}
+                    onChange={e => setCredentialForm(prev => ({ ...prev, crn: e.target.value }))}
+                    disabled={credentialSaving}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Find your CRN in IBM Quantum Platform account settings
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setShowCredentialModal(false)
+                    setCredentialError(null)
+                  }}
+                  disabled={credentialSaving}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveCredentials}
+                  disabled={credentialSaving || (!credentialForm.apiKey.trim() && !credentialForm.crn.trim())}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-50 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  {credentialSaving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Save
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </CardWrapper>
   )
