@@ -349,6 +349,44 @@ const MAX_SHARE_REGISTRY_ENTRIES = 500
 const savedCards: Record<string, unknown> = {}
 const sharedDashboards: Record<string, unknown> = {}
 
+// ---------------------------------------------------------------------------
+// Demo time-offset constants — used in Date.now() ± N for realistic timestamps
+// ---------------------------------------------------------------------------
+const DEMO_30_SEC_MS    = 30_000
+const DEMO_45_SEC_MS    = 45_000
+const DEMO_1_MIN_MS     = 60_000
+const DEMO_90_SEC_MS    = 90_000
+const DEMO_2_MIN_MS     = 120_000
+const DEMO_150_SEC_MS   = 150_000
+const DEMO_3_MIN_MS     = 180_000
+const DEMO_4_MIN_MS     = 240_000
+const DEMO_5_MIN_MS     = 300_000
+const DEMO_6_MIN_MS     = 360_000
+const DEMO_7_MIN_MS     = 420_000
+const DEMO_8_MIN_MS     = 480_000
+const DEMO_10_MIN_MS    = 600_000
+const DEMO_15_MIN_MS    = 900_000
+const DEMO_20_MIN_MS    = 1_200_000
+const DEMO_30_MIN_MS    = 1_800_000
+const DEMO_45_MIN_MS    = 2_700_000
+const DEMO_50_MIN_MS    = 3_000_000
+const DEMO_1_HOUR_MS    = 3_600_000
+const DEMO_75_MIN_MS    = 4_500_000
+const DEMO_90_MIN_MS    = 5_400_000
+const DEMO_2_HOUR_MS    = 7_200_000
+const DEMO_150_MIN_MS   = 9_000_000
+const DEMO_3_HOUR_MS    = 10_800_000
+const DEMO_4_HOUR_MS    = 14_400_000
+const DEMO_8_HOUR_MS    = 28_800_000
+const DEMO_12_HOUR_MS   = 43_200_000
+const DEMO_1_DAY_MS     = 86_400_000
+const DEMO_2_DAY_MS     = 172_800_000
+const DEMO_3_DAY_MS     = 259_200_000
+const DEMO_5_DAY_MS     = 432_000_000
+const DEMO_1_WEEK_MS    = 604_800_000
+const DEMO_30_DAY_MS    = 2_592_000_000
+
+
 /** Evict oldest entries when registry exceeds MAX_SHARE_REGISTRY_ENTRIES */
 function pruneRegistry(registry: Record<string, unknown>) {
   const keys = Object.keys(registry)
@@ -1186,24 +1224,24 @@ export const handlers = [
   http.get('/api/identity/oidc/providers', async () => {
     await delay(150)
     return HttpResponse.json([
-      { id: 'oidc-1', name: 'Okta Production', issuer_url: 'https://company.okta.com', status: 'connected', protocol: 'OIDC', client_id: 'okta-prod-001', users_synced: 485, last_sync: new Date(Date.now() - 300_000).toISOString(), groups_mapped: 12 },
-      { id: 'oidc-2', name: 'Azure AD', issuer_url: 'https://login.microsoftonline.com/tenant-id', status: 'connected', protocol: 'OIDC', client_id: 'azure-ad-001', users_synced: 312, last_sync: new Date(Date.now() - 600_000).toISOString(), groups_mapped: 8 },
-      { id: 'oidc-3', name: 'GitHub Enterprise', issuer_url: 'https://github.com/login/oauth', status: 'connected', protocol: 'OAuth2', client_id: 'gh-ent-001', users_synced: 198, last_sync: new Date(Date.now() - 900_000).toISOString(), groups_mapped: 15 },
-      { id: 'oidc-4', name: 'Google Workspace', issuer_url: 'https://accounts.google.com', status: 'connected', protocol: 'OIDC', client_id: 'gws-001', users_synced: 252, last_sync: new Date(Date.now() - 1_200_000).toISOString(), groups_mapped: 6 },
-      { id: 'oidc-5', name: 'Keycloak Staging', issuer_url: 'https://keycloak.staging.internal', status: 'degraded', protocol: 'OIDC', client_id: 'kc-staging-001', users_synced: 0, last_sync: new Date(Date.now() - 86_400_000).toISOString(), groups_mapped: 3 },
+      { id: 'oidc-1', name: 'Okta Production', issuer_url: 'https://company.okta.com', status: 'connected', protocol: 'OIDC', client_id: 'okta-prod-001', users_synced: 485, last_sync: new Date(Date.now() - DEMO_5_MIN_MS).toISOString(), groups_mapped: 12 },
+      { id: 'oidc-2', name: 'Azure AD', issuer_url: 'https://login.microsoftonline.com/tenant-id', status: 'connected', protocol: 'OIDC', client_id: 'azure-ad-001', users_synced: 312, last_sync: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), groups_mapped: 8 },
+      { id: 'oidc-3', name: 'GitHub Enterprise', issuer_url: 'https://github.com/login/oauth', status: 'connected', protocol: 'OAuth2', client_id: 'gh-ent-001', users_synced: 198, last_sync: new Date(Date.now() - DEMO_15_MIN_MS).toISOString(), groups_mapped: 15 },
+      { id: 'oidc-4', name: 'Google Workspace', issuer_url: 'https://accounts.google.com', status: 'connected', protocol: 'OIDC', client_id: 'gws-001', users_synced: 252, last_sync: new Date(Date.now() - DEMO_20_MIN_MS).toISOString(), groups_mapped: 6 },
+      { id: 'oidc-5', name: 'Keycloak Staging', issuer_url: 'https://keycloak.staging.internal', status: 'degraded', protocol: 'OIDC', client_id: 'kc-staging-001', users_synced: 0, last_sync: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), groups_mapped: 3 },
     ])
   }),
   http.get('/api/identity/oidc/sessions', async () => {
     await delay(150)
     return HttpResponse.json([
-      { id: 'sess-1', user: 'alice@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - 3_600_000).toISOString(), expires_at: new Date(Date.now() + 7_200_000).toISOString(), ip_address: '10.0.1.42', active: true },
-      { id: 'sess-2', user: 'bob@company.com', provider_id: 'oidc-2', provider_name: 'Azure AD', login_time: new Date(Date.now() - 7_200_000).toISOString(), expires_at: new Date(Date.now() + 3_600_000).toISOString(), ip_address: '10.0.2.18', active: true },
-      { id: 'sess-3', user: 'carol@company.com', provider_id: 'oidc-3', provider_name: 'GitHub Enterprise', login_time: new Date(Date.now() - 1_800_000).toISOString(), expires_at: new Date(Date.now() + 5_400_000).toISOString(), ip_address: '10.0.1.55', active: true },
-      { id: 'sess-4', user: 'dave@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - 5_400_000).toISOString(), expires_at: new Date(Date.now() + 1_800_000).toISOString(), ip_address: '172.16.0.22', active: true },
-      { id: 'sess-5', user: 'eve@company.com', provider_id: 'oidc-4', provider_name: 'Google Workspace', login_time: new Date(Date.now() - 600_000).toISOString(), expires_at: new Date(Date.now() + 10_800_000).toISOString(), ip_address: '10.0.3.7', active: true },
-      { id: 'sess-6', user: 'frank@company.com', provider_id: 'oidc-2', provider_name: 'Azure AD', login_time: new Date(Date.now() - 14_400_000).toISOString(), expires_at: new Date(Date.now() - 1_800_000).toISOString(), ip_address: '10.0.1.91', active: false },
-      { id: 'sess-7', user: 'grace@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - 900_000).toISOString(), expires_at: new Date(Date.now() + 9_000_000).toISOString(), ip_address: '192.168.1.14', active: true },
-      { id: 'sess-8', user: 'hank@company.com', provider_id: 'oidc-3', provider_name: 'GitHub Enterprise', login_time: new Date(Date.now() - 2_700_000).toISOString(), expires_at: new Date(Date.now() + 4_500_000).toISOString(), ip_address: '10.0.2.33', active: true },
+      { id: 'sess-1', user: 'alice@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_2_HOUR_MS).toISOString(), ip_address: '10.0.1.42', active: true },
+      { id: 'sess-2', user: 'bob@company.com', provider_id: 'oidc-2', provider_name: 'Azure AD', login_time: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_1_HOUR_MS).toISOString(), ip_address: '10.0.2.18', active: true },
+      { id: 'sess-3', user: 'carol@company.com', provider_id: 'oidc-3', provider_name: 'GitHub Enterprise', login_time: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_90_MIN_MS).toISOString(), ip_address: '10.0.1.55', active: true },
+      { id: 'sess-4', user: 'dave@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - DEMO_90_MIN_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_30_MIN_MS).toISOString(), ip_address: '172.16.0.22', active: true },
+      { id: 'sess-5', user: 'eve@company.com', provider_id: 'oidc-4', provider_name: 'Google Workspace', login_time: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_3_HOUR_MS).toISOString(), ip_address: '10.0.3.7', active: true },
+      { id: 'sess-6', user: 'frank@company.com', provider_id: 'oidc-2', provider_name: 'Azure AD', login_time: new Date(Date.now() - DEMO_4_HOUR_MS).toISOString(), expires_at: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), ip_address: '10.0.1.91', active: false },
+      { id: 'sess-7', user: 'grace@company.com', provider_id: 'oidc-1', provider_name: 'Okta Production', login_time: new Date(Date.now() - DEMO_15_MIN_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_150_MIN_MS).toISOString(), ip_address: '192.168.1.14', active: true },
+      { id: 'sess-8', user: 'hank@company.com', provider_id: 'oidc-3', provider_name: 'GitHub Enterprise', login_time: new Date(Date.now() - DEMO_45_MIN_MS).toISOString(), expires_at: new Date(Date.now() + DEMO_75_MIN_MS).toISOString(), ip_address: '10.0.2.33', active: true },
     ])
   }),
   http.get('/api/identity/rbac/summary', async () => {
@@ -1218,18 +1256,18 @@ export const handlers = [
   http.get('/api/identity/rbac/bindings', async () => {
     await delay(150)
     return HttpResponse.json([
-      { id: 'rb-1', name: 'admin-binding', kind: 'ClusterRoleBinding', subject_kind: 'User', subject_name: 'alice@company.com', role_name: 'cluster-admin', namespace: '', cluster: 'prod-east', risk_level: 'critical', last_used: new Date(Date.now() - 86_400_000).toISOString() },
-      { id: 'rb-2', name: 'dev-edit-binding', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'developers', role_name: 'edit', namespace: 'app-dev', cluster: 'prod-east', risk_level: 'medium', last_used: new Date(Date.now() - 172_800_000).toISOString() },
-      { id: 'rb-3', name: 'ci-deploy', kind: 'RoleBinding', subject_kind: 'ServiceAccount', subject_name: 'ci-deployer', role_name: 'deploy-manager', namespace: 'ci-cd', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - 3_600_000).toISOString() },
-      { id: 'rb-4', name: 'monitoring-view', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'prometheus', role_name: 'view', namespace: '', cluster: 'prod-west', risk_level: 'low', last_used: new Date(Date.now() - 300_000).toISOString() },
-      { id: 'rb-5', name: 'qa-edit-binding', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'qa-team', role_name: 'edit', namespace: 'qa', cluster: 'staging', risk_level: 'medium', last_used: new Date(Date.now() - 604_800_000).toISOString() },
-      { id: 'rb-6', name: 'old-admin-binding', kind: 'ClusterRoleBinding', subject_kind: 'User', subject_name: 'former-admin@company.com', role_name: 'cluster-admin', namespace: '', cluster: 'prod-east', risk_level: 'critical', last_used: new Date(Date.now() - 2_592_000_000).toISOString() },
-      { id: 'rb-7', name: 'secrets-reader', kind: 'RoleBinding', subject_kind: 'ServiceAccount', subject_name: 'vault-agent', role_name: 'secret-reader', namespace: 'vault', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - 7_200_000).toISOString() },
-      { id: 'rb-8', name: 'ingress-controller', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'nginx-ingress', role_name: 'ingress-nginx', namespace: '', cluster: 'prod-east', risk_level: 'medium', last_used: new Date(Date.now() - 600_000).toISOString() },
-      { id: 'rb-9', name: 'dev-readonly', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'interns', role_name: 'view', namespace: 'sandbox', cluster: 'staging', risk_level: 'low', last_used: new Date(Date.now() - 259_200_000).toISOString() },
-      { id: 'rb-10', name: 'backup-operator', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'velero', role_name: 'backup-admin', namespace: '', cluster: 'prod-west', risk_level: 'high', last_used: new Date(Date.now() - 43_200_000).toISOString() },
-      { id: 'rb-11', name: 'app-deployer', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'sre-team', role_name: 'admin', namespace: 'production', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - 1_800_000).toISOString() },
-      { id: 'rb-12', name: 'log-collector', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'fluentd', role_name: 'log-reader', namespace: '', cluster: 'prod-east', risk_level: 'low', last_used: new Date(Date.now() - 120_000).toISOString() },
+      { id: 'rb-1', name: 'admin-binding', kind: 'ClusterRoleBinding', subject_kind: 'User', subject_name: 'alice@company.com', role_name: 'cluster-admin', namespace: '', cluster: 'prod-east', risk_level: 'critical', last_used: new Date(Date.now() - DEMO_1_DAY_MS).toISOString() },
+      { id: 'rb-2', name: 'dev-edit-binding', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'developers', role_name: 'edit', namespace: 'app-dev', cluster: 'prod-east', risk_level: 'medium', last_used: new Date(Date.now() - DEMO_2_DAY_MS).toISOString() },
+      { id: 'rb-3', name: 'ci-deploy', kind: 'RoleBinding', subject_kind: 'ServiceAccount', subject_name: 'ci-deployer', role_name: 'deploy-manager', namespace: 'ci-cd', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString() },
+      { id: 'rb-4', name: 'monitoring-view', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'prometheus', role_name: 'view', namespace: '', cluster: 'prod-west', risk_level: 'low', last_used: new Date(Date.now() - DEMO_5_MIN_MS).toISOString() },
+      { id: 'rb-5', name: 'qa-edit-binding', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'qa-team', role_name: 'edit', namespace: 'qa', cluster: 'staging', risk_level: 'medium', last_used: new Date(Date.now() - DEMO_1_WEEK_MS).toISOString() },
+      { id: 'rb-6', name: 'old-admin-binding', kind: 'ClusterRoleBinding', subject_kind: 'User', subject_name: 'former-admin@company.com', role_name: 'cluster-admin', namespace: '', cluster: 'prod-east', risk_level: 'critical', last_used: new Date(Date.now() - DEMO_30_DAY_MS).toISOString() },
+      { id: 'rb-7', name: 'secrets-reader', kind: 'RoleBinding', subject_kind: 'ServiceAccount', subject_name: 'vault-agent', role_name: 'secret-reader', namespace: 'vault', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString() },
+      { id: 'rb-8', name: 'ingress-controller', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'nginx-ingress', role_name: 'ingress-nginx', namespace: '', cluster: 'prod-east', risk_level: 'medium', last_used: new Date(Date.now() - DEMO_10_MIN_MS).toISOString() },
+      { id: 'rb-9', name: 'dev-readonly', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'interns', role_name: 'view', namespace: 'sandbox', cluster: 'staging', risk_level: 'low', last_used: new Date(Date.now() - DEMO_3_DAY_MS).toISOString() },
+      { id: 'rb-10', name: 'backup-operator', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'velero', role_name: 'backup-admin', namespace: '', cluster: 'prod-west', risk_level: 'high', last_used: new Date(Date.now() - DEMO_12_HOUR_MS).toISOString() },
+      { id: 'rb-11', name: 'app-deployer', kind: 'RoleBinding', subject_kind: 'Group', subject_name: 'sre-team', role_name: 'admin', namespace: 'production', cluster: 'prod-east', risk_level: 'high', last_used: new Date(Date.now() - DEMO_30_MIN_MS).toISOString() },
+      { id: 'rb-12', name: 'log-collector', kind: 'ClusterRoleBinding', subject_kind: 'ServiceAccount', subject_name: 'fluentd', role_name: 'log-reader', namespace: '', cluster: 'prod-east', risk_level: 'low', last_used: new Date(Date.now() - DEMO_2_MIN_MS).toISOString() },
     ])
   }),
   http.get('/api/identity/rbac/findings', async () => {
@@ -1254,14 +1292,14 @@ export const handlers = [
   http.get('/api/identity/sessions/active', async () => {
     await delay(150)
     return HttpResponse.json([
-      { id: 'as-1', user: 'alice@company.com', login_time: new Date(Date.now() - 3_600_000).toISOString(), last_activity: new Date(Date.now() - 120_000).toISOString(), ip_address: '10.0.1.42', user_agent: 'Chrome/125 (macOS)', provider: 'Okta', status: 'active', expires_at: new Date(Date.now() + 7_200_000).toISOString() },
-      { id: 'as-2', user: 'bob@company.com', login_time: new Date(Date.now() - 7_200_000).toISOString(), last_activity: new Date(Date.now() - 1_800_000).toISOString(), ip_address: '10.0.2.18', user_agent: 'Firefox/128 (Linux)', provider: 'Azure AD', status: 'idle', expires_at: new Date(Date.now() + 3_600_000).toISOString() },
-      { id: 'as-3', user: 'carol@company.com', login_time: new Date(Date.now() - 1_800_000).toISOString(), last_activity: new Date(Date.now() - 60_000).toISOString(), ip_address: '10.0.1.55', user_agent: 'Safari/18 (macOS)', provider: 'GitHub', status: 'active', expires_at: new Date(Date.now() + 5_400_000).toISOString() },
-      { id: 'as-4', user: 'dave@company.com', login_time: new Date(Date.now() - 5_400_000).toISOString(), last_activity: new Date(Date.now() - 3_000_000).toISOString(), ip_address: '172.16.0.22', user_agent: 'kubectl/v1.30 (linux/amd64)', provider: 'Okta', status: 'idle', expires_at: new Date(Date.now() + 1_800_000).toISOString() },
-      { id: 'as-5', user: 'eve@company.com', login_time: new Date(Date.now() - 600_000).toISOString(), last_activity: new Date(Date.now() - 30_000).toISOString(), ip_address: '10.0.3.7', user_agent: 'Chrome/125 (Windows)', provider: 'Google', status: 'active', expires_at: new Date(Date.now() + 10_800_000).toISOString() },
-      { id: 'as-6', user: 'frank@company.com', login_time: new Date(Date.now() - 14_400_000).toISOString(), last_activity: new Date(Date.now() - 7_200_000).toISOString(), ip_address: '10.0.1.91', user_agent: 'Edge/125 (Windows)', provider: 'Azure AD', status: 'expired', expires_at: new Date(Date.now() - 1_800_000).toISOString() },
-      { id: 'as-7', user: 'grace@company.com', login_time: new Date(Date.now() - 900_000).toISOString(), last_activity: new Date(Date.now() - 45_000).toISOString(), ip_address: '192.168.1.14', user_agent: 'Chrome/125 (macOS)', provider: 'Okta', status: 'active', expires_at: new Date(Date.now() + 9_000_000).toISOString() },
-      { id: 'as-8', user: 'hank@company.com', login_time: new Date(Date.now() - 2_700_000).toISOString(), last_activity: new Date(Date.now() - 600_000).toISOString(), ip_address: '10.0.2.33', user_agent: 'kubectl/v1.31 (darwin/arm64)', provider: 'GitHub', status: 'active', expires_at: new Date(Date.now() + 4_500_000).toISOString() },
+      { id: 'as-1', user: 'alice@company.com', login_time: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_2_MIN_MS).toISOString(), ip_address: '10.0.1.42', user_agent: 'Chrome/125 (macOS)', provider: 'Okta', status: 'active', expires_at: new Date(Date.now() + DEMO_2_HOUR_MS).toISOString() },
+      { id: 'as-2', user: 'bob@company.com', login_time: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), ip_address: '10.0.2.18', user_agent: 'Firefox/128 (Linux)', provider: 'Azure AD', status: 'idle', expires_at: new Date(Date.now() + DEMO_1_HOUR_MS).toISOString() },
+      { id: 'as-3', user: 'carol@company.com', login_time: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_1_MIN_MS).toISOString(), ip_address: '10.0.1.55', user_agent: 'Safari/18 (macOS)', provider: 'GitHub', status: 'active', expires_at: new Date(Date.now() + DEMO_90_MIN_MS).toISOString() },
+      { id: 'as-4', user: 'dave@company.com', login_time: new Date(Date.now() - DEMO_90_MIN_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_50_MIN_MS).toISOString(), ip_address: '172.16.0.22', user_agent: 'kubectl/v1.30 (linux/amd64)', provider: 'Okta', status: 'idle', expires_at: new Date(Date.now() + DEMO_30_MIN_MS).toISOString() },
+      { id: 'as-5', user: 'eve@company.com', login_time: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_30_SEC_MS).toISOString(), ip_address: '10.0.3.7', user_agent: 'Chrome/125 (Windows)', provider: 'Google', status: 'active', expires_at: new Date(Date.now() + DEMO_3_HOUR_MS).toISOString() },
+      { id: 'as-6', user: 'frank@company.com', login_time: new Date(Date.now() - DEMO_4_HOUR_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), ip_address: '10.0.1.91', user_agent: 'Edge/125 (Windows)', provider: 'Azure AD', status: 'expired', expires_at: new Date(Date.now() - DEMO_30_MIN_MS).toISOString() },
+      { id: 'as-7', user: 'grace@company.com', login_time: new Date(Date.now() - DEMO_15_MIN_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_45_SEC_MS).toISOString(), ip_address: '192.168.1.14', user_agent: 'Chrome/125 (macOS)', provider: 'Okta', status: 'active', expires_at: new Date(Date.now() + DEMO_150_MIN_MS).toISOString() },
+      { id: 'as-8', user: 'hank@company.com', login_time: new Date(Date.now() - DEMO_45_MIN_MS).toISOString(), last_activity: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), ip_address: '10.0.2.33', user_agent: 'kubectl/v1.31 (darwin/arm64)', provider: 'GitHub', status: 'active', expires_at: new Date(Date.now() + DEMO_75_MIN_MS).toISOString() },
     ])
   }),
   http.get('/api/identity/sessions/policies', async () => {
@@ -1278,26 +1316,26 @@ export const handlers = [
   http.get('/api/v1/compliance/siem/events', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'evt-001', timestamp: new Date(Date.now() - 60000).toISOString(), source: 'falco', severity: 'critical', category: 'runtime', message: 'Unexpected process spawned in container nginx-proxy', cluster: 'prod-east-1' },
-      { id: 'evt-002', timestamp: new Date(Date.now() - 120000).toISOString(), source: 'auditd', severity: 'high', category: 'access', message: 'Unauthorized kubectl exec attempt on kube-system namespace', cluster: 'prod-east-1' },
-      { id: 'evt-003', timestamp: new Date(Date.now() - 180000).toISOString(), source: 'kube-apiserver', severity: 'medium', category: 'auth', message: 'ServiceAccount token used from unexpected IP range', cluster: 'prod-west-2' },
-      { id: 'evt-004', timestamp: new Date(Date.now() - 240000).toISOString(), source: 'calico', severity: 'high', category: 'network', message: 'Network policy violation: egress to blocked CIDR detected', cluster: 'staging-1' },
-      { id: 'evt-005', timestamp: new Date(Date.now() - 300000).toISOString(), source: 'trivy', severity: 'medium', category: 'vulnerability', message: 'Critical CVE detected in running container image', cluster: 'prod-east-1' },
-      { id: 'evt-006', timestamp: new Date(Date.now() - 360000).toISOString(), source: 'falco', severity: 'low', category: 'runtime', message: 'Read of sensitive file /etc/shadow in container', cluster: 'dev-1' },
-      { id: 'evt-007', timestamp: new Date(Date.now() - 420000).toISOString(), source: 'opa', severity: 'info', category: 'policy', message: 'Pod admission policy evaluated: 3 constraints checked', cluster: 'prod-west-2' },
-      { id: 'evt-008', timestamp: new Date(Date.now() - 480000).toISOString(), source: 'kube-apiserver', severity: 'high', category: 'auth', message: 'Failed OIDC token validation from external identity provider', cluster: 'prod-east-1' },
+      { id: 'evt-001', timestamp: new Date(Date.now() - DEMO_1_MIN_MS).toISOString(), source: 'falco', severity: 'critical', category: 'runtime', message: 'Unexpected process spawned in container nginx-proxy', cluster: 'prod-east-1' },
+      { id: 'evt-002', timestamp: new Date(Date.now() - DEMO_2_MIN_MS).toISOString(), source: 'auditd', severity: 'high', category: 'access', message: 'Unauthorized kubectl exec attempt on kube-system namespace', cluster: 'prod-east-1' },
+      { id: 'evt-003', timestamp: new Date(Date.now() - DEMO_3_MIN_MS).toISOString(), source: 'kube-apiserver', severity: 'medium', category: 'auth', message: 'ServiceAccount token used from unexpected IP range', cluster: 'prod-west-2' },
+      { id: 'evt-004', timestamp: new Date(Date.now() - DEMO_4_MIN_MS).toISOString(), source: 'calico', severity: 'high', category: 'network', message: 'Network policy violation: egress to blocked CIDR detected', cluster: 'staging-1' },
+      { id: 'evt-005', timestamp: new Date(Date.now() - DEMO_5_MIN_MS).toISOString(), source: 'trivy', severity: 'medium', category: 'vulnerability', message: 'Critical CVE detected in running container image', cluster: 'prod-east-1' },
+      { id: 'evt-006', timestamp: new Date(Date.now() - DEMO_6_MIN_MS).toISOString(), source: 'falco', severity: 'low', category: 'runtime', message: 'Read of sensitive file /etc/shadow in container', cluster: 'dev-1' },
+      { id: 'evt-007', timestamp: new Date(Date.now() - DEMO_7_MIN_MS).toISOString(), source: 'opa', severity: 'info', category: 'policy', message: 'Pod admission policy evaluated: 3 constraints checked', cluster: 'prod-west-2' },
+      { id: 'evt-008', timestamp: new Date(Date.now() - DEMO_8_MIN_MS).toISOString(), source: 'kube-apiserver', severity: 'high', category: 'auth', message: 'Failed OIDC token validation from external identity provider', cluster: 'prod-east-1' },
     ])
   }),
 
   http.get('/api/v1/compliance/siem/alerts', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'alrt-001', name: 'Suspicious Process Execution', severity: 'critical', status: 'active', source: 'falco', triggered_at: new Date(Date.now() - 30000).toISOString(), correlated_events: 5 },
-      { id: 'alrt-002', name: 'Unauthorized API Access', severity: 'high', status: 'active', source: 'kube-apiserver', triggered_at: new Date(Date.now() - 90000).toISOString(), correlated_events: 3 },
-      { id: 'alrt-003', name: 'Network Policy Violation', severity: 'high', status: 'acknowledged', source: 'calico', triggered_at: new Date(Date.now() - 150000).toISOString(), correlated_events: 8 },
-      { id: 'alrt-004', name: 'Image Vulnerability Detected', severity: 'medium', status: 'active', source: 'trivy', triggered_at: new Date(Date.now() - 600000).toISOString(), correlated_events: 2 },
-      { id: 'alrt-005', name: 'Privilege Escalation Attempt', severity: 'critical', status: 'resolved', source: 'falco', triggered_at: new Date(Date.now() - 3600000).toISOString(), correlated_events: 12 },
-      { id: 'alrt-006', name: 'OIDC Token Validation Failure', severity: 'medium', status: 'active', source: 'kube-apiserver', triggered_at: new Date(Date.now() - 7200000).toISOString(), correlated_events: 4 },
+      { id: 'alrt-001', name: 'Suspicious Process Execution', severity: 'critical', status: 'active', source: 'falco', triggered_at: new Date(Date.now() - DEMO_30_SEC_MS).toISOString(), correlated_events: 5 },
+      { id: 'alrt-002', name: 'Unauthorized API Access', severity: 'high', status: 'active', source: 'kube-apiserver', triggered_at: new Date(Date.now() - DEMO_90_SEC_MS).toISOString(), correlated_events: 3 },
+      { id: 'alrt-003', name: 'Network Policy Violation', severity: 'high', status: 'acknowledged', source: 'calico', triggered_at: new Date(Date.now() - DEMO_150_SEC_MS).toISOString(), correlated_events: 8 },
+      { id: 'alrt-004', name: 'Image Vulnerability Detected', severity: 'medium', status: 'active', source: 'trivy', triggered_at: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), correlated_events: 2 },
+      { id: 'alrt-005', name: 'Privilege Escalation Attempt', severity: 'critical', status: 'resolved', source: 'falco', triggered_at: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), correlated_events: 12 },
+      { id: 'alrt-006', name: 'OIDC Token Validation Failure', severity: 'medium', status: 'active', source: 'kube-apiserver', triggered_at: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), correlated_events: 4 },
     ])
   }),
 
@@ -1328,11 +1366,11 @@ export const handlers = [
   http.get('/api/v1/compliance/incidents', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'INC-001', title: 'Unauthorized container escape in prod-east-1', severity: 'critical', status: 'investigating', assignee: 'alice@acme.com', created_at: new Date(Date.now() - 3600000).toISOString(), updated_at: new Date(Date.now() - 1800000).toISOString(), escalation_level: 2, cluster: 'prod-east-1', playbook_id: 'pb-container-escape' },
-      { id: 'INC-002', title: 'Mass pod eviction in staging cluster', severity: 'high', status: 'mitigating', assignee: 'bob@acme.com', created_at: new Date(Date.now() - 7200000).toISOString(), updated_at: new Date(Date.now() - 900000).toISOString(), escalation_level: 1, cluster: 'staging-1', playbook_id: 'pb-pod-eviction' },
-      { id: 'INC-003', title: 'Leaked service account token detected', severity: 'critical', status: 'open', assignee: 'charlie@acme.com', created_at: new Date(Date.now() - 1800000).toISOString(), updated_at: new Date(Date.now() - 600000).toISOString(), escalation_level: 3, cluster: 'prod-west-2', playbook_id: null },
-      { id: 'INC-004', title: 'TLS certificate expiry in 48h', severity: 'medium', status: 'investigating', assignee: 'dana@acme.com', created_at: new Date(Date.now() - 14400000).toISOString(), updated_at: new Date(Date.now() - 3600000).toISOString(), escalation_level: 1, cluster: 'prod-east-1', playbook_id: 'pb-cert-renewal' },
-      { id: 'INC-005', title: 'DNS resolution failures in dev cluster', severity: 'low', status: 'resolved', assignee: 'eve@acme.com', created_at: new Date(Date.now() - 86400000).toISOString(), updated_at: new Date(Date.now() - 43200000).toISOString(), escalation_level: 0, cluster: 'dev-1', playbook_id: null },
+      { id: 'INC-001', title: 'Unauthorized container escape in prod-east-1', severity: 'critical', status: 'investigating', assignee: 'alice@acme.com', created_at: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), updated_at: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), escalation_level: 2, cluster: 'prod-east-1', playbook_id: 'pb-container-escape' },
+      { id: 'INC-002', title: 'Mass pod eviction in staging cluster', severity: 'high', status: 'mitigating', assignee: 'bob@acme.com', created_at: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), updated_at: new Date(Date.now() - DEMO_15_MIN_MS).toISOString(), escalation_level: 1, cluster: 'staging-1', playbook_id: 'pb-pod-eviction' },
+      { id: 'INC-003', title: 'Leaked service account token detected', severity: 'critical', status: 'open', assignee: 'charlie@acme.com', created_at: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), updated_at: new Date(Date.now() - DEMO_10_MIN_MS).toISOString(), escalation_level: 3, cluster: 'prod-west-2', playbook_id: null },
+      { id: 'INC-004', title: 'TLS certificate expiry in 48h', severity: 'medium', status: 'investigating', assignee: 'dana@acme.com', created_at: new Date(Date.now() - DEMO_4_HOUR_MS).toISOString(), updated_at: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), escalation_level: 1, cluster: 'prod-east-1', playbook_id: 'pb-cert-renewal' },
+      { id: 'INC-005', title: 'DNS resolution failures in dev cluster', severity: 'low', status: 'resolved', assignee: 'eve@acme.com', created_at: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), updated_at: new Date(Date.now() - DEMO_12_HOUR_MS).toISOString(), escalation_level: 0, cluster: 'dev-1', playbook_id: null },
     ])
   }),
 
@@ -1353,11 +1391,11 @@ export const handlers = [
   http.get('/api/v1/compliance/incidents/playbooks', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'pb-container-escape', name: 'Container Escape Response', description: 'Isolate compromised pod, capture forensic data, rotate secrets', last_executed: new Date(Date.now() - 3600000).toISOString(), execution_count: 7, avg_resolution_min: 45, status: 'active', steps: 12 },
-      { id: 'pb-pod-eviction', name: 'Mass Pod Eviction', description: 'Investigate node pressure, redistribute workloads, scale cluster', last_executed: new Date(Date.now() - 86400000).toISOString(), execution_count: 14, avg_resolution_min: 30, status: 'active', steps: 8 },
-      { id: 'pb-cert-renewal', name: 'Certificate Renewal', description: 'Renew TLS certificates, update secrets, rolling restart services', last_executed: new Date(Date.now() - 172800000).toISOString(), execution_count: 22, avg_resolution_min: 15, status: 'active', steps: 6 },
-      { id: 'pb-secret-rotation', name: 'Secret Rotation', description: 'Rotate compromised secrets across all dependent services', last_executed: new Date(Date.now() - 604800000).toISOString(), execution_count: 5, avg_resolution_min: 60, status: 'active', steps: 15 },
-      { id: 'pb-ddos-response', name: 'DDoS Response', description: 'Enable rate limiting, scale ingress, activate WAF rules', last_executed: new Date(Date.now() - 2592000000).toISOString(), execution_count: 2, avg_resolution_min: 90, status: 'draft', steps: 10 },
+      { id: 'pb-container-escape', name: 'Container Escape Response', description: 'Isolate compromised pod, capture forensic data, rotate secrets', last_executed: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), execution_count: 7, avg_resolution_min: 45, status: 'active', steps: 12 },
+      { id: 'pb-pod-eviction', name: 'Mass Pod Eviction', description: 'Investigate node pressure, redistribute workloads, scale cluster', last_executed: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), execution_count: 14, avg_resolution_min: 30, status: 'active', steps: 8 },
+      { id: 'pb-cert-renewal', name: 'Certificate Renewal', description: 'Renew TLS certificates, update secrets, rolling restart services', last_executed: new Date(Date.now() - DEMO_2_DAY_MS).toISOString(), execution_count: 22, avg_resolution_min: 15, status: 'active', steps: 6 },
+      { id: 'pb-secret-rotation', name: 'Secret Rotation', description: 'Rotate compromised secrets across all dependent services', last_executed: new Date(Date.now() - DEMO_1_WEEK_MS).toISOString(), execution_count: 5, avg_resolution_min: 60, status: 'active', steps: 15 },
+      { id: 'pb-ddos-response', name: 'DDoS Response', description: 'Enable rate limiting, scale ingress, activate WAF rules', last_executed: new Date(Date.now() - DEMO_30_DAY_MS).toISOString(), execution_count: 2, avg_resolution_min: 90, status: 'draft', steps: 10 },
     ])
   }),
 
@@ -1366,24 +1404,24 @@ export const handlers = [
   http.get('/api/v1/compliance/threat-intel/feeds', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'feed-001', name: 'MITRE ATT&CK', provider: 'MITRE Corporation', status: 'active', last_updated: new Date(Date.now() - 3600000).toISOString(), indicators_count: 14500, category: 'TTPs' },
-      { id: 'feed-002', name: 'AlienVault OTX', provider: 'AT&T Cybersecurity', status: 'active', last_updated: new Date(Date.now() - 7200000).toISOString(), indicators_count: 89200, category: 'IOCs' },
-      { id: 'feed-003', name: 'Abuse.ch URLhaus', provider: 'abuse.ch', status: 'active', last_updated: new Date(Date.now() - 1800000).toISOString(), indicators_count: 42100, category: 'Malware' },
-      { id: 'feed-004', name: 'CISA KEV', provider: 'CISA', status: 'active', last_updated: new Date(Date.now() - 86400000).toISOString(), indicators_count: 1120, category: 'Vulnerabilities' },
-      { id: 'feed-005', name: 'Custom Internal Feed', provider: 'Internal SOC', status: 'stale', last_updated: new Date(Date.now() - 604800000).toISOString(), indicators_count: 340, category: 'Internal' },
-      { id: 'feed-006', name: 'PhishTank', provider: 'OpenDNS', status: 'active', last_updated: new Date(Date.now() - 14400000).toISOString(), indicators_count: 28700, category: 'Phishing' },
+      { id: 'feed-001', name: 'MITRE ATT&CK', provider: 'MITRE Corporation', status: 'active', last_updated: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), indicators_count: 14500, category: 'TTPs' },
+      { id: 'feed-002', name: 'AlienVault OTX', provider: 'AT&T Cybersecurity', status: 'active', last_updated: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), indicators_count: 89200, category: 'IOCs' },
+      { id: 'feed-003', name: 'Abuse.ch URLhaus', provider: 'abuse.ch', status: 'active', last_updated: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(), indicators_count: 42100, category: 'Malware' },
+      { id: 'feed-004', name: 'CISA KEV', provider: 'CISA', status: 'active', last_updated: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), indicators_count: 1120, category: 'Vulnerabilities' },
+      { id: 'feed-005', name: 'Custom Internal Feed', provider: 'Internal SOC', status: 'stale', last_updated: new Date(Date.now() - DEMO_1_WEEK_MS).toISOString(), indicators_count: 340, category: 'Internal' },
+      { id: 'feed-006', name: 'PhishTank', provider: 'OpenDNS', status: 'active', last_updated: new Date(Date.now() - DEMO_4_HOUR_MS).toISOString(), indicators_count: 28700, category: 'Phishing' },
     ])
   }),
 
   http.get('/api/v1/compliance/threat-intel/iocs', async () => {
     await delay(100)
     return HttpResponse.json([
-      { id: 'ioc-001', ioc_type: 'ip', indicator: '198.51.100.42', feed_name: 'AlienVault OTX', severity: 'critical', matched_resource: 'pod/api-gateway', cluster: 'prod-east-1', detected_at: new Date(Date.now() - 3600000).toISOString(), status: 'active' },
-      { id: 'ioc-002', ioc_type: 'domain', indicator: 'malware-c2.example.net', feed_name: 'Abuse.ch URLhaus', severity: 'critical', matched_resource: 'pod/worker-processor', cluster: 'prod-east-1', detected_at: new Date(Date.now() - 7200000).toISOString(), status: 'active' },
-      { id: 'ioc-003', ioc_type: 'hash', indicator: 'a1b2c3d4e5f6...', feed_name: 'AlienVault OTX', severity: 'high', matched_resource: 'image/nginx:1.24', cluster: 'prod-west-2', detected_at: new Date(Date.now() - 14400000).toISOString(), status: 'mitigated' },
-      { id: 'ioc-004', ioc_type: 'ip', indicator: '203.0.113.99', feed_name: 'CISA KEV', severity: 'high', matched_resource: 'service/ingress-nginx', cluster: 'staging-1', detected_at: new Date(Date.now() - 28800000).toISOString(), status: 'active' },
-      { id: 'ioc-005', ioc_type: 'url', indicator: 'http://phish.example.com/login', feed_name: 'PhishTank', severity: 'medium', matched_resource: 'pod/web-frontend', cluster: 'prod-east-1', detected_at: new Date(Date.now() - 86400000).toISOString(), status: 'false_positive' },
-      { id: 'ioc-006', ioc_type: 'domain', indicator: 'crypto-miner.example.org', feed_name: 'Abuse.ch URLhaus', severity: 'high', matched_resource: 'pod/batch-worker', cluster: 'dev-1', detected_at: new Date(Date.now() - 172800000).toISOString(), status: 'mitigated' },
+      { id: 'ioc-001', ioc_type: 'ip', indicator: '198.51.100.42', feed_name: 'AlienVault OTX', severity: 'critical', matched_resource: 'pod/api-gateway', cluster: 'prod-east-1', detected_at: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(), status: 'active' },
+      { id: 'ioc-002', ioc_type: 'domain', indicator: 'malware-c2.example.net', feed_name: 'Abuse.ch URLhaus', severity: 'critical', matched_resource: 'pod/worker-processor', cluster: 'prod-east-1', detected_at: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(), status: 'active' },
+      { id: 'ioc-003', ioc_type: 'hash', indicator: 'a1b2c3d4e5f6...', feed_name: 'AlienVault OTX', severity: 'high', matched_resource: 'image/nginx:1.24', cluster: 'prod-west-2', detected_at: new Date(Date.now() - DEMO_4_HOUR_MS).toISOString(), status: 'mitigated' },
+      { id: 'ioc-004', ioc_type: 'ip', indicator: '203.0.113.99', feed_name: 'CISA KEV', severity: 'high', matched_resource: 'service/ingress-nginx', cluster: 'staging-1', detected_at: new Date(Date.now() - DEMO_8_HOUR_MS).toISOString(), status: 'active' },
+      { id: 'ioc-005', ioc_type: 'url', indicator: 'http://phish.example.com/login', feed_name: 'PhishTank', severity: 'medium', matched_resource: 'pod/web-frontend', cluster: 'prod-east-1', detected_at: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), status: 'false_positive' },
+      { id: 'ioc-006', ioc_type: 'domain', indicator: 'crypto-miner.example.org', feed_name: 'Abuse.ch URLhaus', severity: 'high', matched_resource: 'pod/batch-worker', cluster: 'dev-1', detected_at: new Date(Date.now() - DEMO_2_DAY_MS).toISOString(), status: 'mitigated' },
     ])
   }),
 
@@ -2056,7 +2094,7 @@ export const handlers = [
         namespace: 'inference',
         cluster: 'gpu-prod',
         format: 'SPDX',
-        generated_at: new Date(Date.now() - 3_600_000).toISOString(),
+        generated_at: new Date(Date.now() - DEMO_1_HOUR_MS).toISOString(),
         component_count: 284,
         vulnerable_count: 3,
         components: [
@@ -2073,7 +2111,7 @@ export const handlers = [
         namespace: 'default',
         cluster: 'prod-east',
         format: 'CycloneDX',
-        generated_at: new Date(Date.now() - 7_200_000).toISOString(),
+        generated_at: new Date(Date.now() - DEMO_2_HOUR_MS).toISOString(),
         component_count: 156,
         vulnerable_count: 0,
         components: [
@@ -2089,7 +2127,7 @@ export const handlers = [
         namespace: 'inference',
         cluster: 'gpu-prod',
         format: 'SPDX',
-        generated_at: new Date(Date.now() - 1_800_000).toISOString(),
+        generated_at: new Date(Date.now() - DEMO_30_MIN_MS).toISOString(),
         component_count: 412,
         vulnerable_count: 9,
         components: [
@@ -2105,7 +2143,7 @@ export const handlers = [
         namespace: 'monitoring',
         cluster: 'ops',
         format: 'CycloneDX',
-        generated_at: new Date(Date.now() - 5_400_000).toISOString(),
+        generated_at: new Date(Date.now() - DEMO_90_MIN_MS).toISOString(),
         component_count: 89,
         vulnerable_count: 0,
         components: [
@@ -2133,13 +2171,13 @@ export const handlers = [
   http.get('/api/supply-chain/signing/images', async () => {
     await delay(200)
     return HttpResponse.json([
-      { image: 'ghcr.io/vllm-project/vllm:v0.4.0', digest: 'sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', workload: 'vllm-engine', namespace: 'inference', cluster: 'gpu-prod', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - 86_400_000).toISOString(), failure_reason: null },
-      { image: 'ghcr.io/kubestellar/router:v0.21.0', digest: 'sha256:b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5', workload: 'api-gateway', namespace: 'default', cluster: 'prod-east', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - 172_800_000).toISOString(), failure_reason: null },
+      { image: 'ghcr.io/vllm-project/vllm:v0.4.0', digest: 'sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', workload: 'vllm-engine', namespace: 'inference', cluster: 'gpu-prod', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - DEMO_1_DAY_MS).toISOString(), failure_reason: null },
+      { image: 'ghcr.io/kubestellar/router:v0.21.0', digest: 'sha256:b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5', workload: 'api-gateway', namespace: 'default', cluster: 'prod-east', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - DEMO_2_DAY_MS).toISOString(), failure_reason: null },
       { image: 'docker.io/library/nginx:1.25.3', digest: 'sha256:c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6', workload: 'ingress-nginx', namespace: 'ingress-nginx', cluster: 'prod-east', signed: false, verified: false, signer: '', keyless: false, transparency_log: false, signed_at: null, failure_reason: 'No Cosign signature found for image' },
-      { image: 'ghcr.io/open-telemetry/opentelemetry-collector:0.93.0', digest: 'sha256:d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1', workload: 'otel-collector', namespace: 'monitoring', cluster: 'ops', signed: true, verified: false, signer: 'old-key@example.com', keyless: false, transparency_log: false, signed_at: new Date(Date.now() - 604_800_000).toISOString(), failure_reason: 'Key not in trust root — rotate to keyless signing' },
-      { image: 'ghcr.io/prometheus/prometheus:v2.49.1', digest: 'sha256:e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', workload: 'prometheus', namespace: 'monitoring', cluster: 'ops', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - 259_200_000).toISOString(), failure_reason: null },
+      { image: 'ghcr.io/open-telemetry/opentelemetry-collector:0.93.0', digest: 'sha256:d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1', workload: 'otel-collector', namespace: 'monitoring', cluster: 'ops', signed: true, verified: false, signer: 'old-key@example.com', keyless: false, transparency_log: false, signed_at: new Date(Date.now() - DEMO_1_WEEK_MS).toISOString(), failure_reason: 'Key not in trust root — rotate to keyless signing' },
+      { image: 'ghcr.io/prometheus/prometheus:v2.49.1', digest: 'sha256:e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', workload: 'prometheus', namespace: 'monitoring', cluster: 'ops', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - DEMO_3_DAY_MS).toISOString(), failure_reason: null },
       { image: 'docker.io/grafana/grafana:10.3.1', digest: 'sha256:f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3', workload: 'grafana', namespace: 'monitoring', cluster: 'ops', signed: false, verified: false, signer: '', keyless: false, transparency_log: false, signed_at: null, failure_reason: 'Grafana images not signed upstream — use Cosign bundle' },
-      { image: 'ghcr.io/open-policy-agent/opa:0.63.0', digest: 'sha256:a2b3c4d5e6f7a2b3c4d5e6f7a2b3c4d5e6f7a2b3c4d5', workload: 'opa-gatekeeper', namespace: 'gatekeeper-system', cluster: 'prod-east', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - 432_000_000).toISOString(), failure_reason: null },
+      { image: 'ghcr.io/open-policy-agent/opa:0.63.0', digest: 'sha256:a2b3c4d5e6f7a2b3c4d5e6f7a2b3c4d5e6f7a2b3c4d5', workload: 'opa-gatekeeper', namespace: 'gatekeeper-system', cluster: 'prod-east', signed: true, verified: true, signer: 'sigstore@github.com', keyless: true, transparency_log: true, signed_at: new Date(Date.now() - DEMO_5_DAY_MS).toISOString(), failure_reason: null },
     ])
   }),
 
@@ -2295,14 +2333,14 @@ export const handlers = [
         id: 'elastic-siem', name: 'Elastic SIEM', provider: 'elastic',
         endpoint: 'https://elastic.corp.example.com:9200/_bulk',
         status: 'active', events_per_minute: 235, total_events: 3_218_445,
-        last_event_at: new Date(Date.now() - 60_000).toISOString(), error_count: 3, last_error: null,
+        last_event_at: new Date(Date.now() - DEMO_1_MIN_MS).toISOString(), error_count: 3, last_error: null,
         filters: ['security', 'policy'], tls_enabled: true, batch_size: 250,
       },
       {
         id: 'webhook-pagerduty', name: 'PagerDuty Webhook', provider: 'webhook',
         endpoint: 'https://events.pagerduty.com/v2/enqueue',
         status: 'active', events_per_minute: 0, total_events: 1_842,
-        last_event_at: new Date(Date.now() - 300_000).toISOString(), error_count: 0, last_error: null,
+        last_event_at: new Date(Date.now() - DEMO_5_MIN_MS).toISOString(), error_count: 0, last_error: null,
         filters: ['critical', 'policy-violation'], tls_enabled: true, batch_size: 1,
       },
       {
@@ -2322,11 +2360,11 @@ export const handlers = [
     return HttpResponse.json([
       { id: 'evt-001', cluster: 'prod-east', event_type: 'create', resource: 'pods/inference/vllm-engine-7d9b4', user: 'system:serviceaccount:default:deployer', timestamp: new Date(now - 2_000).toISOString(), destination_count: 2 },
       { id: 'evt-002', cluster: 'gpu-prod', event_type: 'delete', resource: 'secrets/inference/model-weights', user: 'andy@clubanderson.com', timestamp: new Date(now - 15_000).toISOString(), destination_count: 3 },
-      { id: 'evt-003', cluster: 'prod-east', event_type: 'patch', resource: 'deployments/default/api-gateway', user: 'system:serviceaccount:argocd:argocd-server', timestamp: new Date(now - 30_000).toISOString(), destination_count: 2 },
-      { id: 'evt-004', cluster: 'ops', event_type: 'get', resource: 'secrets/kube-system/etcd-certs', user: 'admin@example.com', timestamp: new Date(now - 45_000).toISOString(), destination_count: 3 },
+      { id: 'evt-003', cluster: 'prod-east', event_type: 'patch', resource: 'deployments/default/api-gateway', user: 'system:serviceaccount:argocd:argocd-server', timestamp: new Date(now - DEMO_30_SEC_MS).toISOString(), destination_count: 2 },
+      { id: 'evt-004', cluster: 'ops', event_type: 'get', resource: 'secrets/kube-system/etcd-certs', user: 'admin@example.com', timestamp: new Date(now - DEMO_45_SEC_MS).toISOString(), destination_count: 3 },
       { id: 'evt-005', cluster: 'prod-west', event_type: 'create', resource: 'clusterrolebindings/cluster-admin-tmp', user: 'ops-bot@example.com', timestamp: new Date(now - 60_000).toISOString(), destination_count: 3 },
       { id: 'evt-006', cluster: 'prod-east', event_type: 'update', resource: 'configmaps/kube-system/kube-proxy', user: 'system:node:node-03', timestamp: new Date(now - 90_000).toISOString(), destination_count: 2 },
-      { id: 'evt-007', cluster: 'gpu-prod', event_type: 'create', resource: 'pods/inference/llm-router-6f8c9', user: 'system:serviceaccount:inference:router', timestamp: new Date(now - 120_000).toISOString(), destination_count: 2 },
+      { id: 'evt-007', cluster: 'gpu-prod', event_type: 'create', resource: 'pods/inference/llm-router-6f8c9', user: 'system:serviceaccount:inference:router', timestamp: new Date(now - DEMO_2_MIN_MS).toISOString(), destination_count: 2 },
     ])
   }),
 
