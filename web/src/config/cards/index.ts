@@ -65,6 +65,7 @@ import { fluxStatusConfig } from './flux-status'
 import { contourStatusConfig } from './contour-status'
 import { containerdStatusConfig } from './containerd-status'
 import { envoyStatusConfig } from './envoy-status'
+import { grpcStatusConfig } from './grpc-status'
 import { linkerdStatusConfig } from './linkerd-status'
 import { tikvStatusConfig } from './tikv-status'
 import { nightlyReleasePulseConfig } from './nightly-release-pulse'
@@ -253,6 +254,7 @@ export const CARD_CONFIGS: CardConfigRegistry = {
   contour_status: contourStatusConfig,
   containerd_status: containerdStatusConfig,
   envoy_status: envoyStatusConfig,
+  grpc_status: grpcStatusConfig,
   linkerd_status: linkerdStatusConfig,
   tikv_status: tikvStatusConfig,
   nightly_release_pulse: nightlyReleasePulseConfig,

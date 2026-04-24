@@ -51,6 +51,7 @@ import { useFluxStatus } from '../../components/cards/flux_status/useFluxStatus'
 import { useContourStatus } from '../../components/cards/contour_status/useContourStatus'
 import { useCachedContainerd } from '../../hooks/useCachedContainerd'
 import { useCachedEnvoy } from '../../components/cards/envoy_status/useCachedEnvoy'
+import { useCachedGrpc } from '../../hooks/useCachedGrpc'
 import { useCachedLinkerd } from '../../hooks/useCachedLinkerd'
 import { useCachedTikv } from '../../hooks/useCachedTikv'
 
@@ -1064,6 +1065,17 @@ function useUnifiedEnvoyStatus() {
   }
 }
 
+function useUnifiedGrpcStatus() {
+  const result = useCachedGrpc()
+  // Surface the service list as the primary row set for generic list renderers.
+  return {
+    data: result.data.services,
+    isLoading: result.showSkeleton,
+    error: result.error ? new Error('Failed to fetch gRPC status') : null,
+    refetch: () => { result.refetch() },
+  }
+}
+
 function useUnifiedLinkerdStatus() {
   const result = useCachedLinkerd()
   // Surface the meshed deployment list as the primary row set for generic list renderers.
@@ -1274,6 +1286,7 @@ export function registerUnifiedHooks(): void {
   registerDataHook('useContourStatus', useUnifiedContourStatus)
   registerDataHook('useCachedContainerd', useUnifiedContainerdStatus)
   registerDataHook('useCachedEnvoy', useUnifiedEnvoyStatus)
+  registerDataHook('useCachedGrpc', useUnifiedGrpcStatus)
   registerDataHook('useCachedLinkerd', useUnifiedLinkerdStatus)
   registerDataHook('useCachedTikv', useUnifiedTikvStatus)
   registerDataHook('useProviderHealth', useProviderHealth)
