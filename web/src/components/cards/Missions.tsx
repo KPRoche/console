@@ -26,6 +26,12 @@ import { useTranslation } from 'react-i18next'
 import { useMissions } from '../../hooks/useMissions'
 import { useApiKeyCheck, ApiKeyPromptModal } from './console-missions/shared'
 
+// Named time-offset constants for demo fixture data (CLAUDE.md: No Magic Numbers)
+const TWO_MINUTES_MS = 2 * 60 * 1000
+const THREE_MINUTES_MS = 3 * 60 * 1000
+const FOUR_MINUTES_MS = 4 * 60 * 1000
+const FIVE_MINUTES_MS = 5 * 60 * 1000
+
 interface MissionsProps {
   config?: Record<string, unknown>
 }
@@ -43,8 +49,8 @@ const DEMO_MISSIONS: DeployMission[] = [
       { cluster: 'openshift-prod', status: 'running', replicas: 3, readyReplicas: 3 },
       { cluster: 'do-nyc1-prod', status: 'running', replicas: 3, readyReplicas: 3 },
     ],
-    startedAt: Date.now() - 300000,
-    completedAt: Date.now() - 240000 },
+    startedAt: Date.now() - FIVE_MINUTES_MS,
+    completedAt: Date.now() - FOUR_MINUTES_MS },
   {
     id: 'demo-2',
     workload: 'api-gateway',
@@ -57,8 +63,8 @@ const DEMO_MISSIONS: DeployMission[] = [
       { cluster: 'aks-dev-westeu', status: 'running', replicas: 2, readyReplicas: 2 },
       { cluster: 'rancher-mgmt', status: 'running', replicas: 2, readyReplicas: 2 },
     ],
-    startedAt: Date.now() - 180000,
-    completedAt: Date.now() - 120000 },
+    startedAt: Date.now() - THREE_MINUTES_MS,
+    completedAt: Date.now() - TWO_MINUTES_MS },
 ]
 
 const STATUS_CONFIG: Record<DeployMissionStatus, {
