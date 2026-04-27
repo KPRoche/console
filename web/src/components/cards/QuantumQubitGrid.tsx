@@ -144,6 +144,7 @@ export const QuantumQubitGrid: React.FC = () => {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [refreshInterval, setRefreshInterval] = useState(4000)
   const [selectedMask, setSelectedMask] = useState<MaskKey>('ibm_qx5')
+  const [versionInfo, setVersionInfo] = useState<{ version: string; commit: string; timestamp: string } | null>(null)
 
   const isDemoFallback = consecutiveFailures >= 3
   // Show empty grid if no data AND (executing or loop_mode is active)
@@ -213,7 +214,11 @@ export const QuantumQubitGrid: React.FC = () => {
           })
 
           if (statusRes.ok) {
-                      }
+            const statusData = await statusRes.json()
+            if (statusData.version_info) {
+              setVersionInfo(statusData.version_info)
+            }
+          }
         } catch (err) {
           // Status fetch is optional, don't fail if it doesn't work
           console.debug('Could not fetch execution status:', err)
@@ -335,6 +340,19 @@ export const QuantumQubitGrid: React.FC = () => {
           <p>
             <span className="font-semibold">Display:</span> <span className="font-mono">{patternLabel}</span>
           </p>
+          {versionInfo && (
+            <>
+              <div className="border-t border-blue-300 dark:border-blue-700 pt-1 mt-1" />
+              <p>
+                <span className="font-semibold">Backend Ver:</span> <span className="font-mono">{versionInfo.version}</span>
+              </p>
+              {versionInfo.commit && versionInfo.commit !== 'unknown' && (
+                <p>
+                  <span className="font-semibold">Commit:</span> <span className="font-mono text-gray-600 dark:text-gray-400">{versionInfo.commit}</span>
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         {/* Refresh interval slider */}

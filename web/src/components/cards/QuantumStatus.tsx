@@ -22,6 +22,11 @@ interface QuantumStatusResponse {
     shots?: number
     type?: 'simulator' | 'noise_model' | 'real'
   }
+  version_info?: {
+    version: string
+    commit: string
+    timestamp: string
+  }
 }
 
 interface QuantumStatusProps {
@@ -39,6 +44,11 @@ const DEMO_STATUS: QuantumStatusResponse = {
     name: 'aer',
     shots: 1024,
     type: 'simulator',
+  },
+  version_info: {
+    version: 'v0.2.58',
+    commit: 'demo',
+    timestamp: new Date().toISOString(),
   },
 }
 
@@ -228,6 +238,25 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
               <p className="text-xs text-muted-foreground pt-1">
                 {statusData.control_system.description}
               </p>
+            </div>
+          </>
+        )}
+
+        {/* Version Info */}
+        {statusData.version_info && (
+          <>
+            <div className="border-t border-border pt-3" />
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Version</span>
+                <span className="text-xs font-mono font-semibold">{statusData.version_info.version}</span>
+              </div>
+              {statusData.version_info.commit && statusData.version_info.commit !== 'unknown' && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Commit</span>
+                  <span className="text-xs font-mono text-muted-foreground">{statusData.version_info.commit}</span>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -49,6 +49,11 @@ interface SystemStatus {
   last_result_time?: string
   qasm_file?: string
   message: string
+  version_info?: {
+    version: string
+    commit: string
+    timestamp: string
+  }
 }
 
 const DEMO_DATA: ControlState = {
@@ -543,6 +548,24 @@ export const QuantumControlPanel: React.FC = () => {
                     {new Date(displayStatus.last_result_time).toLocaleTimeString()}
                   </span>
                 </div>
+              )}
+              {displayStatus.version_info && (
+                <>
+                  <div className="flex justify-between pt-1 border-t border-gray-300 dark:border-gray-600 mt-2">
+                    <span className="text-gray-600 dark:text-gray-400">Backend Ver:</span>
+                    <span className="text-gray-900 dark:text-gray-100 text-xs font-mono font-semibold">
+                      {displayStatus.version_info.version}
+                    </span>
+                  </div>
+                  {displayStatus.version_info.commit && displayStatus.version_info.commit !== 'unknown' && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Commit:</span>
+                      <span className="text-gray-900 dark:text-gray-100 text-xs font-mono">
+                        {displayStatus.version_info.commit}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
