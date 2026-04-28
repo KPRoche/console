@@ -289,8 +289,9 @@ test.describe('Sidebar Navigation', () => {
         return
       }
 
-      // Open customizer
-      await addMoreBtn.click()
+      // Open customizer — force-click on webkit where CSS transitions can
+      // cause actionability checks to stall (#nightly-playwright).
+      await addMoreBtn.click({ force: true })
       await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
 
       // Close it via Escape key
