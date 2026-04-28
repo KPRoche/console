@@ -94,7 +94,8 @@ test.describe('Clusters Page', () => {
 
       // Health status should be displayed - look for healthy/unhealthy text or status dots
       // We have 2 healthy clusters and 1 unhealthy
-      const healthyIndicators = page.locator('.bg-green-400, .text-green-400, [class*="green"]')
+      // StatusIndicator uses text-green-400 and bg-green-500 for healthy status
+      const healthyIndicators = page.locator('.bg-green-500, .text-green-400, [class*="bg-green"], [class*="text-green"]')
       const healthyCount = await healthyIndicators.count()
       expect(healthyCount).toBeGreaterThan(0)
     })
