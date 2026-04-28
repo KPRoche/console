@@ -129,7 +129,8 @@ describe('useCachedSpire', () => {
             refetch: vi.fn(),
         })
         const { result } = renderHook(() => useCachedSpire())
-        // Spire passes isDemoFallback through directly (no loading guard)
-        expect(result.current.isDemoFallback).toBe(true)
+        // createCachedHook applies isDemoFallback && !isLoading guard:
+        // when isLoading=true, isDemoFallback must be false (no demo data during load)
+        expect(result.current.isDemoFallback).toBe(false)
     })
 })
