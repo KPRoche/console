@@ -88,9 +88,9 @@ test.describe('Clusters Page', () => {
       // Should show cluster names from our mock data
       // Webkit/Firefox render mock data slightly later — use a generous timeout
       const CLUSTER_NAME_TIMEOUT_MS = 20_000
-      await expect(page.getByText('prod-east')).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
-      await expect(page.getByText('prod-west')).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
-      await expect(page.getByText('staging')).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
+      await expect(page.getByText('prod-east').first()).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
+      await expect(page.getByText('prod-west').first()).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
+      await expect(page.getByText('staging').first()).toBeVisible({ timeout: CLUSTER_NAME_TIMEOUT_MS })
     })
 
     test('shows cluster health status indicators', async ({ page }) => {
