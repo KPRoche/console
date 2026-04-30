@@ -587,19 +587,54 @@ export const Slack: LucideIcon = Object.assign(
   { displayName: 'Slack' },
 ) as unknown as LucideIcon
 
-/** Qiskit logo */
+/** Qiskit logo - based on Qiskit-Logo.svg, scaled to 24x24 */
 export const Qiskit: LucideIcon = Object.assign(
   (props: SVGProps<SVGSVGElement> & { size?: number | string }) => {
     const { size: s = 24, className, ...rest } = props
     return createElement('svg', {
-      viewBox: '0 0 24 24', width: s, height: s, className,
+      viewBox: '0 0 140.23 139.99', width: s, height: s, className,
       fill: 'currentColor', ...rest,
     },
-      // Qiskit's characteristic color blocks forming the Q-like shape
-      createElement('rect', { width: '8', height: '8', x: '2', y: '2' }),
-      createElement('rect', { width: '8', height: '8', x: '12', y: '2' }),
-      createElement('rect', { width: '8', height: '8', x: '2', y: '12' }),
-      createElement('rect', { width: '8', height: '8', x: '12', y: '12', fill: 'currentColor', opacity: '0.5' }),
+      // Outer circle
+      createElement('path', {
+        d: 'M70.24,140A70,70,0,1,1,131.75,37h0A69.95,69.95,0,0,1,70.24,140ZM70,4.81a65.21,65.21,0,1,0,57.59,34.38h0A65.29,65.29,0,0,0,70,4.81Z',
+        fill: 'currentColor',
+        opacity: '0.8',
+      }),
+      // Main ellipse/oval shape (center bottom)
+      createElement('path', {
+        d: 'M130.6,102.79v0h0c-.12-12.91-30.52-20.22-59.14-20.54-30.35,0-61.75,7.68-61.85,20.54h0s0,0,0,0,0,0,0,0h0c.12,12.92,30.52,20.22,59.14,20.54,30.35,0,61.75-7.68,61.85-20.54h0ZM68.75,118.64c-32-.36-54.33-8.63-54.41-15.85.08-7.49,24.49-15.85,57.12-15.85,32,.36,54.33,8.63,54.41,15.85C125.79,110.28,101.38,118.64,68.75,118.64Z',
+        fill: 'currentColor',
+      }),
+      // Small circle (top right)
+      createElement('path', {
+        d: 'M88.16,130.58v0h0c-.07-5.35-7.8-9.39-18-9.39s-18,4-18,9.39h0v.07h0c.06,5.35,7.8,9.39,18,9.39s18-4,18-9.39h0Zm-18,5c-8.08,0-13.25-2.92-13.3-5s5.22-5,13.3-5,13.25,2.93,13.3,5S78.2,135.54,70.12,135.54Z',
+        fill: 'currentColor',
+        opacity: '0.7',
+      }),
+      // Large ellipse (middle center)
+      createElement('path', {
+        d: 'M140.09,70.06v0h0c-.19-13.85-35.32-21.75-68.35-22.09C36.69,47.92.36,56.22.16,70h0s0,0,0,.06a.43.43,0,0,0,0,.05h0C.35,84,35.48,91.87,68.51,92.21c35,0,71.37-8.3,71.57-22.09h0ZM68.54,87.48C31.12,87.09,5,78,4.89,70.07,5,61.84,33.56,52.65,71.71,52.65c37.42.39,63.52,9.48,63.64,17.41C135.23,78.29,106.68,87.48,68.54,87.48Z',
+        fill: 'currentColor',
+      }),
+      // Top left ellipse
+      createElement('path', {
+        d: 'M71.51,16.53c-30.36,0-61.77,7.71-61.77,20.59s30.39,20.28,59,20.6c30.35,0,61.76-7.71,61.76-20.6S100.12,16.85,71.51,16.53ZM68.77,53c-32-.36-54.29-8.65-54.29-15.87,0-7.48,24.39-15.86,57-15.86,32,.35,54.3,8.65,54.3,15.86C125.78,44.61,101.39,53,68.77,53Z',
+        fill: 'currentColor',
+        opacity: '0.9',
+      }),
+      // Top small circle
+      createElement('path', {
+        d: 'M69.89,0C64.8,0,53,.79,53,7.91S64.8,15.8,69.89,15.8,86.81,15,86.81,7.91,75,0,69.89,0Zm0,4.79C77,4.81,82,6.45,82,7.91S77,11,69.89,11,57.76,9.37,57.76,7.91,62.74,4.81,69.89,4.81Z',
+        fill: 'currentColor',
+        opacity: '0.7',
+      }),
+      // Right diagonal element
+      createElement('path', {
+        d: 'M99.44,112.46a6,6,0,0,0-.86.07h0L72.3,67.1h0L48.35,25.71A6,6,0,1,0,43.81,28a6.82,6.82,0,0,0,.79-.08L68.55,69.27h0L79.36,88h0l15.44,26.67a6,6,0,1,0,4.63-2.19Z',
+        fill: 'currentColor',
+        opacity: '0.6',
+      }),
     )
   },
   { displayName: 'Qiskit' },
