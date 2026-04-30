@@ -3,6 +3,10 @@ import { CardWrapper } from './CardWrapper'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
 import { StatusBadge } from '../ui/StatusBadge'
+import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+
+// Polling interval for status updates (can be adjusted if needed)
+const STATUS_POLL_MS = 3000
 
 interface QuantumStatusResponse {
   status: string
@@ -60,6 +64,9 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
 
   useEffect(() => {
     const fetchStatus = async () => {
+      // Skip fetch if polling is paused (e.g., dashboard settings modal open)
+      if (isGlobalQuantumPollingPaused()) return
+
       if (isDemoData) {
         setStatusData(DEMO_STATUS)
         setIsLoading(false)
@@ -89,7 +96,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     }
 
     fetchStatus()
-    const interval = setInterval(fetchStatus, 3000)
+    const interval = setInterval(fetchStatus, STATUS_POLL_MS)
     return () => clearInterval(interval)
   }, [isDemoData])
 

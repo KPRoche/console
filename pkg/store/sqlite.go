@@ -119,6 +119,7 @@ func (s *SQLiteStore) migrate() error {
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		name TEXT NOT NULL,
+		icon TEXT,
 		layout TEXT,
 		is_default INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -270,6 +271,7 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'viewer'",
 		"ALTER TABLE users ADD COLUMN slack_id TEXT",
 		"ALTER TABLE feature_requests ADD COLUMN closed_by_user INTEGER DEFAULT 0",
+		"ALTER TABLE dashboards ADD COLUMN icon TEXT",
 	}
 	for _, migration := range migrations {
 		// Ignore errors - column may already exist
@@ -493,12 +495,12 @@ func (s *SQLiteStore) SetUserOnboarded(userID uuid.UUID) error {
 // Dashboard methods
 
 func (s *SQLiteStore) GetDashboard(id uuid.UUID) (*models.Dashboard, error) {
-	row := s.db.QueryRow(`SELECT id, user_id, name, layout, is_default, created_at, updated_at FROM dashboards WHERE id = ?`, id.String())
+	row := s.db.QueryRow(`SELECT id, user_id, name, icon, layout, is_default, created_at, updated_at FROM dashboards WHERE id = ?`, id.String())
 	return s.scanDashboard(row)
 }
 
 func (s *SQLiteStore) GetUserDashboards(userID uuid.UUID) ([]models.Dashboard, error) {
-	rows, err := s.db.Query(`SELECT id, user_id, name, layout, is_default, created_at, updated_at FROM dashboards WHERE user_id = ? ORDER BY is_default DESC, created_at`, userID.String())
+	rows, err := s.db.Query(`SELECT id, user_id, name, icon, layout, is_default, created_at, updated_at FROM dashboards WHERE user_id = ? ORDER BY is_default DESC, created_at`, userID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -516,18 +518,19 @@ func (s *SQLiteStore) GetUserDashboards(userID uuid.UUID) ([]models.Dashboard, e
 }
 
 func (s *SQLiteStore) GetDefaultDashboard(userID uuid.UUID) (*models.Dashboard, error) {
-	row := s.db.QueryRow(`SELECT id, user_id, name, layout, is_default, created_at, updated_at FROM dashboards WHERE user_id = ? AND is_default = 1`, userID.String())
+	row := s.db.QueryRow(`SELECT id, user_id, name, icon, layout, is_default, created_at, updated_at FROM dashboards WHERE user_id = ? AND is_default = 1`, userID.String())
 	return s.scanDashboard(row)
 }
 
 func (s *SQLiteStore) scanDashboard(row *sql.Row) (*models.Dashboard, error) {
 	var d models.Dashboard
 	var idStr, userIDStr string
+	var icon sql.NullString
 	var layout sql.NullString
 	var isDefault int
 	var updatedAt sql.NullTime
 
-	err := row.Scan(&idStr, &userIDStr, &d.Name, &layout, &isDefault, &d.CreatedAt, &updatedAt)
+	err := row.Scan(&idStr, &userIDStr, &d.Name, &icon, &layout, &isDefault, &d.CreatedAt, &updatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -538,6 +541,9 @@ func (s *SQLiteStore) scanDashboard(row *sql.Row) (*models.Dashboard, error) {
 	d.ID = parseUUID(idStr, "d.ID")
 	d.UserID = parseUUID(userIDStr, "d.UserID")
 	d.IsDefault = isDefault == 1
+	if icon.Valid {
+		d.Icon = icon.String
+	}
 	if layout.Valid {
 		d.Layout = json.RawMessage(layout.String)
 	}
@@ -550,11 +556,12 @@ func (s *SQLiteStore) scanDashboard(row *sql.Row) (*models.Dashboard, error) {
 func (s *SQLiteStore) scanDashboardRow(rows *sql.Rows) (*models.Dashboard, error) {
 	var d models.Dashboard
 	var idStr, userIDStr string
+	var icon sql.NullString
 	var layout sql.NullString
 	var isDefault int
 	var updatedAt sql.NullTime
 
-	err := rows.Scan(&idStr, &userIDStr, &d.Name, &layout, &isDefault, &d.CreatedAt, &updatedAt)
+	err := rows.Scan(&idStr, &userIDStr, &d.Name, &icon, &layout, &isDefault, &d.CreatedAt, &updatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -562,6 +569,9 @@ func (s *SQLiteStore) scanDashboardRow(rows *sql.Rows) (*models.Dashboard, error
 	d.ID = parseUUID(idStr, "d.ID")
 	d.UserID = parseUUID(userIDStr, "d.UserID")
 	d.IsDefault = isDefault == 1
+	if icon.Valid {
+		d.Icon = icon.String
+	}
 	if layout.Valid {
 		d.Layout = json.RawMessage(layout.String)
 	}
@@ -583,8 +593,8 @@ func (s *SQLiteStore) CreateDashboard(dashboard *models.Dashboard) error {
 		layoutStr = &str
 	}
 
-	_, err := s.db.Exec(`INSERT INTO dashboards (id, user_id, name, layout, is_default, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		dashboard.ID.String(), dashboard.UserID.String(), dashboard.Name, layoutStr, boolToInt(dashboard.IsDefault), dashboard.CreatedAt)
+	_, err := s.db.Exec(`INSERT INTO dashboards (id, user_id, name, icon, layout, is_default, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		dashboard.ID.String(), dashboard.UserID.String(), dashboard.Name, dashboard.Icon, layoutStr, boolToInt(dashboard.IsDefault), dashboard.CreatedAt)
 	return err
 }
 
@@ -598,8 +608,8 @@ func (s *SQLiteStore) UpdateDashboard(dashboard *models.Dashboard) error {
 		layoutStr = &str
 	}
 
-	_, err := s.db.Exec(`UPDATE dashboards SET name = ?, layout = ?, is_default = ?, updated_at = ? WHERE id = ?`,
-		dashboard.Name, layoutStr, boolToInt(dashboard.IsDefault), dashboard.UpdatedAt, dashboard.ID.String())
+	_, err := s.db.Exec(`UPDATE dashboards SET name = ?, icon = ?, layout = ?, is_default = ?, updated_at = ? WHERE id = ?`,
+		dashboard.Name, dashboard.Icon, layoutStr, boolToInt(dashboard.IsDefault), dashboard.UpdatedAt, dashboard.ID.String())
 	return err
 }
 

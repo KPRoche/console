@@ -2,19 +2,22 @@ import React, { useEffect, useState } from 'react'
 import { CardWrapper } from './CardWrapper'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
+import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+
+const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 5000
 
 interface QuantumCircuitViewerProps {
   isDemoData?: boolean
 }
 
 export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDemoData = false }) => {
-  const [circuitImage, setCircuitImage] = useState<string | null>(null)
+  const [circuitAscii, setCircuitAscii] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFailed, setIsFailed] = useState(false)
 
   const { showSkeleton } = useCardLoadingState({
     isLoading,
-    hasAnyData: circuitImage !== null,
+    hasAnyData: circuitAscii !== null,
     isFailed,
     consecutiveFailures: isFailed ? 1 : 0,
     isDemoData,
@@ -22,16 +25,22 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
 
   useEffect(() => {
     const fetchCircuit = async () => {
+      // Skip fetch if polling is paused (e.g., dashboard settings modal open)
+      if (isGlobalQuantumPollingPaused()) return
+
       try {
         setIsLoading(true)
         setIsFailed(false)
-        const response = await fetch('http://localhost:5000/api/qasm/circuit/png')
+        const response = await fetch('http://localhost:30500/api/qasm/circuit/ascii')
         if (!response.ok) {
           throw new Error(`Failed to fetch circuit: ${response.statusText}`)
         }
-        const blob = await response.blob()
-        const imageUrl = URL.createObjectURL(blob)
-        setCircuitImage(imageUrl)
+        const html = await response.text()
+        const preMatch = html.match(/<pre>([\s\S]*?)<\/pre>/)
+        if (!preMatch) {
+          throw new Error('No circuit data found in response')
+        }
+        setCircuitAscii(preMatch[1].trimEnd())
       } catch (error) {
         console.error('Error fetching quantum circuit:', error)
         setIsFailed(true)
@@ -41,7 +50,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
     }
 
     fetchCircuit()
-    const interval = setInterval(fetchCircuit, 5000)
+    const interval = setInterval(fetchCircuit, CIRCUIT_ASCII_POLLING_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [])
 
@@ -61,14 +70,11 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
       isRefreshing={false}
     >
       <div className="p-4">
-        {circuitImage ? (
-          <div className="flex justify-center items-center overflow-auto">
-            <img
-              src={circuitImage}
-              alt="Quantum Circuit Diagram"
-              className="max-w-full h-auto object-contain"
-              style={{ maxHeight: '600px' }}
-            />
+        {circuitAscii ? (
+          <div className="overflow-auto bg-card rounded border border-border">
+            <pre className="font-mono text-sm p-4 m-0 whitespace-pre text-foreground">
+              {circuitAscii}
+            </pre>
           </div>
         ) : (
           <div className="text-center text-muted-foreground">

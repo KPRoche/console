@@ -194,7 +194,7 @@ function getTypeColor(index: number): string {
 // ---------------------------------------------------------------------------
 
 /** Extracted chart sub-component to keep the main component readable */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function GPUInventoryChart({ displayChartData, chartMode, chartGPUTypes, t }: {
   displayChartData: GPUHistoryDataPoint[]
   chartMode: ChartMode

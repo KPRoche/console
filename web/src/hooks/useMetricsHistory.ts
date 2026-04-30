@@ -215,7 +215,7 @@ export function useMetricsHistory() {
       clearTimeout(initialTimeout)
       clearInterval(intervalId)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])  
 
   // Manually trigger a snapshot
   const captureNow = () => {

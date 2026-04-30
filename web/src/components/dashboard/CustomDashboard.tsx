@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { GripVertical, Trash2, AlertTriangle } from 'lucide-react'
+import { getIcon } from '../../lib/icons'
 import {
   DndContext,
   closestCenter,
@@ -48,6 +49,8 @@ import { DashboardHeader } from '../shared/DashboardHeader'
 import { DashboardHealthIndicator } from './DashboardHealthIndicator'
 import { useDashboardUndoRedo } from '../../hooks/useUndoRedo'
 import { setAutoRefreshPaused } from '../../lib/cache'
+import { setGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+import { DashboardSettingsSection } from './customizer/sections/DashboardSettingsSection'
 
 interface Card {
   id: string
@@ -204,7 +207,7 @@ export function CustomDashboard() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { getDashboardWithCards, deleteDashboard, exportDashboard, importDashboard } = useDashboards()
+  const { getDashboardWithCards, deleteDashboard, exportDashboard, importDashboard, updateDashboard } = useDashboards()
   const { deduplicatedClusters, isLoading: isClustersLoading } = useClusters()
   const { config, removeItem } = useSidebarConfig()
   const { drillToAllClusters, drillToAllNodes, drillToAllPods } = useDrillDownActions()
@@ -254,6 +257,7 @@ export function CustomDashboard() {
   const { isOpen: isConfigureCardOpen, open: openConfigureCard, close: closeConfigureCard } = useModalState()
   const { isOpen: isTemplatesOpen, open: openTemplates, close: closeTemplates } = useModalState()
   const { isOpen: isDeleteConfirmOpen, open: openDeleteConfirm, close: closeDeleteConfirm } = useModalState()
+  const { isOpen: isSettingsOpen, open: openSettings, close: closeSettings } = useModalState()
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
 
   // Inline card insertion
@@ -323,6 +327,10 @@ export function CustomDashboard() {
           setCards(loadedCards)
           safeSetJSON(storageKey, loadedCards)
         }
+      } else if (!isRefresh) {
+        // If initial load fails, create a minimal dashboard object so UI doesn't stay stuck
+        // This allows demo mode to work with localStorage cards
+        setDashboard({ id, name: 'Dashboard', cards: [] })
       }
       setLastUpdated(new Date())
     } catch (error) {
@@ -377,6 +385,12 @@ useEffect(() => {
     const interval = setInterval(() => loadDashboard(true), POLL_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [autoRefresh, loadDashboard])
+
+  // Pause quantum card polling when settings modal opens/closes
+  useEffect(() => {
+    setGlobalQuantumPollingPaused(isSettingsOpen)
+    return () => setGlobalQuantumPollingPaused(false)
+  }, [isSettingsOpen])
 
   // Persist cards to localStorage when they change
   useEffect(() => {
@@ -495,6 +509,20 @@ useEffect(() => {
     showToast('Dashboard reset to empty', 'info')
   }
 
+  const handleIconChange = async (newIcon: string) => {
+    if (!id || !dashboard) return
+
+    try {
+      await updateDashboard(id, { icon: newIcon })
+      setDashboard(prev => prev ? { ...prev, icon: newIcon } : null)
+      showToast('Dashboard icon updated', 'success')
+      closeSettings()
+    } catch (error) {
+      console.error('Failed to update dashboard icon:', error)
+      showToast('Failed to update dashboard icon', 'error')
+    }
+  }
+
   const handleDeleteDashboard = () => {
     if (!id) return
 
@@ -561,6 +589,10 @@ useEffect(() => {
     )
   }
 
+  // Resolve icon component once, not on every render
+  const IconComponent = dashboard?.icon ? getIcon(dashboard.icon) : null
+  const iconElement = IconComponent ? <IconComponent className="w-6 h-6" /> : undefined
+
   return (
     <div className="pt-16">
       {/* Header - name from sidebar item takes priority for consistency */}
@@ -570,12 +602,14 @@ useEffect(() => {
           ? 'Add cards to start monitoring your clusters'
           : `${cards.length} card${cards.length !== 1 ? 's' : ''}`
         )}
+        icon={iconElement}
         isFetching={isFetching}
         onRefresh={triggerRefresh}
         autoRefresh={autoRefresh}
         onAutoRefreshChange={setAutoRefresh}
         lastUpdated={lastUpdated}
         afterTitle={<DashboardHealthIndicator />}
+        onSettings={openSettings}
         rightExtra={
           <button
             onClick={() => openDeleteConfirm()}
@@ -775,6 +809,27 @@ useEffect(() => {
             {t('dashboard.delete.title')}
           </button>
         </BaseModal.Footer>
+      </BaseModal>
+
+      {/* Dashboard Settings Modal */}
+      <BaseModal isOpen={isSettingsOpen} onClose={closeSettings} size="lg">
+        <BaseModal.Header
+          title={t('dashboard.settings')}
+          onClose={closeSettings}
+          showBack={false}
+        />
+        <BaseModal.Content>
+          {!dashboard ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              {t('common.loading', 'Loading...')}
+            </div>
+          ) : (
+            <DashboardSettingsSection
+              currentIcon={dashboard.icon}
+              onIconChange={handleIconChange}
+            />
+          )}
+        </BaseModal.Content>
       </BaseModal>
     </div>
   )

@@ -238,7 +238,7 @@ test.describe('Responsive Layout', () => {
       () => document.documentElement.scrollWidth > window.innerWidth
     )
     expect(hasHScroll).toBeFalsy()
-    // eslint-disable-next-line no-console
+     
     console.log(`Sidebar collapsed at mobile: ${isCollapsed}`)
   })
 

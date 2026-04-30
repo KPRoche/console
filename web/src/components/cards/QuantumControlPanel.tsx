@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { CardWrapper } from './CardWrapper'
 import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
+import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
 
 interface ControlState {
   backend: string
@@ -238,10 +239,20 @@ export const QuantumControlPanel: React.FC = () => {
   }, [])
 
   // Set up polling interval
+  // Reduced from 1s to 2.5s to avoid aggressive polling while still being responsive
+  // for loop_mode status updates
   useEffect(() => {
     if (!hasInitialized) return
-    
-    const interval = setInterval(() => fetchStatus(false), 1000)
+
+    // Skip polling if paused (e.g., dashboard settings modal open)
+    if (isGlobalQuantumPollingPaused()) return
+
+    const CONTROL_PANEL_POLL_MS = 2500
+    const interval = setInterval(() => {
+      if (!isGlobalQuantumPollingPaused()) {
+        fetchStatus(false)
+      }
+    }, CONTROL_PANEL_POLL_MS)
     return () => clearInterval(interval)
   }, [hasInitialized, fetchStatus])
 

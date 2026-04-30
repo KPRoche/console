@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { RefreshCw, Hourglass, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Hourglass, AlertTriangle, Settings } from 'lucide-react'
 import { getRememberPosition, setRememberPosition } from '../../hooks/useLastRoute'
 import { useTranslation } from 'react-i18next'
 
@@ -30,6 +30,8 @@ interface DashboardHeaderProps {
   rightExtra?: React.ReactNode
   /** Error message to display (optional) */
   error?: string | null
+  /** Called when the settings button is clicked */
+  onSettings?: () => void
 }
 
 /**
@@ -56,6 +58,7 @@ export function DashboardHeader({
   afterTitle,
   rightExtra,
   error,
+  onSettings,
 }: DashboardHeaderProps) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -139,6 +142,15 @@ export function DashboardHeader({
       <div className="flex flex-col items-end gap-0.5 shrink-0">
         <div className="flex items-center gap-3">
           {rightExtra}
+          {onSettings && (
+            <button
+              onClick={onSettings}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+              title={t('dashboard.settings')}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
           <label
             htmlFor={`remember-position-${autoRefreshId || 'default'}`}
             className="flex items-center gap-1.5 cursor-pointer text-xs text-muted-foreground"

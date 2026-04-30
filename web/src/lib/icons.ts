@@ -587,11 +587,30 @@ export const Slack: LucideIcon = Object.assign(
   { displayName: 'Slack' },
 ) as unknown as LucideIcon
 
+/** Qiskit logo */
+export const Qiskit: LucideIcon = Object.assign(
+  (props: SVGProps<SVGSVGElement> & { size?: number | string }) => {
+    const { size: s = 24, className, ...rest } = props
+    return createElement('svg', {
+      viewBox: '0 0 24 24', width: s, height: s, className,
+      fill: 'currentColor', ...rest,
+    },
+      // Qiskit's characteristic color blocks forming the Q-like shape
+      createElement('rect', { width: '8', height: '8', x: '2', y: '2' }),
+      createElement('rect', { width: '8', height: '8', x: '12', y: '2' }),
+      createElement('rect', { width: '8', height: '8', x: '2', y: '12' }),
+      createElement('rect', { width: '8', height: '8', x: '12', y: '12', fill: 'currentColor', opacity: '0.5' }),
+    )
+  },
+  { displayName: 'Qiskit' },
+) as unknown as LucideIcon
+
 // Add custom icons to registry
 iconRegistry.KubernetesWheel = KubernetesWheel
 iconRegistry.Github = Github
 iconRegistry.Linkedin = Linkedin
 iconRegistry.Slack = Slack
+iconRegistry.Qiskit = Qiskit
 
 /**
  * Resolve an icon component by name, falling back to HelpCircle if not found.

@@ -266,7 +266,7 @@ export function useInsightEnrichment(heuristicInsights: MultiClusterInsight[]): 
     return () => {
       if (requestRef.current) clearTimeout(requestRef.current)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [insightsKey, triggerEnrichment])
 
   const enrichedInsights = mergeEnrichments(heuristicInsights)

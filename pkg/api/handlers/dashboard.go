@@ -16,6 +16,7 @@ import (
 type DashboardExport struct {
 	Format       string             `json:"format"`
 	Name         string             `json:"name"`
+	Icon         string             `json:"icon,omitempty"`
 	Description  string             `json:"description,omitempty"`
 	ExportedAt   time.Time          `json:"exported_at"`
 	ExportedFrom string             `json:"exported_from,omitempty"`
@@ -75,6 +76,11 @@ func (h *DashboardHandler) GetDashboard(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get cards")
 	}
 
+	// Ensure cards is never nil for JSON serialization
+	if cards == nil {
+		cards = []models.Card{}
+	}
+
 	return c.JSON(models.DashboardWithCards{
 		Dashboard: *dashboard,
 		Cards:     cards,
@@ -87,6 +93,7 @@ func (h *DashboardHandler) CreateDashboard(c *fiber.Ctx) error {
 
 	var input struct {
 		Name      string `json:"name"`
+		Icon      string `json:"icon"`
 		IsDefault bool   `json:"is_default"`
 	}
 	if err := c.BodyParser(&input); err != nil {
@@ -100,6 +107,7 @@ func (h *DashboardHandler) CreateDashboard(c *fiber.Ctx) error {
 	dashboard := &models.Dashboard{
 		UserID:    userID,
 		Name:      input.Name,
+		Icon:      input.Icon,
 		IsDefault: input.IsDefault,
 	}
 
@@ -131,6 +139,7 @@ func (h *DashboardHandler) UpdateDashboard(c *fiber.Ctx) error {
 
 	var input struct {
 		Name      *string `json:"name"`
+		Icon      *string `json:"icon"`
 		IsDefault *bool   `json:"is_default"`
 	}
 	if err := c.BodyParser(&input); err != nil {
@@ -139,6 +148,9 @@ func (h *DashboardHandler) UpdateDashboard(c *fiber.Ctx) error {
 
 	if input.Name != nil {
 		dashboard.Name = *input.Name
+	}
+	if input.Icon != nil {
+		dashboard.Icon = *input.Icon
 	}
 	if input.IsDefault != nil {
 		dashboard.IsDefault = *input.IsDefault
@@ -214,6 +226,7 @@ func (h *DashboardHandler) ExportDashboard(c *fiber.Ctx) error {
 	export := DashboardExport{
 		Format:     "kc-dashboard-v1",
 		Name:       dashboard.Name,
+		Icon:       dashboard.Icon,
 		ExportedAt: time.Now().UTC(),
 		Layout:     dashboard.Layout,
 		Cards:      cardExports,
@@ -240,6 +253,7 @@ func (h *DashboardHandler) ImportDashboard(c *fiber.Ctx) error {
 	dashboard := &models.Dashboard{
 		UserID: userID,
 		Name:   input.Name,
+		Icon:   input.Icon,
 		Layout: input.Layout,
 	}
 	if err := h.store.CreateDashboard(dashboard); err != nil {

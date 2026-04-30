@@ -45,7 +45,7 @@ export function useStableEffect(
     }
 
     cleanupRef.current = effect()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   })
 
   // Run cleanup on unmount only

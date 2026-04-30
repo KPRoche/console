@@ -43,32 +43,32 @@ export function useDashboards() {
     loadDashboards()
   }, [loadDashboards])
 
-  const createDashboard = async (name: string, isDefault?: boolean) => {
+  const createDashboard = useCallback(async (name: string, isDefault?: boolean) => {
     const { data } = await api.post<Dashboard>('/api/dashboards', { name, is_default: isDefault })
     setDashboards((prev) => [...prev, data])
     emitDashboardCreated(name)
     return data
-  }
+  }, [])
 
-  const updateDashboard = async (id: string, updates: Partial<Dashboard>) => {
+  const updateDashboard = useCallback(async (id: string, updates: Partial<Dashboard>) => {
     const { data } = await api.put<Dashboard>(`/api/dashboards/${id}`, updates)
     setDashboards((prev) => prev.map((d) => (d.id === id ? data : d)))
     return data
-  }
+  }, [])
 
-  const deleteDashboard = async (id: string) => {
+  const deleteDashboard = useCallback(async (id: string) => {
     await api.delete(`/api/dashboards/${id}`)
     setDashboards((prev) => prev.filter((d) => d.id !== id))
     emitDashboardDeleted()
-  }
+  }, [])
 
-  const moveCardToDashboard = async (cardId: string, targetDashboardId: string) => {
+  const moveCardToDashboard = useCallback(async (cardId: string, targetDashboardId: string) => {
     const { data } = await api.post(`/api/cards/${cardId}/move`, {
       target_dashboard_id: targetDashboardId })
     return data
-  }
+  }, [])
 
-  const getDashboardWithCards = async (dashboardId: string): Promise<Dashboard | null> => {
+  const getDashboardWithCards = useCallback(async (dashboardId: string): Promise<Dashboard | null> => {
     // Local dashboards (created in demo/offline mode) start with "local-" and are stored in localStorage only
     if (dashboardId.startsWith('local-')) {
       return null // Local dashboards are not fetched from backend, only from localStorage
@@ -82,7 +82,7 @@ export function useDashboards() {
       // Return null - backend may be unavailable in demo mode
       return null
     }
-  }
+  }, [])
 
   const getAllDashboardsWithCards = async (): Promise<Dashboard[]> => {
     try {

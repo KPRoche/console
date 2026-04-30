@@ -215,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // reflect demo state immediately — without this, the in-cluster banner won't
     // render because Layout's auto-demo-enable effect skips when isInClusterMode.
     setGlobalDemoMode(true)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [])
 
   const refreshUser = useCallback(async (overrideToken?: string) => {

@@ -12,6 +12,7 @@ type Dashboard struct {
 	ID        uuid.UUID       `json:"id"`
 	UserID    uuid.UUID       `json:"user_id"`
 	Name      string          `json:"name"`
+	Icon      string          `json:"icon,omitempty"` // Lucide icon name (e.g., "Sparkles", "Zap")
 	Layout    json.RawMessage `json:"layout,omitempty"`
 	IsDefault bool            `json:"is_default"`
 	CreatedAt time.Time       `json:"created_at"`

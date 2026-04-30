@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { CardWrapper } from './CardWrapper'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
+import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+
+// Polling interval for qubit grid updates (adjustable for responsiveness)
+const QUBIT_GRID_DEFAULT_POLL_MS = 5500
 
 interface QubitSimpleData {
   num_qubits: number
@@ -142,7 +146,7 @@ export const QuantumQubitGrid: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
-  const [refreshInterval, setRefreshInterval] = useState(4000)
+  const [refreshInterval, setRefreshInterval] = useState(QUBIT_GRID_DEFAULT_POLL_MS)
   const [selectedMask, setSelectedMask] = useState<MaskKey>('ibm_qx5')
   const [versionInfo, setVersionInfo] = useState<{ version: string; commit: string; timestamp: string } | null>(null)
 
@@ -242,7 +246,12 @@ export const QuantumQubitGrid: React.FC = () => {
     }
 
     fetchQubits()
-    const interval = setInterval(fetchQubits, refreshInterval)
+    const interval = setInterval(() => {
+      // Skip polling if paused (e.g., dashboard settings modal open)
+      if (!isGlobalQuantumPollingPaused()) {
+        fetchQubits()
+      }
+    }, refreshInterval)
     return () => clearInterval(interval)
   }, [refreshInterval])
 

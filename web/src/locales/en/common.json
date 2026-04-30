@@ -892,6 +892,7 @@
       "warning": "This action cannot be undone",
       "details": "The dashboard and all its cards will be permanently removed from the sidebar."
     },
+    "settings": "Dashboard Settings",
     "addCard": {
       "title": "Add Cards",
       "browseCards": "Browse Cards",
