@@ -309,6 +309,15 @@ export function CustomDashboard() {
         if (parsed && Array.isArray(parsed) && parsed.length > 0) {
           setCards(parsed)
         }
+
+        // Also try to load dashboard metadata from localStorage for local dashboards
+        if (id?.startsWith('local-')) {
+          const dashboardMetadataKey = `kubestellar-custom-dashboard-${id}-metadata`
+          const dashboardMetadata = safeGetJSON<Dashboard>(dashboardMetadataKey)
+          if (dashboardMetadata) {
+            setDashboard(dashboardMetadata)
+          }
+        }
       }
 
       // Then fetch from API
@@ -398,6 +407,15 @@ useEffect(() => {
       safeSetJSON(storageKey, cards)
     }
   }, [cards, storageKey])
+
+  // Persist dashboard metadata (icon, name) to localStorage when it changes
+  useEffect(() => {
+    if (dashboard && id?.startsWith('local-')) {
+      const dashboardMetadataKey = `kubestellar-custom-dashboard-${id}-metadata`
+      console.log('Persisting dashboard metadata to localStorage:', { id, dashboardMetadataKey, dashboard })
+      safeSetJSON(dashboardMetadataKey, dashboard)
+    }
+  }, [dashboard, id])
 
   // Card operations
   const handleAddCards = async (newCards: Array<{ type: string; title: string; config: Record<string, unknown> }>) => {
@@ -510,10 +528,15 @@ useEffect(() => {
   }
 
   const handleIconChange = async (newIcon: string) => {
-    if (!id || !dashboard) return
+    if (!id || !dashboard) {
+      console.log('handleIconChange early return:', { id, dashboard: !!dashboard })
+      return
+    }
 
     try {
+      console.log('handleIconChange: updating icon', { id, newIcon, currentIcon: dashboard.icon })
       await updateDashboard(id, { icon: newIcon })
+      console.log('handleIconChange: updateDashboard completed, setting state')
       setDashboard(prev => prev ? { ...prev, icon: newIcon } : null)
       showToast('Dashboard icon updated', 'success')
       closeSettings()

@@ -51,6 +51,14 @@ export function useDashboards() {
   }, [])
 
   const updateDashboard = useCallback(async (id: string, updates: Partial<Dashboard>) => {
+    // Local dashboards (created in demo/offline mode) are stored in localStorage only
+    if (id.startsWith('local-')) {
+      // For local dashboards, update is handled by the component's localStorage persistence
+      // Just return the updated object for immediate UI feedback
+      const updated: Dashboard = { id, name: 'Dashboard', ...updates } as Dashboard
+      return updated
+    }
+
     const { data } = await api.put<Dashboard>(`/api/dashboards/${id}`, updates)
     setDashboards((prev) => prev.map((d) => (d.id === id ? data : d)))
     return data
