@@ -3,6 +3,7 @@ import { CardWrapper } from './CardWrapper'
 import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+import { CustomQASMModal } from './CustomQASMModal'
 
 interface ControlState {
   backend: string
@@ -102,6 +103,11 @@ export const QuantumControlPanel: React.FC = () => {
   const [credentialForm, setCredentialForm] = useState({ apiKey: '', crn: '' })
   const [credentialError, setCredentialError] = useState<string | null>(null)
   const [credentialSaving, setCredentialSaving] = useState(false)
+
+  // Custom QASM support
+  const [showCustomQasmModal, setShowCustomQasmModal] = useState(false)
+  const [customQasmContent, setCustomQasmContent] = useState<string>('')
+  const [previousQasmFile, setPreviousQasmFile] = useState<string>(DEMO_DATA.qasm_file)
 
   const isDemoFallback = consecutiveFailures >= 3
 
@@ -259,15 +265,22 @@ export const QuantumControlPanel: React.FC = () => {
   const handleExecute = async () => {
     setControl(prev => ({ ...prev, executing: true }))
     try {
+      const payload: Record<string, unknown> = {
+        backend: control.backend,
+        shots: control.shots,
+      }
+
+      if (control.qasm_file === 'custom') {
+        payload.qasm_content = customQasmContent
+      } else {
+        payload.qasm_file = control.qasm_file
+      }
+
       const response = await fetch('/api/quantum/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          qasm_file: control.qasm_file,
-          backend: control.backend,
-          shots: control.shots,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) throw new Error('Execution failed')
@@ -467,13 +480,32 @@ export const QuantumControlPanel: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               QASM File
             </label>
-            <input
-              type="text"
+            <select
               value={control.qasm_file}
-              onChange={e => setControl(prev => ({ ...prev, qasm_file: e.target.value }))}
+              onChange={e => {
+                const val = e.target.value
+                if (val === 'custom') {
+                  setPreviousQasmFile(control.qasm_file)
+                  setShowCustomQasmModal(true)
+                } else {
+                  setControl(prev => ({ ...prev, qasm_file: val }))
+                }
+              }}
               disabled={control.executing}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
-            />
+            >
+              <option value="expt.qasm">expt.qasm (5 qubits)</option>
+              <option value="expt12.qasm">expt12.qasm (12 qubits)</option>
+              <option value="expt16.qasm">expt16.qasm (16 qubits)</option>
+              <option value="expt32.qasm">expt32.qasm (32 qubits)</option>
+              <option disabled>─────────────────</option>
+              <option value="custom">Custom QASM...</option>
+            </select>
+            {control.qasm_file === 'custom' && customQasmContent && (
+              <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                ✓ Custom circuit loaded ({customQasmContent.length} bytes)
+              </p>
+            )}
           </div>
 
           {/* Loop Mode Toggle */}
@@ -505,7 +537,7 @@ export const QuantumControlPanel: React.FC = () => {
             className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-50 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
             <Play className="w-4 h-4" />
-            {control.executing ? 'Executing...' : 'Execute Circuit'}
+            {control.executing ? 'Executing...' : control.loop_mode ? 'Update Parameters' : 'Execute Circuit'}
           </button>
 
           {/* Status Display */}
@@ -714,6 +746,21 @@ export const QuantumControlPanel: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Custom QASM Modal */}
+        <CustomQASMModal
+          isOpen={showCustomQasmModal}
+          initialContent={customQasmContent}
+          onSubmit={(content) => {
+            setCustomQasmContent(content)
+            setControl(prev => ({ ...prev, qasm_file: 'custom' }))
+            setShowCustomQasmModal(false)
+          }}
+          onCancel={() => {
+            setControl(prev => ({ ...prev, qasm_file: previousQasmFile }))
+            setShowCustomQasmModal(false)
+          }}
+        />
       </div>
     </CardWrapper>
   )
