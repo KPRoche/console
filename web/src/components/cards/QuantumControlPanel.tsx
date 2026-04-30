@@ -265,15 +265,29 @@ export const QuantumControlPanel: React.FC = () => {
   const handleExecute = async () => {
     setControl(prev => ({ ...prev, executing: true }))
     try {
+      let qasmFilename = control.qasm_file
+
+      if (control.qasm_file === 'custom') {
+        const timestamp = Date.now()
+        qasmFilename = `custom_${timestamp}.qasm`
+
+        const uploadRes = await fetch('/api/qasm/file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: qasmFilename,
+            content: customQasmContent,
+          }),
+        })
+
+        if (!uploadRes.ok) throw new Error('Failed to save custom QASM')
+      }
+
       const payload: Record<string, unknown> = {
         backend: control.backend,
         shots: control.shots,
-      }
-
-      if (control.qasm_file === 'custom') {
-        payload.qasm_content = customQasmContent
-      } else {
-        payload.qasm_file = control.qasm_file
+        qasm_file: qasmFilename,
       }
 
       const response = await fetch('/api/quantum/execute', {
