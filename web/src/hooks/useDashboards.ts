@@ -13,6 +13,7 @@ export interface DashboardCard {
 export interface Dashboard {
   id: string
   name: string
+  icon?: string // Lucide icon name (e.g., "Sparkles", "Zap")
   is_default?: boolean
   created_at?: string
   updated_at?: string
@@ -68,11 +69,17 @@ export function useDashboards() {
   }
 
   const getDashboardWithCards = async (dashboardId: string): Promise<Dashboard | null> => {
+    // Local dashboards (created in demo/offline mode) start with "local-" and are stored in localStorage only
+    if (dashboardId.startsWith('local-')) {
+      return null // Local dashboards are not fetched from backend, only from localStorage
+    }
+
     try {
       const { data } = await api.get<Dashboard>(`/api/dashboards/${dashboardId}`)
       return data
-    } catch {
-      // Silently fail - backend may be unavailable in demo mode
+    } catch (error) {
+      console.error(`Failed to fetch dashboard ${dashboardId}:`, error)
+      // Return null - backend may be unavailable in demo mode
       return null
     }
   }
