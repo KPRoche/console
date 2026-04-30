@@ -209,13 +209,33 @@ export function CustomDashboard() {
   const { showToast } = useToast()
   const { getDashboardWithCards, deleteDashboard, exportDashboard, importDashboard, updateDashboard } = useDashboards()
   const { deduplicatedClusters, isLoading: isClustersLoading } = useClusters()
-  const { config, removeItem } = useSidebarConfig()
+  const { config, removeItem, updateItem } = useSidebarConfig()
   const { drillToAllClusters, drillToAllNodes, drillToAllPods } = useDrillDownActions()
   const { t } = useTranslation()
 
   // Find the sidebar item matching this dashboard to get name/description
-  const sidebarItem = [...config.primaryNav, ...config.secondaryNav]
+  // First try exact href match, then fallback to searching for custom dashboards with matching ID
+  let sidebarItem = [...config.primaryNav, ...config.secondaryNav]
       .find(item => item.href === `/custom-dashboard/${id}`)
+
+  // Fallback: if exact match fails, try matching just the dashboard ID in the href
+  if (!sidebarItem && id) {
+    sidebarItem = [...config.primaryNav, ...config.secondaryNav]
+      .find(item => item.href.includes(`/custom-dashboard/${id}`) || item.href.endsWith(`/${id}`))
+  }
+
+  // Diagnostic: log if sidebar item not found
+  useEffect(() => {
+    if (!sidebarItem && id) {
+      console.warn('CustomDashboard: sidebar item not found for dashboard', {
+        dashboardId: id,
+        expectedHref: `/custom-dashboard/${id}`,
+        availableItems: [...config.primaryNav, ...config.secondaryNav]
+          .filter(i => i.isCustom)
+          .map(i => ({ id: i.id, href: i.href, name: i.name }))
+      })
+    }
+  }, [sidebarItem, id, config])
 
   // Stats data from clusters
   const healthyClusters = deduplicatedClusters.filter((c) => c.healthy === true && c.reachable !== false).length
@@ -534,10 +554,26 @@ useEffect(() => {
     }
 
     try {
-      console.log('handleIconChange: updating icon', { id, newIcon, currentIcon: dashboard.icon })
+      console.log('handleIconChange: starting', { id, newIcon, currentIcon: dashboard.icon, sidebarItemFound: !!sidebarItem, sidebarItemId: sidebarItem?.id, sidebarItemHref: sidebarItem?.href })
       await updateDashboard(id, { icon: newIcon })
       console.log('handleIconChange: updateDashboard completed, setting state')
       setDashboard(prev => prev ? { ...prev, icon: newIcon } : null)
+
+      // Update sidebar icon to keep them in sync
+      if (sidebarItem) {
+        console.log('handleIconChange: calling updateItem', { sidebarItemId: sidebarItem.id, sidebarItemHref: sidebarItem.href, newIcon })
+        updateItem(sidebarItem.id, { icon: newIcon })
+        console.log('handleIconChange: updateItem completed', { sidebarItemId: sidebarItem.id })
+      } else {
+        console.warn('handleIconChange: sidebarItem NOT FOUND - sidebar icon will NOT be updated', {
+          dashboardId: id,
+          expectedPattern: `/custom-dashboard/${id}`,
+          primaryNavCount: config.primaryNav.length,
+          secondaryNavCount: config.secondaryNav.length,
+          customDashboardsInSidebar: [...config.primaryNav, ...config.secondaryNav].filter(i => i.isCustom).map(i => ({ id: i.id, href: i.href, name: i.name }))
+        })
+      }
+
       showToast('Dashboard icon updated', 'success')
       closeSettings()
     } catch (error) {
