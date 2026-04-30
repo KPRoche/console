@@ -29,6 +29,33 @@ const DEMO_LOOP_RESPONSE = {
   loop_id: "demo-loop-456",
 };
 
+const DEMO_CIRCUIT_ASCII_HTML = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Circuit Diagram</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        pre { background: white; padding: 15px; border-radius: 5px; overflow-x: auto; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <pre>     ┌───┐ ░ ┌─┐
+q_0: ┤ H ├─░─┤M├─────────
+     ├───┤ ░ └╥┘┌─┐
+q_1: ┤ H ├─░──╫─┤M├──────
+     ├───┤ ░  ║ └╥┘┌─┐
+q_2: ┤ H ├─░──╫──╫─┤M├───
+     ├───┤ ░  ║  ║ └╥┘┌─┐
+q_3: ┤ H ├─░──╫──╫──╫─┤M├
+     ├───┤ ░  ║  ║  ║ └╥┘
+q_4: ┤ H ├─░──╫──╫──╫──╫─
+     └───┘ ░  ║  ║  ║  ║
+c: 5/═════════╩══╩══╩══╩═
+              0  1  2  3 </pre>
+</body>
+</html>`;
+
 export default async (req: Request, context: Context): Promise<Response> => {
   const url = new URL(req.url);
   const path = url.pathname.replace("/.netlify/functions/quantum-proxy", "");
@@ -70,6 +97,12 @@ export default async (req: Request, context: Context): Promise<Response> => {
         return new Response(JSON.stringify({ status: "stopped" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (path === "/qasm/circuit/ascii") {
+        return new Response(DEMO_CIRCUIT_ASCII_HTML, {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
         });
       }
     }

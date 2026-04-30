@@ -31,7 +31,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
       try {
         setIsLoading(true)
         setIsFailed(false)
-        const response = await fetch('http://localhost:30500/api/qasm/circuit/ascii')
+        const response = await fetch('/api/quantum/qasm/circuit/ascii')
         if (!response.ok) {
           throw new Error(`Failed to fetch circuit: ${response.statusText}`)
         }
