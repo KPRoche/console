@@ -11,7 +11,7 @@ interface CustomQASMModalProps {
   initialContent?: string
 }
 
-const VALID_QASM_STARTS = ['OPENQASM', 'qasm', '//']
+const VALID_QASM_STARTS = ['openqasm', 'qasm', '//']
 const MAX_SIZE_BYTES = 50 * 1024 // 50KB
 
 const validateQASM = (content: string): { valid: boolean; error?: string } => {
