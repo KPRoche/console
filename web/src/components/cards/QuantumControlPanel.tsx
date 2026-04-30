@@ -480,27 +480,41 @@ export const QuantumControlPanel: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               QASM File
             </label>
-            <select
-              value={control.qasm_file}
-              onChange={e => {
-                const val = e.target.value
-                if (val === 'custom') {
-                  setPreviousQasmFile(control.qasm_file)
-                  setShowCustomQasmModal(true)
-                } else {
-                  setControl(prev => ({ ...prev, qasm_file: val }))
-                }
-              }}
-              disabled={control.executing}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
-            >
-              <option value="expt.qasm">expt.qasm (5 qubits)</option>
-              <option value="expt12.qasm">expt12.qasm (12 qubits)</option>
-              <option value="expt16.qasm">expt16.qasm (16 qubits)</option>
-              <option value="expt32.qasm">expt32.qasm (32 qubits)</option>
-              <option disabled>─────────────────</option>
-              <option value="custom">Custom QASM...</option>
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={control.qasm_file}
+                onChange={e => {
+                  const val = e.target.value
+                  if (val === 'custom') {
+                    setPreviousQasmFile(control.qasm_file)
+                    setShowCustomQasmModal(true)
+                  } else {
+                    setControl(prev => ({ ...prev, qasm_file: val }))
+                  }
+                }}
+                disabled={control.executing}
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
+              >
+                <option value="expt.qasm">expt.qasm (5 qubits)</option>
+                <option value="expt12.qasm">expt12.qasm (12 qubits)</option>
+                <option value="expt16.qasm">expt16.qasm (16 qubits)</option>
+                <option value="expt32.qasm">expt32.qasm (32 qubits)</option>
+                <option disabled>─────────────────</option>
+                <option value="custom">Custom QASM...</option>
+              </select>
+              {control.qasm_file === 'custom' && customQasmContent && (
+                <button
+                  onClick={() => setShowCustomQasmModal(true)}
+                  disabled={control.executing}
+                  className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                  title="Edit custom QASM"
+                >
+                  <svg className="w-4 h-4 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {control.qasm_file === 'custom' && customQasmContent && (
               <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
                 ✓ Custom circuit loaded ({customQasmContent.length} bytes)
