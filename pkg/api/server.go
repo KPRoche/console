@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1081,9 +1083,13 @@ func (s *Server) setupRoutes() {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		// Create HTTP request to quantum backend
-		reqBody := fmt.Sprintf(`{"name":"%s","content":"%s"}`, data.Name, strings.ReplaceAll(data.Content, `"`, `\"`))
-		req, err := http.NewRequest("POST", "http://localhost:30500/api/qasm/file", strings.NewReader(reqBody))
+		// Create HTTP request to quantum backend with properly encoded JSON
+		payload := fiber.Map{"name": data.Name, "content": data.Content}
+		bodyBytes, err := json.Marshal(payload)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to marshal request"})
+		}
+		req, err := http.NewRequest("POST", "http://localhost:30500/api/qasm/file", bytes.NewReader(bodyBytes))
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
 		}
