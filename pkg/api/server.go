@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -1067,6 +1068,47 @@ func (s *Server) setupRoutes() {
 	quantumHandler := handlers.NewQuantumProxyHandler()
 	api.Get("/quantum/*", quantumHandler.ProxyRequest)
 	api.Post("/quantum/*", quantumHandler.ProxyPostRequest)
+
+	// Quantum QASM file routes (for custom QASM uploads)
+	// These proxy to the Flask backend's /api/qasm/* endpoints
+	api.Post("/qasm/file", func(c *fiber.Ctx) error {
+		// Parse request body
+		var data struct {
+			Name    string `json:"name"`
+			Content string `json:"content"`
+		}
+		if err := c.BodyParser(&data); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		// Create HTTP request to quantum backend
+		reqBody := fmt.Sprintf(`{"name":"%s","content":"%s"}`, data.Name, strings.ReplaceAll(data.Content, `"`, `\"`))
+		req, err := http.NewRequest("POST", "http://localhost:30500/api/qasm/file", strings.NewReader(reqBody))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
+		}
+
+		// Copy headers
+		req.Header.Set("Content-Type", "application/json")
+
+		// Execute request
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": fmt.Sprintf("Quantum service unavailable: %v", err)})
+		}
+		defer resp.Body.Close()
+
+		// Read and forward response
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read response"})
+		}
+
+		c.Status(resp.StatusCode)
+		c.Set("Content-Type", resp.Header.Get("Content-Type"))
+		return c.Send(body)
+	})
 
 	// WebSocket for real-time updates
 	s.app.Use("/ws", middleware.WebSocketUpgrade())
