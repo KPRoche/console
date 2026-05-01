@@ -1073,6 +1073,11 @@ func (s *Server) setupRoutes() {
 
 	// Quantum QASM file routes (for custom QASM uploads)
 	// These proxy to the Flask backend's /api/qasm/* endpoints
+	quantumServiceURL := os.Getenv("QUANTUM_SERVICE_URL")
+	if quantumServiceURL == "" {
+		quantumServiceURL = "http://localhost:5000"
+	}
+
 	api.Post("/qasm/file", func(c *fiber.Ctx) error {
 		// Parse request body
 		var data struct {
@@ -1089,7 +1094,7 @@ func (s *Server) setupRoutes() {
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to marshal request"})
 		}
-		req, err := http.NewRequest("POST", "http://localhost:30500/api/qasm/file", bytes.NewReader(bodyBytes))
+		req, err := http.NewRequest("POST", quantumServiceURL+"/api/qasm/file", bytes.NewReader(bodyBytes))
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
 		}
