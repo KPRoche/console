@@ -71,6 +71,29 @@ deploy/helm/       Helm chart
 - **Backend**: Must always run on port **8080**
 - **Frontend**: Must always start on port **5174** (use `npm run dev -- --port 5174`)
 
+## Quantum Service Integration
+
+The console can integrate with [quantum-kc-demo](https://github.com/KPRoche/quantum-kc-demo) to provide quantum computing cards (circuit execution, results visualization, etc.).
+
+### Configuration
+
+Set the `QUANTUM_SERVICE_URL` environment variable before starting the backend:
+```bash
+export QUANTUM_SERVICE_URL=http://localhost:30500  # kind with NodePort
+export QUANTUM_SERVICE_URL=http://localhost:5000   # port-forward (default)
+export QUANTUM_SERVICE_URL=http://quantum-kc-demo.apps.your-cluster.com  # OpenShift Route
+```
+
+If not set, defaults to `http://localhost:5000` (local port-forward).
+
+### Deployment Guide
+
+See [docs/QUANTUM_DEPLOYMENT.md](docs/QUANTUM_DEPLOYMENT.md) for complete instructions on:
+- Deploying quantum-kc-demo to your cluster (kind, OpenShift, cloud)
+- Configuring service exposure (NodePort, LoadBalancer, Route, port-forward)
+- Connecting the console backend to the quantum service
+- Using quantum cards in the console
+
 ## Development
 
 ### Starting the Console (Recommended)
