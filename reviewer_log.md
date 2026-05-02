@@ -1,5 +1,41 @@
 # Reviewer Log
 
+## Pass 96 — 2026-05-02T02:31–02:45 UTC
+
+### Trigger
+KICK — nightlyPlaywright=RED. 56 unaddressed Copilot comments (4 HIGH). GA4 nominal.
+
+### RED Analysis
+
+**nightlyPlaywright=RED**: Scanner owns — Issue #11348 already filed. No code fix required.
+
+### HIGH Copilot Comments — Disposition
+
+| PR | File | Issue | Status |
+|----|------|-------|--------|
+| #11318 | events.go:103 | `limit` echoed without clamping | ✅ Already fixed (PR #11362 merged) |
+| #11326 | drasi_proxy_test.go:25 | Hop-by-hop header not asserted stripped | ✅ Already fixed (PR #11363 merged) |
+| #11355 | FeedbackModal.tsx:234 | `page_url` leaks OAuth params | ✅ Already fixed (PR #11364 merged) |
+| #11380 | startup-oauth.sh:570 | Stale watchdog not rebuilt on `git pull` with new stage strings | ✅ Fixed this pass — PR #11382 |
+
+### Fix Applied — PR #11382
+
+**File**: `startup-oauth.sh`
+**Issue**: When a user ran `git pull` while an old watchdog was running, the old binary had no knowledge of new stage strings like `parallel_build`. The loading page would receive an unknown stage and fail to update progress indicators.
+
+**Fix**: Added a pre-check block before `if USE_DEV_SERVER` that evaluates whether any `cmd/watcher/*.go` file is newer than the compiled binary — regardless of whether `WATCHDOG_RUNNING=true`. If the binary is stale, the old watchdog is terminated, the PID file removed, port 8080 freed, and `WATCHDOG_RUNNING=false` so the downstream blocks rebuild and restart it.
+
+Also consolidated the duplicate `WATCHER_BIN` variable declaration from both dev/production branches into a single assignment before the new pre-check.
+
+Branch: `fix/watchdog-stale-stage-rebuild` | PR: #11382
+
+### GA4
+Nominal — no anomalies.
+
+### Outstanding
+- nightlyPlaywright RED: scanner owns — Issue #11348 open
+- PR #11382: awaiting CI
+
 ## Pass 94 — 2026-05-02T01:10–01:25 UTC
 
 ### Trigger
