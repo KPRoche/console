@@ -43,7 +43,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -67,7 +67,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -91,7 +91,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -115,7 +115,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -139,7 +139,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -161,7 +161,7 @@ describe('fetcherUtils backend routing', () => {
       }))
       vi.doMock('../../constants', () => ({
         LOCAL_AGENT_HTTP_URL: 'http://127.0.0.1:8585',
-        STORAGE_KEY_TOKEN: 'kc-token',
+        STORAGE_KEY_TOKEN: 'token',
       }))
       vi.doMock('../../constants/network', () => ({ FETCH_DEFAULT_TIMEOUT_MS: 10_000 }))
       vi.doMock('../../utils/concurrency', () => ({ settledWithConcurrency: vi.fn() }))
@@ -216,7 +216,7 @@ describe('agentFetchers failure paths', () => {
     }))
     vi.doMock('../constants', () => ({
       LOCAL_AGENT_HTTP_URL: 'http://localhost:8089',
-      STORAGE_KEY_TOKEN: 'kc-token',
+      STORAGE_KEY_TOKEN: 'token',
       FETCH_DEFAULT_TIMEOUT_MS: 10_000,
     }))
     vi.doMock('../constants/network', () => ({
@@ -440,7 +440,7 @@ describe('agentFetchers failure paths', () => {
 
     it('returns null when no auth token', async () => {
       mockIsAgentUnavailable.mockReturnValue(false)
-      localStorage.removeItem('kc-token')
+      localStorage.removeItem('token')
       const { fetchCiliumStatus } = await import('../../hooks/useCachedData/agentFetchers')
       const result = await fetchCiliumStatus()
       expect(result).toBeNull()
@@ -448,7 +448,7 @@ describe('agentFetchers failure paths', () => {
 
     it('returns null when token is demo-token', async () => {
       mockIsAgentUnavailable.mockReturnValue(false)
-      localStorage.setItem('kc-token', 'demo-token')
+      localStorage.setItem('token', 'demo-token')
       const { fetchCiliumStatus } = await import('../../hooks/useCachedData/agentFetchers')
       const result = await fetchCiliumStatus()
       expect(result).toBeNull()
@@ -456,7 +456,7 @@ describe('agentFetchers failure paths', () => {
 
     it('returns null on fetch error (suppresses console noise)', async () => {
       mockIsAgentUnavailable.mockReturnValue(false)
-      localStorage.setItem('kc-token', 'real-token-123')
+      localStorage.setItem('token', 'real-token-123')
       mockAgentFetch.mockRejectedValue(new Error('Connection refused'))
 
       const { fetchCiliumStatus } = await import('../../hooks/useCachedData/agentFetchers')
@@ -466,7 +466,7 @@ describe('agentFetchers failure paths', () => {
 
     it('returns null on non-ok HTTP response', async () => {
       mockIsAgentUnavailable.mockReturnValue(false)
-      localStorage.setItem('kc-token', 'real-token-123')
+      localStorage.setItem('token', 'real-token-123')
       mockAgentFetch.mockResolvedValue({ ok: false, status: 404 })
 
       const { fetchCiliumStatus } = await import('../../hooks/useCachedData/agentFetchers')

@@ -10,6 +10,7 @@ import {
   subscribeWorkloadsCache,
   getWorkloadsSharedState,
   setWorkloadsSharedState,
+  _clearSubscribersForTest,
   type WorkloadsSharedState,
   type WorkloadsSubscriber,
 } from '../workloadSubscriptions'
@@ -18,10 +19,11 @@ import {
 // Reset module state between tests to avoid leakage
 // ---------------------------------------------------------------------------
 
-// We manipulate module-level state directly, so reset via setWorkloadsSharedState
-// and unsubscribe all callbacks using the unsubscribe handles returned by subscribe.
+// Reset shared state AND clear the subscriber Set so that a test which
+// throws before calling unsub() cannot leak callbacks into later tests.
 beforeEach(() => {
   setWorkloadsSharedState({ cacheVersion: 0, isResetting: false })
+  _clearSubscribersForTest()
 })
 
 // ---------------------------------------------------------------------------
@@ -157,7 +159,7 @@ describe('subscribeWorkloadsCache', () => {
   })
 
   it('notifying with no subscribers is safe', () => {
-    // All subscribers from previous tests should be cleaned up via beforeEach
+    // beforeEach calls _clearSubscribersForTest() so the set is always empty here
     // Re-confirm: notify with zero subscribers should not throw
     expect(() => notifyWorkloadsSubscribers()).not.toThrow()
   })
