@@ -125,6 +125,7 @@ const QuantumControlPanel = safeLazy(() => _quantumBundle, 'QuantumControlPanel'
 const QuantumQubitGrid = safeLazy(() => _quantumBundle, 'QuantumQubitGrid')
 const QuantumStatus = safeLazy(() => _quantumBundle, 'QuantumStatus')
 const QuantumCircuitViewer = safeLazy(() => _quantumBundle, 'QuantumCircuitViewer')
+const QuantumHistogramCard = safeLazy(() => _quantumBundle, 'QuantumHistogramCard')
 // Arcade/game cards — share one chunk via barrel import.
 // Eagerly start loading the bundle at module parse time so all 24 game cards
 // share one HTTP request instead of 24 separate ones. This also ensures that
@@ -346,6 +347,7 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   quantum_qubit_grid: QuantumQubitGrid,
   quantum_status: QuantumStatus,
   quantum_circuit_viewer: QuantumCircuitViewer,
+  quantum_histogram: QuantumHistogramCard,
   // Live data trend cards
   events_timeline: EventsTimeline,
   pod_health_trend: PodHealthTrend,
@@ -993,6 +995,12 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   console_ai_issues: () => import('./console-missions/ConsoleIssuesCard'),
   console_ai_kubeconfig_audit: () => import('./console-missions/ConsoleKubeconfigAuditCard'),
   console_ai_health_check: () => import('./console-missions/ConsoleHealthCheckCard'),
+  // Quantum computing cards — all share one chunk via barrel import
+  quantum_control: () => _quantumBundle,
+  quantum_qubit_grid: () => _quantumBundle,
+  quantum_status: () => _quantumBundle,
+  quantum_circuit_viewer: () => _quantumBundle,
+  quantum_histogram: () => _quantumBundle,
   // RSS Feed & utilities
   rss_feed: () => import('./rss'),
   kubectl: () => import('./Kubectl'),
@@ -1374,6 +1382,12 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   vault_secrets: 4,
   external_secrets: 4,
   cert_manager: 4,
+  // Quantum computing cards
+  quantum_control: 6,
+  quantum_qubit_grid: 6,
+  quantum_status: 4,
+  quantum_circuit_viewer: 6,
+  quantum_histogram: 6,
   // Workload detection cards
   prow_jobs: 6,
   prow_status: 4,

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { CardWrapper } from './CardWrapper'
 import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
@@ -125,19 +124,19 @@ export const QuantumControlPanel: React.FC = () => {
     try {
       setIsRefreshing(true)
       const res = await fetch('/api/quantum/status', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       })
 
       if (!res.ok) {
-        const errorBody = await res.text()
-        console.error('[Quantum] Request failed:', {
+      const errorBody = await res.text()
+      console.error('[Quantum] Request failed:', {
           status: res.status,
           statusText: res.statusText,
           body: errorBody,
-        })
-        throw new Error(`Failed to fetch status (${res.status}): ${errorBody}`)
+      })
+      throw new Error(`Failed to fetch status (${res.status}): ${errorBody}`)
       }
 
       const data = await res.json()
@@ -148,36 +147,36 @@ export const QuantumControlPanel: React.FC = () => {
       // Fix #3: Only sync backend config on initial load, not on every poll
       // This prevents the shots value from being overwritten by user input
       if (isInitialLoad) {
-        const backendInfo = data.backend_info || { name: control.backend, shots: control.shots }
-        setControl(prev => ({
+      const backendInfo = data.backend_info || { name: control.backend, shots: control.shots }
+      setControl(prev => ({
           ...prev,
           backend: backendInfo?.name || prev.backend,
           shots: backendInfo?.shots || prev.shots,
           loop_mode: data.loop_mode !== undefined ? data.loop_mode : prev.loop_mode,
-        }))
+      }))
       } else {
-        // On subsequent polls, only update loop_mode, not shots
-        setControl(prev => ({
+      // On subsequent polls, only update loop_mode, not shots
+      setControl(prev => ({
           ...prev,
           loop_mode: data.loop_mode !== undefined ? data.loop_mode : prev.loop_mode,
-        }))
+      }))
       }
     } catch (err) {
       console.error('Error fetching status:', err)
       console.debug('[Quantum] Auth Debug:', {
-        hasCredentials: true,
-        url: '/api/quantum/status',
-        error: err instanceof Error ? err.message : String(err),
-        isOnline: navigator.onLine,
+      hasCredentials: true,
+      url: '/api/quantum/status',
+      error: err instanceof Error ? err.message : String(err),
+      isOnline: navigator.onLine,
       })
       setError(err instanceof Error ? err.message : 'Unknown error')
       setConsecutiveFailures(prev => {
-        const newFailures = prev + 1
-        if (newFailures >= 3) {
+      const newFailures = prev + 1
+      if (newFailures >= 3) {
           console.warn('[Quantum] Falling back to demo after 3 failures')
           setStatus(DEMO_STATUS)
-        }
-        return newFailures
+      }
+      return newFailures
       })
     } finally {
       setIsLoading(false)
@@ -189,13 +188,13 @@ export const QuantumControlPanel: React.FC = () => {
   const fetchAuthStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/quantum/auth/status', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       })
       if (res.ok) {
-        const data = await res.json()
-        setIbmAuthenticated(data.authenticated === true)
+      const data = await res.json()
+      setIbmAuthenticated(data.authenticated === true)
       }
     } catch (err) {
       console.error('Error fetching auth status:', err)
@@ -213,18 +212,18 @@ export const QuantumControlPanel: React.FC = () => {
     setCredentialError(null)
     try {
       const res = await fetch('/api/quantum/auth/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
           api_key: credentialForm.apiKey,
           crn: credentialForm.crn,
-        }),
+      }),
       })
 
       if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || 'Failed to save credentials')
+      const errorData = await res.json()
+      throw new Error(errorData.error || 'Failed to save credentials')
       }
 
       setIbmAuthenticated(true)
@@ -256,7 +255,7 @@ export const QuantumControlPanel: React.FC = () => {
     const CONTROL_PANEL_POLL_MS = 2500
     const interval = setInterval(() => {
       if (!isGlobalQuantumPollingPaused()) {
-        fetchStatus(false)
+      fetchStatus(false)
       }
     }, CONTROL_PANEL_POLL_MS)
     return () => clearInterval(interval)
@@ -268,10 +267,10 @@ export const QuantumControlPanel: React.FC = () => {
       let qasmFilename = control.qasm_file
 
       if (control.qasm_file === 'custom') {
-        const timestamp = Date.now()
-        qasmFilename = `custom_${timestamp}.qasm`
+      const timestamp = Date.now()
+      qasmFilename = `custom_${timestamp}.qasm`
 
-        const uploadRes = await fetch('/api/qasm/file', {
+      const uploadRes = await fetch('/api/qasm/file', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -279,40 +278,40 @@ export const QuantumControlPanel: React.FC = () => {
             name: qasmFilename,
             content: customQasmContent,
           }),
-        })
+      })
 
-        if (!uploadRes.ok) throw new Error('Failed to save custom QASM')
+      if (!uploadRes.ok) throw new Error('Failed to save custom QASM')
       }
 
       const payload: Record<string, unknown> = {
-        backend: control.backend,
-        shots: control.shots,
-        qasm_file: qasmFilename,
+      backend: control.backend,
+      shots: control.shots,
+      qasm_file: qasmFilename,
       }
 
       const response = await fetch('/api/quantum/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
       })
 
       if (!response.ok) throw new Error('Execution failed')
 
       const result = await response.json()
       setControl(prev => ({
-        ...prev,
-        last_execution: {
+      ...prev,
+      last_execution: {
           job_id: result.job_id,
           status: result.status,
           timestamp: new Date().toISOString(),
-        },
+      },
       }))
 
       // Fix #2: Immediately poll job status to catch rapid completions
       // Only update status, don't update shots to preserve user input
       setTimeout(async () => {
-        try {
+      try {
           const statusRes = await fetch('/api/quantum/status', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
@@ -327,9 +326,9 @@ export const QuantumControlPanel: React.FC = () => {
               loop_mode: data.loop_mode !== undefined ? data.loop_mode : prev.loop_mode,
             }))
           }
-        } catch (err) {
+      } catch (err) {
           console.error('Error polling after execution:', err)
-        }
+      }
       }, 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Execution error')
@@ -342,9 +341,9 @@ export const QuantumControlPanel: React.FC = () => {
     try {
       const endpoint = control.loop_mode ? '/api/quantum/loop/stop' : '/api/quantum/loop/start'
       const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       })
 
       if (!response.ok) throw new Error('Failed to toggle loop mode')
@@ -352,17 +351,17 @@ export const QuantumControlPanel: React.FC = () => {
       // Fix #1: Don't rely on response.loop_mode - refetch status instead
       await new Promise(resolve => setTimeout(resolve, 100))
       const statusRes = await fetch('/api/quantum/status', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       })
       if (statusRes.ok) {
-        const statusData = await statusRes.json()
-        setStatus(statusData)
-        setControl(prev => ({
+      const statusData = await statusRes.json()
+      setStatus(statusData)
+      setControl(prev => ({
           ...prev,
           loop_mode: statusData.loop_mode,
-        }))
+      }))
       }
       setError(null)
     } catch (err) {
@@ -374,21 +373,21 @@ export const QuantumControlPanel: React.FC = () => {
   const isHealthy = displayStatus.status === 'ready' || displayStatus.loop_running
 
   return (
-    <CardWrapper cardType="quantum_control_panel">
+    <div className="p-4">
       <div className="p-4">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-blue-500" />
-          Quantum Control
-        </h3>
+          Quantum Demonstration Controls
+      </h3>
 
-        {error && !isDemoFallback && (
+      {error && !isDemoFallback && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
           </div>
-        )}
+      )}
 
-        <div className="space-y-4">
+      <div className="space-y-4">
           {/* IBM Credentials Button */}
           <button
             onClick={() => setShowCredentialModal(true)}
@@ -661,17 +660,17 @@ export const QuantumControlPanel: React.FC = () => {
               </div>
             </div>
           )}
-        </div>
+      </div>
 
-        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
           <p className="flex items-center gap-1">
             <Zap className="w-3 h-3" />
             Control-based execution via API proxy
           </p>
-        </div>
+      </div>
 
-        {/* IBM Credentials Modal */}
-        {showCredentialModal && (
+      {/* IBM Credentials Modal */}
+      {showCredentialModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
               {/* Modal Header */}
@@ -773,10 +772,10 @@ export const QuantumControlPanel: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+      )}
 
-        {/* Custom QASM Modal */}
-        <CustomQASMModal
+      {/* Custom QASM Modal */}
+      <CustomQASMModal
           isOpen={showCustomQasmModal}
           initialContent={customQasmContent}
           onSubmit={(content) => {
@@ -788,8 +787,8 @@ export const QuantumControlPanel: React.FC = () => {
             setControl(prev => ({ ...prev, qasm_file: previousQasmFile }))
             setShowCustomQasmModal(false)
           }}
-        />
+      />
       </div>
-    </CardWrapper>
+    </div>
   )
 }

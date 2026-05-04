@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { CardWrapper } from './CardWrapper'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
 import { StatusBadge } from '../ui/StatusBadge'
@@ -100,7 +99,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     return () => clearInterval(interval)
   }, [isDemoData])
 
-  const { showSkeleton, isRefreshing } = useCardLoadingState({
+  const { showSkeleton } = useCardLoadingState({
     isLoading,
     hasAnyData: statusData !== null,
     isFailed,
@@ -121,16 +120,9 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
 
   if (!statusData) {
     return (
-      <CardWrapper
-        cardType="quantum_status"
-        title="Quantum Status"
-        isDemoData={isDemoData}
-        isRefreshing={isRefreshing}
-      >
-        <div className="p-4 text-center text-muted-foreground">
-          <p>Unable to load quantum status</p>
-        </div>
-      </CardWrapper>
+      <div className="p-4 text-center text-muted-foreground">
+        <p>Unable to load quantum status</p>
+      </div>
     )
   }
 
@@ -148,13 +140,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
   }
 
   return (
-    <CardWrapper
-      cardType="quantum_status"
-      title="Quantum Status"
-      isDemoData={isDemoData}
-      isRefreshing={isRefreshing}
-    >
-      <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4">
         {/* Status Overview */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -288,6 +274,5 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
           </div>
         )}
       </div>
-    </CardWrapper>
-  )
-}
+    )
+  }

@@ -284,7 +284,7 @@ export const QuantumQubitGrid: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Quantum Qubit Grid
+            Quantum Qubit Display -- Latest Run
             {isRefreshing && (
               <span className="ml-2 inline-block animate-spin">
                 <RefreshCw size={16} className="inline" />

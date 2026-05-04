@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { CardWrapper } from './CardWrapper'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
@@ -63,13 +62,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
   }
 
   return (
-    <CardWrapper
-      cardType="quantum_circuit_viewer"
-      title="Quantum Circuit Viewer"
-      isDemoData={isDemoData}
-      isRefreshing={false}
-    >
-      <div className="p-4">
+    <div className="p-4">
         {circuitAscii ? (
           <div className="overflow-auto bg-card rounded border border-border">
             <pre className="font-mono text-sm p-4 m-0 whitespace-pre text-foreground">
@@ -81,7 +74,6 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
             <p>Unable to load quantum circuit diagram</p>
           </div>
         )}
-      </div>
-    </CardWrapper>
+    </div>
   )
 }
