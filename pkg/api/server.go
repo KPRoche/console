@@ -1121,6 +1121,56 @@ func (s *Server) setupRoutes() {
 		return c.Send(body)
 	})
 
+	api.Get("/qasm/listfiles", func(c *fiber.Ctx) error {
+		req, err := http.NewRequest("GET", quantumServiceURL+"/api/qasm/listfiles", nil)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
+		}
+
+		// Execute request
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": fmt.Sprintf("Quantum service unavailable: %v", err)})
+		}
+		defer resp.Body.Close()
+
+		// Read and forward response
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read response"})
+		}
+
+		c.Status(resp.StatusCode)
+		c.Set("Content-Type", resp.Header.Get("Content-Type"))
+		return c.Send(body)
+	})
+
+	api.Get("/result/histogram", func(c *fiber.Ctx) error {
+		sortBy := c.Query("sort", "count")
+
+		req, err := http.NewRequest("GET", quantumServiceURL+"/api/result/histogram?sort="+sortBy, nil)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create request"})
+		}
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": fmt.Sprintf("Quantum service unavailable: %v", err)})
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read response"})
+		}
+
+		c.Status(resp.StatusCode)
+		c.Set("Content-Type", resp.Header.Get("Content-Type"))
+		return c.Send(body)
+	})
+
 	// WebSocket for real-time updates
 	s.app.Use("/ws", middleware.WebSocketUpgrade())
 	s.app.Get("/ws", websocket.New(func(c *websocket.Conn) {
