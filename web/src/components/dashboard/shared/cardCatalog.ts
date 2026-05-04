@@ -330,6 +330,13 @@ export const CARD_CATALOG = {
   'Streaming & Messaging': [
     { type: 'strimzi_status', title: 'Strimzi', description: 'Strimzi Kafka cluster health, topic status, and consumer group lag', visualization: 'status' },
   ],
+  'Quantum': [
+    { type: 'quantum_control_panel', title: 'Quantum Control Panel', description: 'Execute quantum circuits and manage backends', visualization: 'status' },
+    { type: 'quantum_status', title: 'Quantum Status', description: 'Quantum backend status and system information', visualization: 'status' },
+    { type: 'quantum_histogram', title: 'Quantum Histogram', description: 'Quantum result histogram visualization', visualization: 'bar' },
+    { type: 'quantum_qubit_grid', title: 'Quantum Qubit Grid', description: 'Qubit state visualization with measurement results', visualization: 'status' },
+    { type: 'quantum_circuit_viewer', title: 'Quantum Circuit Viewer', description: 'Display quantum circuit diagrams from execution results', visualization: 'status' },
+  ],
 } as const
 
 // ---------------------------------------------------------------------------
@@ -379,6 +386,7 @@ export const CATEGORY_LOCALE_KEYS: Record<string, string> = {
   'Orchestration': 'orchestration',
   'Serverless': 'serverless',
   'Streaming & Messaging': 'streamingMessaging',
+  'Quantum': 'quantum',
 }
 
 // ---------------------------------------------------------------------------

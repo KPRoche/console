@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { CardWrapper } from './CardWrapper'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
@@ -57,6 +56,16 @@ const QUBIT_DISPLAY_PATTERNS = {
     [41], [43], [45], [47],
     [48], [50], [52], [54],
     [57], [59], [61], [63]
+  ],
+  qk_logo: [
+    [2], [3], [4], [5],
+    [9], [10], [13], [14],
+    [16], [17], [18], [21], [22], [23],
+    [24], [25], [27], [28], [31],
+    [32], [33], [38], [39],
+    [40], [42], [43], [44], [45], [47],
+    [49], [54],
+    [58], [59], [60], [61]
   ]
 } as const
 
@@ -88,9 +97,19 @@ function renderQubitSVG(pattern: string, displayPattern: readonly (readonly numb
   const rectSize = 16
   const padding = 1
 
-  // If no data available, show full 8x8 black grid with grid lines
+  // If no data available, show Qiskit logo in "unused" color (state 2)
   if (!pattern || pattern.length === 0) {
     const pixelStates = new Array(gridSize).fill(3) // 3 = black (background)
+    const logoPattern = QUBIT_DISPLAY_PATTERNS.qk_logo as unknown as (readonly number[])[]
+
+    // Mark logo pixels as state 2 (unused/purple)
+    for (const pixelIndices of logoPattern) {
+      for (const pixelIndex of pixelIndices) {
+        if (pixelIndex < gridSize) {
+          pixelStates[pixelIndex] = 2
+        }
+      }
+    }
 
     let svg = `<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid #ccc; border-radius: 4px;">\n`
 
@@ -261,8 +280,7 @@ export const QuantumQubitGrid: React.FC = () => {
   }, [selectedMask])
 
   return (
-    <CardWrapper cardType="quantum_qubit_grid">
-      <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -386,6 +404,5 @@ export const QuantumQubitGrid: React.FC = () => {
           {consecutiveFailures > 0 && <span>Failures: {consecutiveFailures}/3</span>}
         </div>
       </div>
-    </CardWrapper>
-  )
-}
+    )
+  }
