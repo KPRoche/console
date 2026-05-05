@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react'
 import { X, Upload, FileText } from 'lucide-react'
-import { cn } from '../../lib/cn'
-import { TextArea } from './../../components/ui/TextArea'
-import { Input } from './../../components/ui/Input'
+import { cn } from '../../../lib/cn'
+import { TextArea } from '../../ui/TextArea'
+import { Input } from '../../ui/Input'
 
 interface CustomQASMModalProps {
   isOpen: boolean
