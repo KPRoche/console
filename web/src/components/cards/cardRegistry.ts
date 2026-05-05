@@ -343,7 +343,7 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   gpu_inventory_history: GPUInventoryHistory,
   security_issues: SecurityIssues,
   // Quantum computing cards
-  quantum_control: QuantumControlPanel,
+  quantum_control_panel: QuantumControlPanel,
   quantum_qubit_grid: QuantumQubitGrid,
   quantum_status: QuantumStatus,
   quantum_circuit_viewer: QuantumCircuitViewer,
@@ -996,7 +996,7 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   console_ai_kubeconfig_audit: () => import('./console-missions/ConsoleKubeconfigAuditCard'),
   console_ai_health_check: () => import('./console-missions/ConsoleHealthCheckCard'),
   // Quantum computing cards — all share one chunk via barrel import
-  quantum_control: () => _quantumBundle,
+  quantum_control_panel: () => _quantumBundle,
   quantum_qubit_grid: () => _quantumBundle,
   quantum_status: () => _quantumBundle,
   quantum_circuit_viewer: () => _quantumBundle,
@@ -1383,7 +1383,7 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   external_secrets: 4,
   cert_manager: 4,
   // Quantum computing cards
-  quantum_control: 6,
+  quantum_control_panel: 6,
   quantum_qubit_grid: 6,
   quantum_status: 4,
   quantum_circuit_viewer: 6,
