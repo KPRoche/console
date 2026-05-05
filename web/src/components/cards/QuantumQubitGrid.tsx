@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+import { useAuth } from '../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../lib/constants'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
 const QUBIT_GRID_DEFAULT_POLL_MS = 5500
@@ -160,6 +162,7 @@ function renderQubitSVG(pattern: string, displayPattern: readonly (readonly numb
 }
 
 export const QuantumQubitGrid: React.FC = () => {
+  const { token, login, isLoading: authIsLoading } = useAuth()
   const [data, setData] = useState<QubitSimpleData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -168,6 +171,8 @@ export const QuantumQubitGrid: React.FC = () => {
   const [refreshInterval, setRefreshInterval] = useState(QUBIT_GRID_DEFAULT_POLL_MS)
   const [selectedMask, setSelectedMask] = useState<MaskKey>('ibm_qx5')
   const [versionInfo, setVersionInfo] = useState<{ version: string; commit: string; timestamp: string } | null>(null)
+
+  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
 
   const isDemoFallback = consecutiveFailures >= 3
   // Show empty grid if no data AND (executing or loop_mode is active)
@@ -278,6 +283,33 @@ export const QuantumQubitGrid: React.FC = () => {
   const patternLabel = useMemo(() => {
     return MASK_OPTIONS.find(m => m.key === selectedMask)?.label ?? selectedMask
   }, [selectedMask])
+
+  if (authIsLoading) {
+    return (
+      <div className="p-4 space-y-3">
+        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-40" />
+        <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded" />
+      </div>
+    )
+  }
+
+  if (!hasRealAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
+        <p className="text-gray-500">
+          {token === DEMO_TOKEN_VALUE
+            ? "Demo mode — Limited data available. Log in for live quantum data."
+            : "Please log in to view quantum data"}
+        </p>
+        <button
+          onClick={login}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          Continue with GitHub
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 space-y-4">

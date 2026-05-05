@@ -4,6 +4,8 @@ import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
 import { CustomQASMModal } from './CustomQASMModal'
 import { useQASMFiles } from '../../hooks/useQASMFiles'
+import { useAuth } from '../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../lib/constants'
 
 interface ControlState {
   backend: string
@@ -89,6 +91,7 @@ const DEMO_STATUS: SystemStatus = {
 }
 
 export const QuantumControlPanel: React.FC = () => {
+  const { token, login, isLoading: authIsLoading } = useAuth()
   const [control, setControl] = useState<ControlState>(DEMO_DATA)
   const [status, setStatus] = useState<SystemStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -96,6 +99,8 @@ export const QuantumControlPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [hasInitialized, setHasInitialized] = useState(false)
+
+  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
 
   // IBM Quantum credentials
   const [ibmAuthenticated, setIbmAuthenticated] = useState(false)
@@ -371,6 +376,34 @@ export const QuantumControlPanel: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to toggle loop mode')
     }
+  }
+
+  if (authIsLoading) {
+    return (
+      <div className="p-4 space-y-3">
+        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-40" />
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+      </div>
+    )
+  }
+
+  if (!hasRealAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
+        <p className="text-gray-500">
+          {token === DEMO_TOKEN_VALUE
+            ? "Demo mode — Limited data available. Log in for live quantum data."
+            : "Please log in to view quantum data"}
+        </p>
+        <button
+          onClick={login}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          Continue with GitHub
+        </button>
+      </div>
+    )
   }
 
   const displayStatus = status || DEMO_STATUS

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useCardLoadingState } from './CardDataContext'
 import { Skeleton } from '../ui/Skeleton'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+import { useAuth } from '../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../lib/constants'
 
 const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 5000
 
@@ -9,17 +11,46 @@ interface QuantumCircuitViewerProps {
   isDemoData?: boolean
 }
 
-export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDemoData = false }) => {
+export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
+  const { token, login, isLoading: authIsLoading } = useAuth()
   const [circuitAscii, setCircuitAscii] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFailed, setIsFailed] = useState(false)
+
+  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
+
+  if (authIsLoading) {
+    return (
+      <div className="p-4">
+        <Skeleton variant="text" width="80%" height={24} />
+      </div>
+    )
+  }
+
+  if (!hasRealAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
+        <p className="text-gray-500">
+          {token === DEMO_TOKEN_VALUE
+            ? "Demo mode — Limited data available. Log in for live quantum data."
+            : "Please log in to view quantum data"}
+        </p>
+        <button
+          onClick={login}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          Continue with GitHub
+        </button>
+      </div>
+    )
+  }
 
   const { showSkeleton } = useCardLoadingState({
     isLoading,
     hasAnyData: circuitAscii !== null,
     isFailed,
     consecutiveFailures: isFailed ? 1 : 0,
-    isDemoData,
+    isDemoData: false,
   })
 
   useEffect(() => {
@@ -51,7 +82,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
     fetchCircuit()
     const interval = setInterval(fetchCircuit, CIRCUIT_ASCII_POLLING_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [])
+  }, [hasRealAuth])
 
   if (showSkeleton) {
     return (

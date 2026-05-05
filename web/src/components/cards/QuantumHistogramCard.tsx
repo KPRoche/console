@@ -4,17 +4,21 @@ import ReactECharts from 'echarts-for-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
 import { useResultHistogram } from '../../hooks/useResultHistogram'
+import { useAuth } from '../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../lib/constants'
 
 const HISTOGRAM_DEFAULT_POLL_MS = 2000
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#6366f1']
 
 export const QuantumHistogramCard: React.FC = () => {
+  const { token, login, isLoading: authIsLoading } = useAuth()
   const [sortBy, setSortBy] = useState<'count' | 'pattern'>('count')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [refreshInterval, setRefreshInterval] = useState(HISTOGRAM_DEFAULT_POLL_MS)
 
+  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
   const { data, isLoading, error: hookError, refetch } = useResultHistogram(sortBy, refreshInterval)
 
   const isPaused = isGlobalQuantumPollingPaused()
@@ -53,6 +57,33 @@ export const QuantumHistogramCard: React.FC = () => {
 
   const handleSortChange = (newSort: 'count' | 'pattern') => {
     setSortBy(newSort)
+  }
+
+  if (authIsLoading) {
+    return (
+      <div className="p-4 flex flex-col gap-4">
+        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-40" />
+        <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded" />
+      </div>
+    )
+  }
+
+  if (!hasRealAuth) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
+        <p className="text-gray-500">
+          {token === DEMO_TOKEN_VALUE
+            ? "Demo mode — Limited data available. Log in for live quantum data."
+            : "Please log in to view quantum data"}
+        </p>
+        <button
+          onClick={login}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          Continue with GitHub
+        </button>
+      </div>
+    )
   }
 
   if (!data) {

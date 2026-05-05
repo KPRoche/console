@@ -230,23 +230,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // OAuth configured — user should authenticate via login page
           return
         }
-        // No OAuth — try to get a dev-mode JWT token for live data in cards
-        if (backendUp && !oauthConfigured) {
-          try {
-            const devTokenRes = await fetch('/auth/dev-token', {
-              signal: AbortSignal.timeout(FETCH_DEFAULT_TIMEOUT_MS)
-            })
-            if (devTokenRes.ok) {
-              const { token } = await devTokenRes.json()
-              if (token) {
-                // Recursively refresh with the new dev token
-                return refreshUser(token)
-              }
-            }
-          } catch {
-            // Dev token endpoint unavailable — fall back to demo mode
-          }
-        }
       } catch {
         // Backend unreachable — fall through to demo mode
       }
