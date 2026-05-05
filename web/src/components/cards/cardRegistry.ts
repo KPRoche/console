@@ -211,7 +211,7 @@ const IssueActivityChart = safeLazy(() => import('./IssueActivityChart'), 'Issue
 const RSSFeed = safeLazy(() => import('./rss'), 'RSSFeed')
 const Kubectl = safeLazy(() => import('./Kubectl'), 'Kubectl')
 // Quantum computing cards — share one chunk via barrel import
-const _quantumBundle = import('./quantum-bundle').catch(() => undefined as never)
+const _quantumBundle = import('./quantum').catch(() => undefined as never)
 const QuantumControlPanel = safeLazy(() => _quantumBundle, 'QuantumControlPanel')
 const QuantumQubitGrid = safeLazy(() => _quantumBundle, 'QuantumQubitGrid')
 const QuantumStatus = safeLazy(() => _quantumBundle, 'QuantumStatus')
@@ -1351,11 +1351,11 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   rss_feed: () => import('./rss'),
   kubectl: () => import('./Kubectl'),
   // Quantum computing cards — all share one chunk via barrel import
-  quantum_control_panel: () => _quantumBundle,
-  quantum_qubit_grid: () => _quantumBundle,
-  quantum_status: () => _quantumBundle,
-  quantum_circuit_viewer: () => _quantumBundle,
-  quantum_histogram: () => _quantumBundle,
+  quantum_control_panel: () => import('./quantum'),
+  quantum_qubit_grid: () => import('./quantum'),
+  quantum_status: () => import('./quantum'),
+  quantum_circuit_viewer: () => import('./quantum'),
+  quantum_histogram: () => import('./quantum'),
   // Arcade games — all share one chunk via barrel
   iframe_embed: () => import('./IframeEmbed'),
   network_utils: () => import('./NetworkUtils'),
