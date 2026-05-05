@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
-import { useReportCardDataState } from './CardDataContext'
-import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
+import { AlertCircle, Play, RotateCcw, Zap, Key, Check } from 'lucide-react'
+import { useReportCardDataState } from '../CardDataContext'
+import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { CustomQASMModal } from './CustomQASMModal'
-import { useQASMFiles } from '../../hooks/useQASMFiles'
-import { useAuth } from '../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../lib/constants'
+import { useQASMFiles } from '../../../hooks/useQASMFiles'
+import { useAuth } from '../../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
+import { useDrillDown } from '../../../hooks/useDrillDown'
 
 interface ControlState {
   backend: string
@@ -92,6 +93,7 @@ const DEMO_STATUS: SystemStatus = {
 
 export const QuantumControlPanel: React.FC = () => {
   const { token, login, isLoading: authIsLoading } = useAuth()
+  const { open: openDrillDown } = useDrillDown()
   const [control, setControl] = useState<ControlState>(DEMO_DATA)
   const [status, setStatus] = useState<SystemStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -104,10 +106,6 @@ export const QuantumControlPanel: React.FC = () => {
 
   // IBM Quantum credentials
   const [ibmAuthenticated, setIbmAuthenticated] = useState(false)
-  const [showCredentialModal, setShowCredentialModal] = useState(false)
-  const [credentialForm, setCredentialForm] = useState({ apiKey: '', crn: '' })
-  const [credentialError, setCredentialError] = useState<string | null>(null)
-  const [credentialSaving, setCredentialSaving] = useState(false)
 
   // Custom QASM support
   const [showCustomQasmModal, setShowCustomQasmModal] = useState(false)
@@ -210,40 +208,40 @@ export const QuantumControlPanel: React.FC = () => {
     }
   }, [])
 
-  // Save IBM Quantum credentials
-  const handleSaveCredentials = async () => {
-    if (!credentialForm.apiKey.trim() || !credentialForm.crn.trim()) {
-      setCredentialError('Both API Key and CRN are required')
-      return
-    }
+  // Open IBM Quantum credentials dialog via drilldown
+  const handleOpenCredentialsDialog = useCallback(() => {
+    const handleSaveCredentials = async (form: { apiKey: string; crn: string }) => {
+      if (!form.apiKey.trim() || !form.crn.trim()) {
+        throw new Error('Both API Key and CRN are required')
+      }
 
-    setCredentialSaving(true)
-    setCredentialError(null)
-    try {
       const res = await fetch('/api/quantum/auth/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-          api_key: credentialForm.apiKey,
-          crn: credentialForm.crn,
-      }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          api_key: form.apiKey,
+          crn: form.crn,
+        }),
       })
 
       if (!res.ok) {
-      const errorData = await res.json()
-      throw new Error(errorData.error || 'Failed to save credentials')
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to save credentials')
       }
 
       setIbmAuthenticated(true)
-      setCredentialForm({ apiKey: '', crn: '' })
-      setShowCredentialModal(false)
-    } catch (err) {
-      setCredentialError(err instanceof Error ? err.message : 'Failed to save credentials')
-    } finally {
-      setCredentialSaving(false)
     }
-  }
+
+    openDrillDown({
+      type: 'quantum-credentials',
+      title: 'IBM Quantum Credentials',
+      data: {
+        ibmAuthenticated,
+        onSave: handleSaveCredentials,
+      },
+    })
+  }, [ibmAuthenticated, openDrillDown])
 
   // Initialize on mount
   useEffect(() => {
@@ -427,7 +425,7 @@ export const QuantumControlPanel: React.FC = () => {
       <div className="space-y-4">
           {/* IBM Credentials Button */}
           <button
-            onClick={() => setShowCredentialModal(true)}
+            onClick={handleOpenCredentialsDialog}
             className="w-full px-3 py-2 flex items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <div className="flex items-center gap-2">
@@ -714,111 +712,6 @@ export const QuantumControlPanel: React.FC = () => {
             Control-based execution via API proxy
           </p>
       </div>
-
-      {/* IBM Credentials Modal */}
-      {showCredentialModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <Key className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  IBM Quantum Credentials
-                </h4>
-                <button
-                  onClick={() => {
-                    setShowCredentialModal(false)
-                    setCredentialError(null)
-                  }}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-4 space-y-4">
-                {credentialError && (
-                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-red-700 dark:text-red-300">{credentialError}</p>
-                  </div>
-                )}
-
-                {ibmAuthenticated && (
-                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-start gap-2">
-                    <Check className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-green-700 dark:text-green-300">Credentials are configured. Enter new credentials to update.</p>
-                  </div>
-                )}
-
-                {/* API Key Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    API Key
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Your IBM Quantum API Key"
-                    value={credentialForm.apiKey}
-                    onChange={e => setCredentialForm(prev => ({ ...prev, apiKey: e.target.value }))}
-                    disabled={credentialSaving}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
-                  />
-                </div>
-
-                {/* CRN Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    CRN (Cloud Resource Name)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="crn:v1:bluemix:public:quantum-computing:..."
-                    value={credentialForm.crn}
-                    onChange={e => setCredentialForm(prev => ({ ...prev, crn: e.target.value }))}
-                    disabled={credentialSaving}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Find your CRN in IBM Quantum Platform account settings
-                  </p>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => {
-                    setShowCredentialModal(false)
-                    setCredentialError(null)
-                  }}
-                  disabled={credentialSaving}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveCredentials}
-                  disabled={credentialSaving || (!credentialForm.apiKey.trim() && !credentialForm.crn.trim())}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-50 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2"
-                >
-                  {credentialSaving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Save
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-      )}
 
       {/* Custom QASM Modal */}
       <CustomQASMModal

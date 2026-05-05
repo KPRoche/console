@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import ReactECharts from 'echarts-for-react'
-import { useReportCardDataState } from './CardDataContext'
-import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
-import { useResultHistogram } from '../../hooks/useResultHistogram'
-import { useAuth } from '../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../lib/constants'
+import { useReportCardDataState } from '../CardDataContext'
+import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { useResultHistogram } from '../../../hooks/useResultHistogram'
+import { useAuth } from '../../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 const HISTOGRAM_DEFAULT_POLL_MS = 2000
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#6366f1']
@@ -141,7 +141,7 @@ export const QuantumHistogramCard: React.FC = () => {
     },
     xAxis: {
       type: 'category',
-      data: (data.histogram || []).map(entry => entry.pattern),
+      data: (data.histogram || []).map((entry: any) => entry.pattern),
       axisLabel: { rotate: 45, interval: 0 },
     },
     yAxis: {
@@ -150,7 +150,7 @@ export const QuantumHistogramCard: React.FC = () => {
     },
     series: [
       {
-        data: (data.histogram || []).map(entry => entry.count),
+        data: (data.histogram || []).map((entry: any) => entry.count),
         type: 'bar',
         itemStyle: {
           color: (params: any) => COLORS[params.dataIndex % COLORS.length],

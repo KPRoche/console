@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { useCardLoadingState } from './CardDataContext'
-import { Skeleton } from '../ui/Skeleton'
-import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
-import { useAuth } from '../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../lib/constants'
+import { useCardLoadingState } from '../CardDataContext'
+import { Skeleton } from '../../ui/Skeleton'
+import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { useAuth } from '../../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 5000
 

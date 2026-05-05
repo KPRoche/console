@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
-import { useReportCardDataState } from './CardDataContext'
-import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
-import { useAuth } from '../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../lib/constants'
+import { useReportCardDataState } from '../CardDataContext'
+import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { useAuth } from '../../../lib/auth'
+import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
 const QUBIT_GRID_DEFAULT_POLL_MS = 5500
