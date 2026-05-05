@@ -210,6 +210,13 @@ const GitHubActivity = safeLazy(() => import('./GitHubActivity'), 'GitHubActivit
 const IssueActivityChart = safeLazy(() => import('./IssueActivityChart'), 'IssueActivityChart')
 const RSSFeed = safeLazy(() => import('./rss'), 'RSSFeed')
 const Kubectl = safeLazy(() => import('./Kubectl'), 'Kubectl')
+// Quantum computing cards — share one chunk via barrel import
+const _quantumBundle = import('./quantum-bundle').catch(() => undefined as never)
+const QuantumControlPanel = safeLazy(() => _quantumBundle, 'QuantumControlPanel')
+const QuantumQubitGrid = safeLazy(() => _quantumBundle, 'QuantumQubitGrid')
+const QuantumStatus = safeLazy(() => _quantumBundle, 'QuantumStatus')
+const QuantumCircuitViewer = safeLazy(() => _quantumBundle, 'QuantumCircuitViewer')
+const QuantumHistogramCard = safeLazy(() => _quantumBundle, 'QuantumHistogramCard')
 // Arcade/game cards — share one chunk via barrel import.
 // Eagerly start loading the bundle at module parse time so all 24 game cards
 // share one HTTP request instead of 24 separate ones. This also ensures that
@@ -628,6 +635,12 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   rss_feed: RSSFeed,
   // Kubectl card
   kubectl: Kubectl,
+  // Quantum computing cards
+  quantum_control_panel: QuantumControlPanel,
+  quantum_qubit_grid: QuantumQubitGrid,
+  quantum_status: QuantumStatus,
+  quantum_circuit_viewer: QuantumCircuitViewer,
+  quantum_histogram: QuantumHistogramCard,
   // Sudoku game card
   sudoku_game: SudokuGame,
   // Kube Match card
@@ -1337,10 +1350,16 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   // RSS Feed & utilities
   rss_feed: () => import('./rss'),
   kubectl: () => import('./Kubectl'),
+  // Quantum computing cards — all share one chunk via barrel import
+  quantum_control_panel: () => _quantumBundle,
+  quantum_qubit_grid: () => _quantumBundle,
+  quantum_status: () => _quantumBundle,
+  quantum_circuit_viewer: () => _quantumBundle,
+  quantum_histogram: () => _quantumBundle,
+  // Arcade games — all share one chunk via barrel
   iframe_embed: () => import('./IframeEmbed'),
   network_utils: () => import('./NetworkUtils'),
   mobile_browser: () => import('./MobileBrowser'),
-  // Arcade games — all share one chunk via barrel
   sudoku_game: () => import('./arcade-bundle'),
   match_game: () => import('./arcade-bundle'),
   solitaire: () => import('./arcade-bundle'),
@@ -1810,6 +1829,12 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   rss_feed: 6,
   // Kubectl card - interactive terminal
   kubectl: 8,
+  // Quantum computing cards
+  quantum_control_panel: 6,
+  quantum_qubit_grid: 6,
+  quantum_status: 4,
+  quantum_circuit_viewer: 6,
+  quantum_histogram: 6,
   // Sudoku game card
   sudoku_game: 6,
   // Kube Match card
