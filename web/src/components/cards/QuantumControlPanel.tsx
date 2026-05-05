@@ -3,6 +3,7 @@ import { AlertCircle, Play, RotateCcw, Zap, Key, X, Check } from 'lucide-react'
 import { useReportCardDataState } from './CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../lib/quantum/pollingContext'
 import { CustomQASMModal } from './CustomQASMModal'
+import { useQASMFiles } from '../../hooks/useQASMFiles'
 
 interface ControlState {
   backend: string
@@ -107,6 +108,9 @@ export const QuantumControlPanel: React.FC = () => {
   const [showCustomQasmModal, setShowCustomQasmModal] = useState(false)
   const [customQasmContent, setCustomQasmContent] = useState<string>('')
   const [previousQasmFile, setPreviousQasmFile] = useState<string>(DEMO_DATA.qasm_file)
+
+  // Fetch available QASM files
+  const { files: qasmFiles, isLoading: qasmFilesLoading } = useQASMFiles()
 
   const isDemoFallback = consecutiveFailures >= 3
 
@@ -505,15 +509,24 @@ export const QuantumControlPanel: React.FC = () => {
                     setControl(prev => ({ ...prev, qasm_file: val }))
                   }
                 }}
-                disabled={control.executing}
+                disabled={control.executing || qasmFilesLoading}
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
               >
-                <option value="expt.qasm">expt.qasm (5 qubits)</option>
-                <option value="expt12.qasm">expt12.qasm (12 qubits)</option>
-                <option value="expt16.qasm">expt16.qasm (16 qubits)</option>
-                <option value="expt32.qasm">expt32.qasm (32 qubits)</option>
-                <option disabled>─────────────────</option>
-                <option value="custom">Custom QASM...</option>
+                {qasmFilesLoading ? (
+                  <option>Loading files...</option>
+                ) : qasmFiles.length === 0 ? (
+                  <option>No QASM files available</option>
+                ) : (
+                  <>
+                    {qasmFiles.map(file => (
+                      <option key={file.name} value={file.name}>
+                        {file.name}
+                      </option>
+                    ))}
+                    <option disabled>─────────────────</option>
+                    <option value="custom">Custom QASM...</option>
+                  </>
+                )}
               </select>
               {control.qasm_file === 'custom' && customQasmContent && (
                 <button
