@@ -3,7 +3,6 @@ import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useAuth } from '../../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
 const QUBIT_GRID_DEFAULT_POLL_MS = 5500
@@ -162,7 +161,7 @@ function renderQubitSVG(pattern: string, displayPattern: readonly (readonly numb
 }
 
 export const QuantumQubitGrid: React.FC = () => {
-  const { token, login, isLoading: authIsLoading } = useAuth()
+  const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
   const [data, setData] = useState<QubitSimpleData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -172,7 +171,7 @@ export const QuantumQubitGrid: React.FC = () => {
   const [selectedMask, setSelectedMask] = useState<MaskKey>('ibm_qx5')
   const [versionInfo, setVersionInfo] = useState<{ version: string; commit: string; timestamp: string } | null>(null)
 
-  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
+  
 
   const isDemoFallback = consecutiveFailures >= 3
   // Show empty grid if no data AND (executing or loop_mode is active)
@@ -293,13 +292,11 @@ export const QuantumQubitGrid: React.FC = () => {
     )
   }
 
-  if (!hasRealAuth) {
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
         <p className="text-gray-500">
-          {token === DEMO_TOKEN_VALUE
-            ? "Demo mode — Limited data available. Log in for live quantum data."
-            : "Please log in to view quantum data"}
+        <p className="text-gray-500">Please log in to view quantum data</p>
         </p>
         <button
           onClick={login}
