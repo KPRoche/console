@@ -276,9 +276,12 @@ export const QuantumControlPanel: React.FC = () => {
       const timestamp = Date.now()
       qasmFilename = `custom_${timestamp}.qasm`
 
-      const uploadRes = await fetch('/api/qasm/file', {
+      const uploadRes = await fetch('/api/quantum/qasm/file', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
           credentials: 'include',
           body: JSON.stringify({
             name: qasmFilename,
@@ -297,7 +300,10 @@ export const QuantumControlPanel: React.FC = () => {
 
       const response = await fetch('/api/quantum/execute', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
       credentials: 'include',
       body: JSON.stringify(payload),
       })
