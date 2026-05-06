@@ -542,16 +542,15 @@ export const QuantumControlPanel: React.FC = () => {
               >
                 {qasmFilesLoading ? (
                   <option>Loading files...</option>
-                ) : qasmFiles.length === 0 ? (
-                  <option>No QASM files available</option>
                 ) : (
                   <>
+                    {qasmFiles.length === 0 && <option disabled>No QASM files available</option>}
                     {qasmFiles.map(file => (
                       <option key={file.name} value={file.name}>
                         {file.name}
                       </option>
                     ))}
-                    <option disabled>─────────────────</option>
+                    {qasmFiles.length > 0 && <option disabled>─────────────────</option>}
                     <option value="custom">Custom QASM...</option>
                   </>
                 )}
