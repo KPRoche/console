@@ -74,6 +74,42 @@ func (h *QuantumProxyHandler) ProxyRequest(c *fiber.Ctx) error {
 	return c.Send(body)
 }
 
+// ProxyResultHistogram handles GET requests to /api/result/histogram
+func (h *QuantumProxyHandler) ProxyResultHistogram(c *fiber.Ctx) error {
+	sort := c.Query("sort", "count")
+	targetURL := h.quantumServiceURL + "/api/result/histogram?sort=" + sort
+
+	slog.Debug("[QuantumProxy] Forwarding histogram request", "from", c.Path(), "to", targetURL)
+
+	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
+	}
+
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		req.Header.Add(string(key), string(value))
+	})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, fmt.Sprintf("Quantum service unavailable: %v", err))
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to read response")
+	}
+
+	slog.Debug("[QuantumProxy] Histogram response received", "status", resp.StatusCode, "content_type", resp.Header.Get("Content-Type"), "body_size", len(body))
+
+	c.Status(resp.StatusCode)
+	c.Set("Content-Type", resp.Header.Get("Content-Type"))
+
+	return c.Send(body)
+}
+
 // ProxyPostRequest handles POST requests to quantum endpoints
 func (h *QuantumProxyHandler) ProxyPostRequest(c *fiber.Ctx) error {
 	endpoint := c.Params("*")

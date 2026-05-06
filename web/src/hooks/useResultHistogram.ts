@@ -34,6 +34,7 @@ export function useResultHistogram(
     setIsLoading(true)
     setError(null)
     try {
+      console.log('[useResultHistogram] Fetching:', `/api/result/histogram?sort=${sortBy}`)
       const res = await fetch(`/api/result/histogram?sort=${sortBy}`, {
         method: 'GET',
         headers: {
@@ -42,17 +43,23 @@ export function useResultHistogram(
         credentials: 'include',
       })
 
+      console.log('[useResultHistogram] Response status:', res.status, 'content-type:', res.headers.get('content-type'))
+
       // Silently ignore 429 (rate limit) — don't report as error, just skip this poll
       if (res.status === 429) {
+        console.debug('[useResultHistogram] Rate limited, skipping')
         setIsLoading(false)
         return
       }
 
       if (!res.ok) {
+        const text = await res.text()
+        console.error('[useResultHistogram] Non-ok response:', res.status, text.substring(0, 200))
         throw new Error(`Failed to fetch histogram (${res.status})`)
       }
 
       const json = await res.json()
+      console.log('[useResultHistogram] Got data, num_patterns:', json.num_patterns)
       if (json.warning) {
         setData(null)
       } else {

@@ -1028,8 +1028,8 @@ s.failureTracker = failureTracker
 	quantumProxy := handlers.NewQuantumProxyHandler()
 	api.Get("/quantum/*", quantumProxy.ProxyRequest)
 	api.Post("/quantum/*", quantumProxy.ProxyPostRequest)
-	api.Get("/result/*", quantumProxy.ProxyRequest)
-	api.Post("/result/*", quantumProxy.ProxyPostRequest)
+	// Result histogram endpoint with dedicated handler (doesn't use wildcard params)
+	api.Get("/result/histogram", quantumProxy.ProxyResultHistogram)
 
 	// Swap routes
 	swaps := handlers.NewSwapHandler(s.store, s.hub)
