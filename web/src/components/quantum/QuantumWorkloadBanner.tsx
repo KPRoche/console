@@ -38,8 +38,28 @@ export function QuantumWorkloadBanner() {
     safeSetItem(STORAGE_KEY_QUANTUM_BANNER_DISMISSED, 'true')
   }
 
-  // Show banner only if workload is NOT available and user hasn't dismissed it
-  if (workloadAvailable || dismissed) return null
+  // Show appropriate banner based on workload state
+  if (workloadAvailable) {
+    // Workload detected — show green success banner
+    return (
+      <div className="mb-4 rounded-xl border border-green-500/20 bg-linear-to-br from-green-500/5 via-emerald-500/5 to-transparent p-4 animate-in slide-in-from-top-2 duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                quantum-kc-demo is running
+              </h3>
+              <p className="text-xs text-muted-foreground">Live quantum data available</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Workload not detected — show amber setup banner (dismissible)
+  if (dismissed) return null
 
   return (
     <div className="mb-4 rounded-xl border border-amber-500/20 bg-linear-to-br from-amber-500/5 via-orange-500/5 to-transparent p-4 animate-in slide-in-from-top-2 duration-300">
