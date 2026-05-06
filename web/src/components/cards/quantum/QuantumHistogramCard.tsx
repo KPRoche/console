@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import ReactECharts from 'echarts-for-react'
 import { useReportCardDataState } from '../CardDataContext'
+import { Slider } from '../../ui/Slider'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useResultHistogram } from '../../../hooks/useResultHistogram'
 import { useAuth } from '../../../lib/auth'
 
 const HISTOGRAM_DEFAULT_POLL_MS = 10000
+const HISTOGRAM_POLL_MIN_MS = 2000
+const HISTOGRAM_POLL_MAX_MS = 30000
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#6366f1']
 
 export const QuantumHistogramCard: React.FC = () => {
@@ -56,6 +59,10 @@ export const QuantumHistogramCard: React.FC = () => {
 
   const handleSortChange = (newSort: 'count' | 'pattern') => {
     setSortBy(newSort)
+  }
+
+  const handleRefreshIntervalChange = (newInterval: number) => {
+    setRefreshInterval(newInterval)
   }
 
   if (authIsLoading) {
@@ -192,6 +199,19 @@ export const QuantumHistogramCard: React.FC = () => {
         >
           By Pattern
         </button>
+      </div>
+
+      {/* Refresh Interval Control */}
+      <div className="bg-secondary/30 rounded-lg p-3 border border-border">
+        <Slider
+          label="Refresh Interval"
+          value={refreshInterval}
+          onChange={(e) => handleRefreshIntervalChange(Number(e.currentTarget.value))}
+          min={HISTOGRAM_POLL_MIN_MS}
+          max={HISTOGRAM_POLL_MAX_MS}
+          step={500}
+          unit=" ms"
+        />
       </div>
 
       {/* Metadata */}
