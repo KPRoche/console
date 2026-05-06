@@ -1,11 +1,61 @@
 package api
 
 import (
-"strings"
-"sync/atomic"
+	"context"
+	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
-"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2"
 )
+
+// isQuantumWorkloadRunning detects if quantum-kc-demo is running in the cluster.
+// Uses a hybrid approach:
+// 1. QUANTUM_WORKLOAD_DISABLED=true env var forces false (opt-out)
+// 2. QUANTUM_WORKLOAD_RUNNING=true env var forces true (opt-in, useful for testing)
+// 3. Otherwise auto-detects from K8s with 30s caching to avoid API spam
+func (s *Server) isQuantumWorkloadRunning() bool {
+	// Env var override: explicitly disabled
+	if os.Getenv("QUANTUM_WORKLOAD_DISABLED") == "true" {
+		return false
+	}
+
+	// Env var override: explicitly enabled (useful for testing/dev)
+	if os.Getenv("QUANTUM_WORKLOAD_RUNNING") == "true" {
+		return true
+	}
+
+	// Check cache first
+	s.quantumWorkloadMu.RLock()
+	if time.Since(s.quantumCacheTime) < 30*time.Second {
+		defer s.quantumWorkloadMu.RUnlock()
+		return s.quantumAvailable
+	}
+	s.quantumWorkloadMu.RUnlock()
+
+	// Auto-detect from K8s
+	available := false
+	if s.k8sClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Check for quantum-kc-demo deployment in quantum namespace
+		deployment, err := s.k8sClient.GetDeployment(ctx, "quantum", "quantum-kc-demo")
+		if err == nil && deployment != nil && deployment.Status.AvailableReplicas > 0 {
+			available = true
+		}
+	}
+
+	// Update cache
+	s.quantumWorkloadMu.Lock()
+	s.quantumAvailable = available
+	s.quantumCacheTime = time.Now()
+	s.quantumWorkloadMu.Unlock()
+
+	return available
+}
 
 // setupHealthRoutes registers the /healthz, /health, and /api/version
 // endpoints. These are unauthenticated and used by load balancers,
@@ -61,6 +111,9 @@ resp := fiber.Map{
 "no_local_agent":   noLocalAgent,
 "install_method":   detectInstallMethod(inCluster),
 "project":          s.config.ConsoleProject,
+"workloads": fiber.Map{
+	"quantum_kc_demo_available": s.isQuantumWorkloadRunning(),
+},
 "branding": fiber.Map{
 "appName":            s.config.BrandAppName,
 "appShortName":       s.config.BrandAppShortName,

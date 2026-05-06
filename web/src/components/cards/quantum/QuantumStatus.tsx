@@ -4,6 +4,7 @@ import { Skeleton } from '../../ui/Skeleton'
 import { StatusBadge } from '../../ui/StatusBadge'
 import { Slider } from '../../ui/Slider'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useAuth } from '../../../lib/auth'
 
 // Polling interval for status updates (can be adjusted if needed)
@@ -74,7 +75,10 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
       // Skip fetch if polling is paused (e.g., dashboard settings modal open)
       if (isGlobalQuantumPollingPaused()) return
 
-      if (isDemoData || !isAuthenticated) {
+      const forceDemo = isQuantumForcedToDemo()
+      const effectiveIsDemoData = isDemoData || forceDemo
+
+      if (effectiveIsDemoData || !isAuthenticated) {
         setStatusData(DEMO_STATUS)
         setIsLoading(false)
         return
@@ -105,7 +109,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     fetchStatus()
     const interval = setInterval(fetchStatus, pollInterval)
     return () => clearInterval(interval)
-  }, [isDemoData, isAuthenticated, pollInterval])
+  }, [isDemoData, isAuthenticated, pollInterval, isQuantumForcedToDemo])
 
   if (authIsLoading) {
     return (

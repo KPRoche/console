@@ -209,6 +209,9 @@ type Server struct {
 	failureTracker      *middleware.FailureTracker // tracks auth failure counts for rate limiting
 	done                chan struct{}              // closed on Shutdown to stop background goroutines
 	shutdownOnce        sync.Once                  // ensures Shutdown is idempotent (#6478)
+	quantumWorkloadMu   sync.RWMutex               // protects quantum workload cache
+	quantumAvailable    bool                       // cached quantum-kc-demo availability
+	quantumCacheTime    time.Time                  // when quantum cache was last updated
 }
 
 // NewServer creates a new API server. It starts a temporary loading page

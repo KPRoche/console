@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useAuth } from '../../../lib/auth'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
@@ -270,13 +271,13 @@ export const QuantumQubitGrid: React.FC = () => {
 
     fetchQubits()
     const interval = setInterval(() => {
-      // Skip polling if paused (e.g., dashboard settings modal open)
-      if (!isGlobalQuantumPollingPaused()) {
+      // Skip polling if paused (e.g., dashboard settings modal open) or demo forced
+      if (!isGlobalQuantumPollingPaused() && !isQuantumForcedToDemo()) {
         fetchQubits()
       }
     }, refreshInterval)
     return () => clearInterval(interval)
-  }, [refreshInterval])
+  }, [refreshInterval, isQuantumForcedToDemo])
 
   // Get the label for the currently selected mask
   const patternLabel = useMemo(() => {
