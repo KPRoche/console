@@ -354,7 +354,10 @@ export const QuantumControlPanel: React.FC = () => {
       const endpoint = control.loop_mode ? '/api/quantum/loop/stop' : '/api/quantum/loop/start'
       const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
       credentials: 'include',
       })
 
