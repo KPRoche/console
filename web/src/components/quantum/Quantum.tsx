@@ -5,6 +5,7 @@
  */
 import { DashboardPage } from '../../lib/dashboards/DashboardPage'
 import { getDefaultCards } from '../../config/dashboards'
+import { QuantumWorkloadBanner } from './QuantumWorkloadBanner'
 
 const QUANTUM_CARDS_KEY = 'kubestellar-quantum-cards'
 const DEFAULT_QUANTUM_CARDS = getDefaultCards('quantum')
@@ -17,6 +18,7 @@ export function Quantum() {
       title="Quantum Computing"
       icon="zap"
       statsType="compute"
+      beforeCards={<QuantumWorkloadBanner />}
     />
   )
 }
