@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -37,6 +38,8 @@ func (h *QuantumProxyHandler) ProxyRequest(c *fiber.Ctx) error {
 		targetURL += "?" + queryStr
 	}
 
+	slog.Debug("[QuantumProxy] Forwarding request", "from", c.Path(), "to", targetURL)
+
 	// Create HTTP client request
 	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
 	if err != nil {
@@ -61,6 +64,8 @@ func (h *QuantumProxyHandler) ProxyRequest(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to read response")
 	}
+
+	slog.Debug("[QuantumProxy] Response received", "status", resp.StatusCode, "content_type", resp.Header.Get("Content-Type"), "body_size", len(body))
 
 	// Set response headers and status
 	c.Status(resp.StatusCode)
@@ -99,6 +104,8 @@ func (h *QuantumProxyHandler) ProxyPostRequest(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to read response")
 	}
+
+	slog.Debug("[QuantumProxy] Response received", "status", resp.StatusCode, "content_type", resp.Header.Get("Content-Type"), "body_size", len(body))
 
 	// Set response headers and status
 	c.Status(resp.StatusCode)
