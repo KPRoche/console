@@ -116,6 +116,13 @@ func (h *QuantumProxyHandler) ProxyPostRequest(c *fiber.Ctx) error {
 	// Prepend /api/ to the endpoint path to match quantum backend API structure
 	targetURL := h.quantumServiceURL + "/api/" + endpoint
 
+	// Forward query parameters
+	if queryStr := c.Request().URI().QueryArgs().String(); queryStr != "" {
+		targetURL += "?" + queryStr
+	}
+
+	slog.Debug("[QuantumProxy] Forwarding POST request", "from", c.Path(), "to", targetURL)
+
 	// Create HTTP client request
 	req, err := http.NewRequest(http.MethodPost, targetURL, strings.NewReader(string(c.Body())))
 	if err != nil {
