@@ -60,7 +60,17 @@ export function useResultHistogram(
       }
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch histogram')
+      // Detect if we got HTML (loading page) instead of JSON — this means the backend
+      // is temporarily unhealthy. Don't report an error, just silently skip this poll
+      // and try again next time.
+      const errMsg = err instanceof Error ? err.message : 'Failed to fetch histogram'
+      if (errMsg.includes("<!doctype") || errMsg.includes("Unexpected token '<'")) {
+        console.debug('[useResultHistogram] Got HTML (backend loading), retrying next poll')
+        setIsLoading(false)
+        return
+      }
+      console.error('[useResultHistogram] Fetch error:', errMsg, err)
+      setError(errMsg)
     } finally {
       setIsLoading(false)
     }
