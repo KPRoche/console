@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { AlertCircle, Play, RotateCcw, Zap, Key, Check } from 'lucide-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { CustomQASMModal } from './CustomQASMModal'
 import { useQASMFiles } from '../../../hooks/useQASMFiles'
 import { useAuth } from '../../../lib/auth'
@@ -258,12 +259,12 @@ export const QuantumControlPanel: React.FC = () => {
   useEffect(() => {
     if (!hasInitialized) return
 
-    // Skip polling if paused (e.g., dashboard settings modal open)
-    if (isGlobalQuantumPollingPaused()) return
+    // Skip polling if paused (e.g., dashboard settings modal open) or demo forced
+    if (isGlobalQuantumPollingPaused() || isQuantumForcedToDemo()) return
 
     const CONTROL_PANEL_POLL_MS = 8000
     const interval = setInterval(() => {
-      if (!isGlobalQuantumPollingPaused()) {
+      if (!isGlobalQuantumPollingPaused() && !isQuantumForcedToDemo()) {
       fetchStatus(false)
       }
     }, CONTROL_PANEL_POLL_MS)

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useCardLoadingState } from '../CardDataContext'
 import { Skeleton } from '../../ui/Skeleton'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useAuth } from '../../../lib/auth'
 
 const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 10000
@@ -48,8 +49,8 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
 
   useEffect(() => {
     const fetchCircuit = async () => {
-      // Skip fetch if polling is paused (e.g., dashboard settings modal open)
-      if (isGlobalQuantumPollingPaused()) return
+      // Skip fetch if polling is paused (e.g., dashboard settings modal open) or demo forced
+      if (isGlobalQuantumPollingPaused() || isQuantumForcedToDemo()) return
 
       try {
         setIsLoading(true)
@@ -75,7 +76,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
     fetchCircuit()
     const interval = setInterval(fetchCircuit, CIRCUIT_ASCII_POLLING_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [isAuthenticated])
+  }, [isAuthenticated, isQuantumForcedToDemo])
 
   if (showSkeleton) {
     return (

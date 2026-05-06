@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { Slider } from '../../ui/Slider'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
+import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useResultHistogram } from '../../../hooks/useResultHistogram'
 import { useAuth } from '../../../lib/auth'
 
@@ -14,7 +15,7 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6'
 
 export const QuantumHistogramCard: React.FC = () => {
   const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
-  const [sortBy, setSortBy] = useState<'count' | 'pattern'>('count')
+  const [sortBy, setSortBy] = useState<'count' | 'pattern'>('pattern')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
@@ -24,14 +25,15 @@ export const QuantumHistogramCard: React.FC = () => {
   const { data, isLoading, error: hookError, refetch } = useResultHistogram(sortBy, refreshInterval)
 
   const isPaused = isGlobalQuantumPollingPaused()
+  const forceDemo = isQuantumForcedToDemo()
 
   useEffect(() => {
-    if (isPaused) {
+    if (isPaused || forceDemo) {
       setRefreshInterval(Number.MAX_SAFE_INTEGER)
     } else {
       setRefreshInterval(HISTOGRAM_DEFAULT_POLL_MS)
     }
-  }, [isPaused])
+  }, [isPaused, forceDemo])
 
   useEffect(() => {
     if (hookError) {
