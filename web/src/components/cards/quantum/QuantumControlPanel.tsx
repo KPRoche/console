@@ -5,7 +5,6 @@ import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContex
 import { CustomQASMModal } from './CustomQASMModal'
 import { useQASMFiles } from '../../../hooks/useQASMFiles'
 import { useAuth } from '../../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 import { useDrillDown } from '../../../hooks/useDrillDown'
 
 interface ControlState {
@@ -92,7 +91,7 @@ const DEMO_STATUS: SystemStatus = {
 }
 
 export const QuantumControlPanel: React.FC = () => {
-  const { token, login, isLoading: authIsLoading } = useAuth()
+  const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
   const { open: openDrillDown } = useDrillDown()
   const [control, setControl] = useState<ControlState>(DEMO_DATA)
   const [status, setStatus] = useState<SystemStatus | null>(null)
@@ -102,7 +101,7 @@ export const QuantumControlPanel: React.FC = () => {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [hasInitialized, setHasInitialized] = useState(false)
 
-  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
+  
 
   // IBM Quantum credentials
   const [ibmAuthenticated, setIbmAuthenticated] = useState(false)
@@ -386,13 +385,11 @@ export const QuantumControlPanel: React.FC = () => {
     )
   }
 
-  if (!hasRealAuth) {
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
         <p className="text-gray-500">
-          {token === DEMO_TOKEN_VALUE
-            ? "Demo mode — Limited data available. Log in for live quantum data."
-            : "Please log in to view quantum data"}
+        <p className="text-gray-500">Please log in to view quantum data</p>
         </p>
         <button
           onClick={login}

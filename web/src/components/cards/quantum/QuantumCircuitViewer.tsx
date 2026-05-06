@@ -3,7 +3,6 @@ import { useCardLoadingState } from '../CardDataContext'
 import { Skeleton } from '../../ui/Skeleton'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useAuth } from '../../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 5000
 
@@ -12,12 +11,10 @@ interface QuantumCircuitViewerProps {
 }
 
 export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
-  const { token, login, isLoading: authIsLoading } = useAuth()
+  const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
   const [circuitAscii, setCircuitAscii] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFailed, setIsFailed] = useState(false)
-
-  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
 
   if (authIsLoading) {
     return (
@@ -27,14 +24,10 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
     )
   }
 
-  if (!hasRealAuth) {
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
-        <p className="text-gray-500">
-          {token === DEMO_TOKEN_VALUE
-            ? "Demo mode — Limited data available. Log in for live quantum data."
-            : "Please log in to view quantum data"}
-        </p>
+        <p className="text-gray-500">Please log in to view quantum data</p>
         <button
           onClick={login}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -82,7 +75,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
     fetchCircuit()
     const interval = setInterval(fetchCircuit, CIRCUIT_ASCII_POLLING_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [hasRealAuth])
+  }, [isAuthenticated])
 
   if (showSkeleton) {
     return (

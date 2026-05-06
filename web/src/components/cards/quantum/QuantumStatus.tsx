@@ -4,7 +4,6 @@ import { Skeleton } from '../../ui/Skeleton'
 import { StatusBadge } from '../../ui/StatusBadge'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useAuth } from '../../../lib/auth'
-import { DEMO_TOKEN_VALUE } from '../../../lib/constants'
 
 // Polling interval for status updates (can be adjusted if needed)
 const STATUS_POLL_MS = 3000
@@ -58,20 +57,20 @@ const DEMO_STATUS: QuantumStatusResponse = {
 }
 
 export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false }) => {
-  const { token, login, isLoading: authIsLoading } = useAuth()
+  const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
   const [statusData, setStatusData] = useState<QuantumStatusResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFailed, setIsFailed] = useState(false)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
 
-  const hasRealAuth = !!token && token !== DEMO_TOKEN_VALUE
+  
 
   useEffect(() => {
     const fetchStatus = async () => {
       // Skip fetch if polling is paused (e.g., dashboard settings modal open)
       if (isGlobalQuantumPollingPaused()) return
 
-      if (isDemoData || !hasRealAuth) {
+      if (isDemoData || !isAuthenticated) {
         setStatusData(DEMO_STATUS)
         setIsLoading(false)
         return
@@ -102,7 +101,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     fetchStatus()
     const interval = setInterval(fetchStatus, STATUS_POLL_MS)
     return () => clearInterval(interval)
-  }, [isDemoData, hasRealAuth])
+  }, [isDemoData, isAuthenticated])
 
   if (authIsLoading) {
     return (
@@ -114,13 +113,11 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     )
   }
 
-  if (!hasRealAuth) {
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-4 text-center">
         <p className="text-gray-500">
-          {token === DEMO_TOKEN_VALUE
-            ? "Demo mode — Limited data available. Log in for live quantum data."
-            : "Please log in to view quantum data"}
+        <p className="text-gray-500">Please log in to view quantum data</p>
         </p>
         <button
           onClick={login}
