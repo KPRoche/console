@@ -6,7 +6,7 @@ import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContex
 import { useResultHistogram } from '../../../hooks/useResultHistogram'
 import { useAuth } from '../../../lib/auth'
 
-const HISTOGRAM_DEFAULT_POLL_MS = 2000
+const HISTOGRAM_DEFAULT_POLL_MS = 5000
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#6366f1']
 
 export const QuantumHistogramCard: React.FC = () => {

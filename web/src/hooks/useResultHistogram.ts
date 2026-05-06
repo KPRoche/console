@@ -21,7 +21,7 @@ export interface HistogramData {
 
 export function useResultHistogram(
   sortBy: 'count' | 'pattern' = 'count',
-  pollInterval: number = 2000
+  pollInterval: number = 5000
 ) {
   const { isAuthenticated } = useAuth()
   const [data, setData] = useState<HistogramData | null>(null)
@@ -41,6 +41,12 @@ export function useResultHistogram(
         },
         credentials: 'include',
       })
+
+      // Silently ignore 429 (rate limit) — don't report as error, just skip this poll
+      if (res.status === 429) {
+        setIsLoading(false)
+        return
+      }
 
       if (!res.ok) {
         throw new Error(`Failed to fetch histogram (${res.status})`)
@@ -65,7 +71,7 @@ export function useResultHistogram(
     fetchHistogram()
     const timer = setInterval(fetchHistogram, pollInterval)
     return () => clearInterval(timer)
-  }, [isAuthenticated, fetchHistogram, pollInterval])
+  }, [isAuthenticated, sortBy, pollInterval])
 
   return { data, isLoading, error, refetch: fetchHistogram }
 }
