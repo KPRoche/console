@@ -23,13 +23,13 @@ export function useResultHistogram(
   sortBy: 'count' | 'pattern' = 'count',
   pollInterval: number = 2000
 ) {
-  const { token } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [data, setData] = useState<HistogramData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchHistogram = useCallback(async () => {
-    if (!token) return
+    if (!isAuthenticated) return
 
     setIsLoading(true)
     setError(null)
@@ -38,7 +38,6 @@ export function useResultHistogram(
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         credentials: 'include',
       })
@@ -59,14 +58,14 @@ export function useResultHistogram(
     } finally {
       setIsLoading(false)
     }
-  }, [token, sortBy])
+  }, [isAuthenticated, sortBy])
 
   useEffect(() => {
-    if (!token) return
+    if (!isAuthenticated) return
     fetchHistogram()
     const timer = setInterval(fetchHistogram, pollInterval)
     return () => clearInterval(timer)
-  }, [token, fetchHistogram, pollInterval])
+  }, [isAuthenticated, fetchHistogram, pollInterval])
 
   return { data, isLoading, error, refetch: fetchHistogram }
 }
