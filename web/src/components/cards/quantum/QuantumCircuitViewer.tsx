@@ -4,7 +4,7 @@ import { Skeleton } from '../../ui/Skeleton'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useAuth } from '../../../lib/auth'
 
-const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 5000
+const CIRCUIT_ASCII_POLLING_INTERVAL_MS = 10000
 
 interface QuantumCircuitViewerProps {
   isDemoData?: boolean

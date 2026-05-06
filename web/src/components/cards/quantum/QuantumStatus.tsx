@@ -6,7 +6,7 @@ import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContex
 import { useAuth } from '../../../lib/auth'
 
 // Polling interval for status updates (can be adjusted if needed)
-const STATUS_POLL_MS = 3000
+const STATUS_POLL_MS = 8000
 
 interface QuantumStatusResponse {
   status: string
