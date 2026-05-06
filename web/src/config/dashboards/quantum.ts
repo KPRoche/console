@@ -5,7 +5,7 @@ import type { UnifiedDashboardConfig } from '../../lib/unified/types'
 
 export const quantumDashboardConfig: UnifiedDashboardConfig = {
   id: 'quantum',
-  name: 'Quantum Computing',
+  name: 'Quantum Demo',
   subtitle: 'Quantum circuit execution and results',
   route: '/quantum',
   statsType: 'quantum',
