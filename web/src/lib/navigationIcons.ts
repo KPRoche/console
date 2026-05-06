@@ -22,7 +22,7 @@ export const NAVIGATION_ICONS: Record<string, string> = {
   'multi-tenancy': 'Users',
   'alerts': 'Bell',
   'arcade': 'Gamepad2',
-  'quantum': 'Zap',
+  'quantum': 'Qiskit',
 
   // Discoverable dashboards
   'compute': 'Monitor',
