@@ -216,7 +216,10 @@ export const QuantumControlPanel: React.FC = () => {
 
       const res = await fetch('/api/quantum/auth/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
         credentials: 'include',
         body: JSON.stringify({
           api_key: form.apiKey,
