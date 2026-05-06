@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { useCardLoadingState } from '../CardDataContext'
 import { Skeleton } from '../../ui/Skeleton'
 import { StatusBadge } from '../../ui/StatusBadge'
+import { Slider } from '../../ui/Slider'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { useAuth } from '../../../lib/auth'
 
 // Polling interval for status updates (can be adjusted if needed)
-const STATUS_POLL_MS = 8000
+const STATUS_POLL_MS_DEFAULT = 8000
+const STATUS_POLL_MIN_MS = 2000
+const STATUS_POLL_MAX_MS = 30000
 
 interface QuantumStatusResponse {
   status: string
@@ -62,6 +65,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
   const [isLoading, setIsLoading] = useState(true)
   const [isFailed, setIsFailed] = useState(false)
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
+  const [pollInterval, setPollInterval] = useState(STATUS_POLL_MS_DEFAULT)
 
   
 
@@ -99,9 +103,9 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     }
 
     fetchStatus()
-    const interval = setInterval(fetchStatus, STATUS_POLL_MS)
+    const interval = setInterval(fetchStatus, pollInterval)
     return () => clearInterval(interval)
-  }, [isDemoData, isAuthenticated])
+  }, [isDemoData, isAuthenticated, pollInterval])
 
   if (authIsLoading) {
     return (
@@ -171,6 +175,19 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
 
   return (
     <div className="p-4 space-y-4">
+        {/* Refresh Interval Control */}
+        <div className="bg-secondary/30 rounded-lg p-3 border border-border">
+          <Slider
+            label="Refresh Interval"
+            value={pollInterval}
+            onChange={(e) => setPollInterval(Number(e.currentTarget.value))}
+            min={STATUS_POLL_MIN_MS}
+            max={STATUS_POLL_MAX_MS}
+            step={500}
+            unit=" ms"
+          />
+        </div>
+
         {/* Status Overview */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
