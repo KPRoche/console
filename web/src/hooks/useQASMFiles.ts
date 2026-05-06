@@ -22,7 +22,7 @@ export function useQASMFiles(): UseQASMFilesResult {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch('/api/qasm/listfiles', {
+      const response = await fetch('/api/quantum/qasm/listfiles', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
