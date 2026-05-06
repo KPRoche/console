@@ -1,9 +1,8 @@
 import React, { forwardRef } from 'react'
 
-export const QiskitIcon = forwardRef<
-  SVGSVGElement,
-  React.SVGProps<SVGSVGElement>
->(({ ...props }, ref) => (
+export const QiskitIcon = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>(
+  function QiskitIcon({ ...props }, ref) {
+    return (
   <svg
     ref={ref}
     xmlns="http://www.w3.org/2000/svg"
@@ -44,8 +43,9 @@ export const QiskitIcon = forwardRef<
       <path d="M69.89,0C64.8,0,53,.79,53,7.91S64.8,15.8,69.89,15.8,86.81,15,86.81,7.91,75,0,69.89,0Zm0,4.79C77,4.81,82,6.45,82,7.91S77,11,69.89,11,57.76,9.37,57.76,7.91,62.74,4.81,69.89,4.81Z"/>
       <path className="qiskit-6" d="M99.44,112.46a6,6,0,0,0-.86.07h0L72.3,67.1h0L48.35,25.71A6,6,0,1,0,43.81,28a6.82,6.82,0,0,0,.79-.08L68.55,69.27h0L79.36,88h0l15.44,26.67a6,6,0,1,0,4.63-2.19Z"/>
     </svg>
-  )
-))
+    )
+  }
+)
 
 QiskitIcon.displayName = 'QiskitIcon'
 
