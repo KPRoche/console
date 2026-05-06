@@ -5,7 +5,7 @@ import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContex
 import { useAuth } from '../../../lib/auth'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
-const QUBIT_GRID_DEFAULT_POLL_MS = 5500
+const QUBIT_GRID_DEFAULT_POLL_MS = 10000
 
 interface QubitSimpleData {
   num_qubits: number

@@ -258,7 +258,7 @@ export const QuantumControlPanel: React.FC = () => {
     // Skip polling if paused (e.g., dashboard settings modal open)
     if (isGlobalQuantumPollingPaused()) return
 
-    const CONTROL_PANEL_POLL_MS = 2500
+    const CONTROL_PANEL_POLL_MS = 8000
     const interval = setInterval(() => {
       if (!isGlobalQuantumPollingPaused()) {
       fetchStatus(false)
