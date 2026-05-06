@@ -73,7 +73,7 @@ export const DEFAULT_PRIMARY_NAV: SidebarItem[] = [
  * Users can add any of these to their sidebar via the customizer.
  */
 export const DISCOVERABLE_DASHBOARDS: SidebarItem[] = [
-  { id: 'quantum', name: 'Quantum', icon: NAVIGATION_ICONS['quantum'], href: '/quantum', type: 'link', order: 0 },
+  { id: 'quantum', name: 'Quantum Demo', icon: NAVIGATION_ICONS['quantum'], href: '/quantum', type: 'link', order: 0 },
   { id: 'compute', name: 'Compute', icon: NAVIGATION_ICONS['compute'], href: '/compute', type: 'link', order: 1 },
   { id: 'cost', name: 'Cost', icon: NAVIGATION_ICONS['cost'], href: '/cost', type: 'link', order: 2 },
   { id: 'data-compliance', name: 'Data Compliance', icon: NAVIGATION_ICONS['data-compliance'], href: '/data-compliance', type: 'link', order: 3 },
