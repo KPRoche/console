@@ -1024,6 +1024,11 @@ func (s *Server) setupRoutes() {
 	cardProxy := handlers.NewCardProxyHandler(s.store)
 	api.Get("/card-proxy", cardProxy.Proxy)
 
+	// Quantum proxy — forwards requests to quantum-kc-demo backend
+	quantumProxy := handlers.NewQuantumProxyHandler()
+	api.Get("/quantum/*", quantumProxy.ProxyRequest)
+	api.Post("/quantum/*", quantumProxy.ProxyPostRequest)
+
 	// Swap routes
 	swaps := handlers.NewSwapHandler(s.store, s.hub)
 	api.Get("/swaps", swaps.ListPendingSwaps)
