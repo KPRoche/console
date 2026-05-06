@@ -4,14 +4,13 @@ import (
 	"context"
 	"os"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-// isQuantumWorkloadRunning detects if quantum-kc-demo is running in the cluster.
+// isQuantumWorkloadRunning detects if quantum-kc-demo is running in any cluster.
 // Uses a hybrid approach:
 // 1. QUANTUM_WORKLOAD_DISABLED=true env var forces false (opt-out)
 // 2. QUANTUM_WORKLOAD_RUNNING=true env var forces true (opt-in, useful for testing)
@@ -41,10 +40,26 @@ func (s *Server) isQuantumWorkloadRunning() bool {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// Check for quantum-kc-demo deployment in quantum namespace
-		deployment, err := s.k8sClient.GetDeployment(ctx, "quantum", "quantum-kc-demo")
-		if err == nil && deployment != nil && deployment.Status.AvailableReplicas > 0 {
-			available = true
+		// Get list of all clusters
+		clusters, err := s.k8sClient.ListClusters(ctx)
+		if err == nil {
+			// Check each cluster for quantum-kc-demo deployment in quantum namespace
+			for _, cluster := range clusters {
+				deployments, err := s.k8sClient.GetDeployments(ctx, cluster.Context, "quantum")
+				if err != nil {
+					continue
+				}
+				// Look for quantum-kc-demo deployment with available replicas
+				for _, deploy := range deployments {
+					if deploy.Name == "quantum-kc-demo" && deploy.AvailableReplicas > 0 {
+						available = true
+						break
+					}
+				}
+				if available {
+					break
+				}
+			}
 		}
 	}
 
