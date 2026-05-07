@@ -61,6 +61,8 @@ interface SystemStatus {
   }
 }
 
+const LARGE_CIRCUIT_QASM = 'expt32.qasm'
+
 const DEMO_DATA: ControlState = {
   backend: 'aer',
   shots: 1024,
@@ -527,32 +529,44 @@ export const QuantumControlPanel: React.FC = () => {
           )}
 
           {/* Backend Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Backend
-            </label>
-            <select
-              value={control.backend}
-              onChange={e => setControl(prev => ({ ...prev, backend: e.target.value }))}
-              disabled={control.executing}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
-            >
-              <option value="aer">Aer Simulator</option>
-              <option value="sim">QASM Simulator</option>
-              <option value="qx5">IBM 5-qubit</option>
-              {ibmAuthenticated && (
-                <>
-                  <option value="least">IBM Least Busy (Real Hardware)</option>
-                  <option value="aer_noise">Aer with Real Noise Model</option>
-                </>
-              )}
-            </select>
-            {control.backend === 'aer_noise' && (
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                Simulates your least busy backend with its real noise characteristics
-              </p>
-            )}
-          </div>
+          {(() => {
+            const is32Qubit = control.qasm_file === LARGE_CIRCUIT_QASM
+            return (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Backend
+                </label>
+                <select
+                  value={control.backend}
+                  onChange={e => setControl(prev => ({ ...prev, backend: e.target.value }))}
+                  disabled={control.executing}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-50"
+                >
+                  <option value="aer">Aer Simulator</option>
+                  <option value="sim">QASM Simulator</option>
+                  <option value="qx5">IBM 5-qubit</option>
+                  {ibmAuthenticated && (
+                    <>
+                      <option value="least">IBM Least Busy (Real Hardware)</option>
+                      <option value="aer_noise" disabled={is32Qubit}>
+                        Aer with Real Noise Model{is32Qubit ? ' — too memory-intensive for 32 qubits' : ''}
+                      </option>
+                    </>
+                  )}
+                </select>
+                {is32Qubit && (
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                    32-qubit circuits require too much memory for noisy simulation — noise model options are disabled.
+                  </p>
+                )}
+                {!is32Qubit && control.backend === 'aer_noise' && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    Simulates your least busy backend with its real noise characteristics
+                  </p>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Shots Configuration */}
           <div>
@@ -619,7 +633,11 @@ export const QuantumControlPanel: React.FC = () => {
                     setPreviousQasmFile(control.qasm_file)
                     setShowCustomQasmModal(true)
                   } else {
-                    setControl(prev => ({ ...prev, qasm_file: val }))
+                    const newBackend =
+                      val === LARGE_CIRCUIT_QASM && control.backend === 'aer_noise'
+                        ? 'aer'
+                        : control.backend
+                    setControl(prev => ({ ...prev, qasm_file: val, backend: newBackend }))
                   }
                 }}
                 disabled={control.executing || qasmFilesLoading}
