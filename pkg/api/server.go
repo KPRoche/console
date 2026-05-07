@@ -1031,6 +1031,7 @@ func (s *Server) setupRoutes() {
 	quantumProxy := handlers.NewQuantumProxyHandler()
 	api.Get("/quantum/*", quantumProxy.ProxyRequest)
 	api.Post("/quantum/*", quantumProxy.ProxyPostRequest)
+	api.Delete("/quantum/*", quantumProxy.ProxyRequest)
 	// Result histogram endpoint with dedicated handler (doesn't use wildcard params)
 	api.Get("/result/histogram", quantumProxy.ProxyResultHistogram)
 
