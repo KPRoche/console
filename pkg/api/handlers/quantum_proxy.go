@@ -7,9 +7,30 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+const (
+	quantumProxyTimeout = 30 * time.Second
+)
+
+// quantumClient uses a shared HTTP client with timeout to prevent hanging requests
+var quantumClient = &http.Client{
+	Timeout: quantumProxyTimeout,
+}
+
+// Safe headers to forward from the client to the quantum service
+// (excludes sensitive headers like Cookie, Authorization, etc.)
+var safeHeadersToForward = map[string]bool{
+	"Accept":           true,
+	"Accept-Encoding":  true,
+	"Accept-Language":  true,
+	"User-Agent":       true,
+	"Content-Type":     true,
+	"X-Requested-With": true,
+}
 
 type QuantumProxyHandler struct {
 	quantumServiceURL string
@@ -46,14 +67,16 @@ func (h *QuantumProxyHandler) ProxyRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
 	}
 
-	// Copy headers from Fiber request to HTTP request
+	// Forward only safe headers (exclude sensitive headers like Cookie, Authorization)
 	c.Request().Header.VisitAll(func(key, value []byte) {
-		req.Header.Add(string(key), string(value))
+		keyStr := string(key)
+		if safeHeadersToForward[keyStr] {
+			req.Header.Add(keyStr, string(value))
+		}
 	})
 
-	// Execute request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Execute request with shared client (has timeout)
+	resp, err := quantumClient.Do(req)
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, fmt.Sprintf("Quantum service unavailable: %v", err))
 	}
@@ -86,12 +109,16 @@ func (h *QuantumProxyHandler) ProxyResultHistogram(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
 	}
 
+	// Forward only safe headers (exclude sensitive headers like Cookie, Authorization)
 	c.Request().Header.VisitAll(func(key, value []byte) {
-		req.Header.Add(string(key), string(value))
+		keyStr := string(key)
+		if safeHeadersToForward[keyStr] {
+			req.Header.Add(keyStr, string(value))
+		}
 	})
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Execute request with shared client (has timeout)
+	resp, err := quantumClient.Do(req)
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, fmt.Sprintf("Quantum service unavailable: %v", err))
 	}
@@ -129,14 +156,16 @@ func (h *QuantumProxyHandler) ProxyPostRequest(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("Failed to create request: %v", err))
 	}
 
-	// Copy headers from Fiber request to HTTP request
+	// Forward only safe headers (exclude sensitive headers like Cookie, Authorization)
 	c.Request().Header.VisitAll(func(key, value []byte) {
-		req.Header.Add(string(key), string(value))
+		keyStr := string(key)
+		if safeHeadersToForward[keyStr] {
+			req.Header.Add(keyStr, string(value))
+		}
 	})
 
-	// Execute request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Execute request with shared client (has timeout)
+	resp, err := quantumClient.Do(req)
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, fmt.Sprintf("Quantum service unavailable: %v", err))
 	}
