@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../lib/auth'
 
+const DEBUG = import.meta.env.VITE_DEBUG === 'true' || (typeof window !== 'undefined' && (window as any).DEBUG_QUANTUM)
+
 export interface HistogramEntry {
   pattern: string
   count: number
@@ -34,7 +36,7 @@ export function useResultHistogram(
     setIsLoading(true)
     setError(null)
     try {
-      console.log('[useResultHistogram] Fetching:', `/api/result/histogram?sort=${sortBy}`)
+      if (DEBUG) console.log('[useResultHistogram] Fetching:', `/api/result/histogram?sort=${sortBy}`)
       const res = await fetch(`/api/result/histogram?sort=${sortBy}`, {
         method: 'GET',
         headers: {
@@ -43,23 +45,23 @@ export function useResultHistogram(
         credentials: 'include',
       })
 
-      console.log('[useResultHistogram] Response status:', res.status, 'content-type:', res.headers.get('content-type'))
+      if (DEBUG) console.log('[useResultHistogram] Response status:', res.status, 'content-type:', res.headers.get('content-type'))
 
       // Silently ignore 429 (rate limit) — don't report as error, just skip this poll
       if (res.status === 429) {
-        console.debug('[useResultHistogram] Rate limited, skipping')
+        if (DEBUG) console.debug('[useResultHistogram] Rate limited, skipping')
         setIsLoading(false)
         return
       }
 
       if (!res.ok) {
         const text = await res.text()
-        console.error('[useResultHistogram] Non-ok response:', res.status, text.substring(0, 200))
+        if (DEBUG) console.error('[useResultHistogram] Non-ok response:', res.status, text.substring(0, 200))
         throw new Error(`Failed to fetch histogram (${res.status})`)
       }
 
       const json = await res.json()
-      console.log('[useResultHistogram] Got data, num_patterns:', json.num_patterns)
+      if (DEBUG) console.log('[useResultHistogram] Got data, num_patterns:', json.num_patterns)
       if (json.warning) {
         setData(null)
       } else {
@@ -72,11 +74,11 @@ export function useResultHistogram(
       // and try again next time.
       const errMsg = err instanceof Error ? err.message : 'Failed to fetch histogram'
       if (errMsg.includes("<!doctype") || errMsg.includes("Unexpected token '<'")) {
-        console.debug('[useResultHistogram] Got HTML (backend loading), retrying next poll')
+        if (DEBUG) console.debug('[useResultHistogram] Got HTML (backend loading), retrying next poll')
         setIsLoading(false)
         return
       }
-      console.error('[useResultHistogram] Fetch error:', errMsg, err)
+      if (DEBUG) console.error('[useResultHistogram] Fetch error:', errMsg, err)
       setError(errMsg)
     } finally {
       setIsLoading(false)
