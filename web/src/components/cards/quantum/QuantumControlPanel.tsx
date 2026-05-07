@@ -270,9 +270,10 @@ export const QuantumControlPanel: React.FC = () => {
 
       setIbmAuthenticated(false)
       setShowClearCredentialsDialog(false)
+      setError(null)
     } catch (err) {
       console.error('Error clearing credentials:', err)
-      alert('Failed to clear credentials: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsClearing(false)
     }
