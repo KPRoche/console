@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../lib/auth'
+import { isQuantumForcedToDemo } from '../lib/demoMode'
 
 interface QASMFile {
   name: string
@@ -12,7 +14,8 @@ interface UseQASMFilesResult {
   refetch: () => Promise<void>
 }
 
-export function useQASMFiles(): UseQASMFilesResult {
+export function useQASMFiles(enabled?: boolean): UseQASMFilesResult {
+  const { isAuthenticated } = useAuth()
   const [files, setFiles] = useState<QASMFile[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,8 +48,13 @@ export function useQASMFiles(): UseQASMFilesResult {
   }
 
   useEffect(() => {
+    // Skip fetch if explicitly disabled, user is not authenticated, or quantum is forced to demo
+    if (enabled === false || !isAuthenticated || isQuantumForcedToDemo()) {
+      setIsLoading(false)
+      return
+    }
     fetchFiles()
-  }, [])
+  }, [isAuthenticated, enabled])
 
   return { files, isLoading, error, refetch: fetchFiles }
 }
