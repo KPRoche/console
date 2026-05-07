@@ -107,7 +107,7 @@ export function QuantumCredentialsDrillDown({ data }: Props) {
       <div className="flex gap-2 p-4 border-t border-border bg-card/50">
         <button
           onClick={handleSaveCredentials}
-          disabled={credentialSaving || (!credentialForm.apiKey.trim() && !credentialForm.crn.trim())}
+          disabled={credentialSaving || !credentialForm.apiKey.trim() || !credentialForm.crn.trim()}
           className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-50 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-colors"
         >
           {credentialSaving ? (
