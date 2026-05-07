@@ -84,7 +84,7 @@ func PingHandler(c *fiber.Ctx) error {
 	}
 
 	// Block requests to private/internal IPs to prevent SSRF
-	if isPrivateHost(host) {
+	if IsPrivateHost(host) {
 		return c.Status(403).JSON(fiber.Map{"error": "pinging private/internal addresses is not allowed"})
 	}
 
@@ -130,8 +130,9 @@ func PingHandler(c *fiber.Ctx) error {
 	})
 }
 
-// isPrivateHost checks whether a hostname resolves to a private/loopback IP.
-func isPrivateHost(host string) bool {
+// IsPrivateHost checks whether a hostname resolves to a private/loopback IP.
+// This is exported for use by other handlers to prevent SSRF attacks.
+func IsPrivateHost(host string) bool {
 	// Block well-known internal hostnames
 	lower := strings.ToLower(host)
 	if lower == "localhost" || lower == "metadata.google.internal" ||
