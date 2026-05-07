@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AlertCircle, Play, RotateCcw, Zap, Key, Check } from 'lucide-react'
+import { AlertCircle, Play, RotateCcw, Zap, Key, Check, Trash2 } from 'lucide-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
 import { isQuantumForcedToDemo } from '../../../lib/demoMode'
@@ -106,6 +106,8 @@ export const QuantumControlPanel: React.FC = () => {
 
   // IBM Quantum credentials
   const [ibmAuthenticated, setIbmAuthenticated] = useState(false)
+  const [showClearCredentialsDialog, setShowClearCredentialsDialog] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   // Custom QASM support
   const [showCustomQasmModal, setShowCustomQasmModal] = useState(false)
@@ -245,6 +247,34 @@ export const QuantumControlPanel: React.FC = () => {
       },
     })
   }, [ibmAuthenticated, openDrillDown])
+
+  // Clear IBM Quantum credentials
+  const handleClearCredentials = useCallback(async () => {
+    setIsClearing(true)
+    try {
+      const res = await fetch('/api/quantum/auth/clear', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to clear credentials')
+      }
+
+      setIbmAuthenticated(false)
+      setShowClearCredentialsDialog(false)
+    } catch (err) {
+      console.error('Error clearing credentials:', err)
+      alert('Failed to clear credentials: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setIsClearing(false)
+    }
+  }, [])
 
   // Initialize on mount
   useEffect(() => {
@@ -453,6 +483,48 @@ export const QuantumControlPanel: React.FC = () => {
               )}
             </div>
           </button>
+
+          {/* Clear Credentials Button */}
+          {ibmAuthenticated && (
+            <button
+              onClick={() => setShowClearCredentialsDialog(true)}
+              disabled={isClearing}
+              className="w-full px-3 py-2 flex items-center justify-between rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <span className="text-sm font-medium text-red-700 dark:text-red-300">Clear Credentials</span>
+              </div>
+            </button>
+          )}
+
+          {/* Clear Credentials Confirmation Dialog */}
+          {showClearCredentialsDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4 shadow-lg">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Clear Credentials?</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  Are you sure you want to delete your IBM Quantum credentials? You'll need to enter them again to run circuits on IBM hardware.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowClearCredentialsDialog(false)}
+                    disabled={isClearing}
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleClearCredentials}
+                    disabled={isClearing}
+                    className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:opacity-50 text-white font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isClearing ? 'Clearing...' : 'Clear'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Backend Selection */}
           <div>
