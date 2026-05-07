@@ -13,3 +13,9 @@ export const QuantumPollingContext = createContext<QuantumPollingContextType>({
 export function useQuantumPolling() {
   return useContext(QuantumPollingContext)
 }
+
+let globalQuantumPollingPaused = false
+
+export function isGlobalQuantumPollingPaused(): boolean {
+  return globalQuantumPollingPaused
+}
