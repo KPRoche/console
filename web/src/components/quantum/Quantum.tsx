@@ -16,7 +16,7 @@ export function Quantum() {
       storageKey={QUANTUM_CARDS_KEY}
       defaultCards={DEFAULT_QUANTUM_CARDS}
       title="Quantum Computing"
-      icon="zap"
+      icon="Qiskit"
       statsType="compute"
       beforeCards={<QuantumWorkloadBanner />}
     />
