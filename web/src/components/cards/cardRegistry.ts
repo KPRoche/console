@@ -11,6 +11,7 @@ import { isDynamicCardRegistered } from '../../lib/dynamic-cards/dynamicCardRegi
 import { getCardConfig } from '../../config/cards'
 import { registerAllDescriptorCards } from './cardDescriptors.registry'
 import { CARD_TITLES, CARD_DESCRIPTIONS, DEMO_EXEMPT_CARDS } from './cardMetadata'
+import { quantumCardRegistry } from './cardRegistry.quantum'
 
 // Eagerly import the default main-dashboard cards so they render instantly on
 // page load (no React.lazy chunk delay).  These are the 9 cards in the "main"
@@ -210,13 +211,6 @@ const GitHubActivity = safeLazy(() => import('./GitHubActivity'), 'GitHubActivit
 const IssueActivityChart = safeLazy(() => import('./IssueActivityChart'), 'IssueActivityChart')
 const RSSFeed = safeLazy(() => import('./rss'), 'RSSFeed')
 const Kubectl = safeLazy(() => import('./Kubectl'), 'Kubectl')
-// Quantum computing cards — share one chunk via barrel import
-const _quantumBundle = import('./quantum').catch(() => undefined as never)
-const QuantumControlPanel = safeLazy(() => _quantumBundle, 'QuantumControlPanel')
-const QuantumQubitGrid = safeLazy(() => _quantumBundle, 'QuantumQubitGrid')
-const QuantumStatus = safeLazy(() => _quantumBundle, 'QuantumStatus')
-const QuantumCircuitViewer = safeLazy(() => _quantumBundle, 'QuantumCircuitViewer')
-const QuantumHistogramCard = safeLazy(() => _quantumBundle, 'QuantumHistogramCard')
 // Arcade/game cards — share one chunk via barrel import.
 // Eagerly start loading the bundle at module parse time so all 24 game cards
 // share one HTTP request instead of 24 separate ones. This also ensures that
@@ -635,12 +629,6 @@ const RAW_CARD_COMPONENTS: Record<string, CardComponent> = {
   rss_feed: RSSFeed,
   // Kubectl card
   kubectl: Kubectl,
-  // Quantum computing cards
-  quantum_control_panel: QuantumControlPanel,
-  quantum_qubit_grid: QuantumQubitGrid,
-  quantum_status: QuantumStatus,
-  quantum_circuit_viewer: QuantumCircuitViewer,
-  quantum_histogram: QuantumHistogramCard,
   // Sudoku game card
   sudoku_game: SudokuGame,
   // Kube Match card
@@ -1350,12 +1338,6 @@ const CARD_CHUNK_PRELOADERS: Record<string, () => Promise<unknown>> = {
   // RSS Feed & utilities
   rss_feed: () => import('./rss'),
   kubectl: () => import('./Kubectl'),
-  // Quantum computing cards — all share one chunk via barrel import
-  quantum_control_panel: () => import('./quantum'),
-  quantum_qubit_grid: () => import('./quantum'),
-  quantum_status: () => import('./quantum'),
-  quantum_circuit_viewer: () => import('./quantum'),
-  quantum_histogram: () => import('./quantum'),
   // Arcade games — all share one chunk via barrel
   iframe_embed: () => import('./IframeEmbed'),
   network_utils: () => import('./NetworkUtils'),
@@ -1829,12 +1811,6 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
   rss_feed: 6,
   // Kubectl card - interactive terminal
   kubectl: 8,
-  // Quantum computing cards
-  quantum_control_panel: 6,
-  quantum_qubit_grid: 6,
-  quantum_status: 4,
-  quantum_circuit_viewer: 6,
-  quantum_histogram: 6,
   // Sudoku game card
   sudoku_game: 6,
   // Kube Match card
@@ -1926,6 +1902,11 @@ export const CARD_DEFAULT_WIDTHS: Record<string, number> = {
 // ---------------------------------------------------------------------------
 // Unified Card Descriptor Registration
 // ---------------------------------------------------------------------------
+// Quantum computing cards
+Object.assign(RAW_CARD_COMPONENTS, quantumCardRegistry.components)
+Object.assign(CARD_CHUNK_PRELOADERS, quantumCardRegistry.preloaders)
+Object.assign(CARD_DEFAULT_WIDTHS, quantumCardRegistry.defaultWidths)
+
 // Cards migrated to the descriptor system are registered here.
 // This populates RAW_CARD_COMPONENTS, CARD_CHUNK_PRELOADERS,
 // CARD_DEFAULT_WIDTHS, CARD_TITLES, CARD_DESCRIPTIONS, and
