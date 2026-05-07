@@ -71,6 +71,9 @@ export function QuantumWorkloadBanner() {
           <p className="text-xs text-muted-foreground mt-1">
             Cards are showing demo data. To run live quantum circuits, deploy quantum-kc-demo to your cluster.
           </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            If quantum-kc-demo is running but not detected, or commands are not being accepted, try signing out and back into the console.
+          </p>
           <div className="flex gap-2 mt-2">
             <a
               href="https://github.com/kproche/quantum-kc-demo"

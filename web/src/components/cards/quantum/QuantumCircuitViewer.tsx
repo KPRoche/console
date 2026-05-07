@@ -89,8 +89,8 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
   return (
     <div className="p-4">
         {circuitAscii ? (
-          <div className="overflow-auto bg-card rounded border border-border">
-            <pre className="font-mono text-sm p-4 m-0 whitespace-pre text-foreground">
+          <div className="overflow-x-auto bg-card rounded border border-border">
+            <pre className="p-4 m-0 whitespace-pre text-foreground" style={{ fontFamily: '"DejaVu Sans Mono", "Noto Sans Mono", "Cascadia Code", monospace', lineHeight: '1.5', fontSize: '12px', minWidth: 'fit-content' }}>
               {circuitAscii}
             </pre>
           </div>
