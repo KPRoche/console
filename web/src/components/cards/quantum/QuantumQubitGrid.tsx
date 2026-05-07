@@ -7,6 +7,8 @@ import { useAuth } from '../../../lib/auth'
 
 // Polling interval for qubit grid updates (adjustable for responsiveness)
 const QUBIT_GRID_DEFAULT_POLL_MS = 10000
+// SVG border color for qubit grid display
+const SVG_BORDER_COLOR = '#ccc'
 
 interface QubitSimpleData {
   num_qubits: number
@@ -113,7 +115,7 @@ function renderQubitSVG(pattern: string, displayPattern: readonly (readonly numb
       }
     }
 
-    let svg = `<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid #ccc; border-radius: 4px;">\n`
+    let svg = `<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid ${SVG_BORDER_COLOR}; border-radius: 4px;">\n`
 
     for (let i = 0; i < gridSize; i++) {
       const x = rectSize * (i % 8)
@@ -148,7 +150,7 @@ function renderQubitSVG(pattern: string, displayPattern: readonly (readonly numb
     }
   }
 
-  let svg = `<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid #ccc; border-radius: 4px;">\n`
+  let svg = `<svg width="128" height="128" version="1.1" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid var(--border); border-radius: 4px;">\n`
 
   for (let i = 0; i < gridSize; i++) {
     const x = rectSize * (i % 8)

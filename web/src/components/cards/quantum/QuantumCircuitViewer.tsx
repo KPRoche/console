@@ -40,11 +40,12 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
   }
 
   const { showSkeleton } = useCardLoadingState({
-    isLoading,
+    isLoading: isLoading && circuitAscii === null,
     hasAnyData: circuitAscii !== null,
     isFailed,
     consecutiveFailures: isFailed ? 1 : 0,
     isDemoData: false,
+    isRefreshing: false,
   })
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
     <div className="p-4">
         {circuitAscii ? (
           <div className="overflow-x-auto bg-card rounded border border-border">
-            <pre className="p-4 m-0 whitespace-pre text-foreground" style={{ fontFamily: '"DejaVu Sans Mono", "Noto Sans Mono", "Cascadia Code", monospace', lineHeight: '1.5', fontSize: '12px', minWidth: 'fit-content' }}>
+            <pre className="p-4 m-0 whitespace-pre text-foreground quantum-circuit-display" style={{ minWidth: 'fit-content' }}>
               {circuitAscii}
             </pre>
           </div>

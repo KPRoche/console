@@ -31,12 +31,12 @@ const validateQASM = (content: string): { valid: boolean; error?: string } => {
   return { valid: true }
 }
 
-export const CustomQASMModal: React.FC<CustomQASMModalProps> = ({
+export function CustomQASMModal({
   isOpen,
   onSubmit,
   onCancel,
   initialContent = '',
-}) => {
+}: CustomQASMModalProps) {
   const [mode, setMode] = useState<'paste' | 'upload'>('paste')
   const [content, setContent] = useState(initialContent)
   const [error, setError] = useState<string | null>(null)

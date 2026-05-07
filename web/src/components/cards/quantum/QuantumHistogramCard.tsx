@@ -7,11 +7,12 @@ import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContex
 import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useResultHistogram } from '../../../hooks/useResultHistogram'
 import { useAuth } from '../../../lib/auth'
+import { getChartColor } from '../../../lib/chartColors'
 
 const HISTOGRAM_DEFAULT_POLL_MS = 10000
 const HISTOGRAM_POLL_MIN_MS = 2000
 const HISTOGRAM_POLL_MAX_MS = 30000
-const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#6366f1']
+const COLORS = [1, 2, 3, 4, 5, 6, 7, 8].map(i => getChartColor(i))
 
 export const QuantumHistogramCard: React.FC = () => {
   const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
