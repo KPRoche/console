@@ -4,7 +4,7 @@ import ReactECharts from 'echarts-for-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { Slider } from '../../ui/Slider'
 import { isGlobalQuantumPollingPaused } from '../../../lib/quantum/pollingContext'
-import { isQuantumForcedToDemo } from '../../../lib/demoMode'
+import { isQuantumForcedToDemo, isDemoMode } from '../../../lib/demoMode'
 import { useResultHistogram } from '../../../hooks/useResultHistogram'
 import { useAuth } from '../../../lib/auth'
 import { getChartColor } from '../../../lib/chartColors'
@@ -27,6 +27,8 @@ export const QuantumHistogramCard: React.FC = () => {
 
   const isPaused = isGlobalQuantumPollingPaused()
   const forceDemo = isQuantumForcedToDemo()
+  const globalDemoEnabled = isDemoMode()
+  const effectiveIsDemoData = forceDemo || globalDemoEnabled
 
   useEffect(() => {
     if (isPaused || forceDemo) {
@@ -51,6 +53,7 @@ export const QuantumHistogramCard: React.FC = () => {
     consecutiveFailures,
     errorMessage: error || undefined,
     isLoading,
+    isDemoData: effectiveIsDemoData,
     hasData: (data?.histogram?.length ?? 0) > 0,
   })
 
