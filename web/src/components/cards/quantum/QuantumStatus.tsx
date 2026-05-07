@@ -135,12 +135,13 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
     )
   }
 
+  const effectiveIsDemoData = isDemoData || isQuantumForcedToDemo()
   const { showSkeleton } = useCardLoadingState({
     isLoading: isLoading && statusData === null,
     hasAnyData: statusData !== null,
     isFailed,
     consecutiveFailures,
-    isDemoData: false,
+    isDemoData: effectiveIsDemoData,
     isRefreshing: false,
   })
 

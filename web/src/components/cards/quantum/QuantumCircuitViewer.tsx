@@ -11,7 +11,7 @@ interface QuantumCircuitViewerProps {
   isDemoData?: boolean
 }
 
-export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
+export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDemoData = false }) => {
   const { isAuthenticated, login, isLoading: authIsLoading } = useAuth()
   const [circuitAscii, setCircuitAscii] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -39,19 +39,23 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = () => {
     )
   }
 
+  const effectiveIsDemoData = isDemoData || isQuantumForcedToDemo()
   const { showSkeleton } = useCardLoadingState({
     isLoading: isLoading && circuitAscii === null,
     hasAnyData: circuitAscii !== null,
     isFailed,
     consecutiveFailures: isFailed ? 1 : 0,
-    isDemoData: false,
+    isDemoData: effectiveIsDemoData,
     isRefreshing: false,
   })
 
   useEffect(() => {
     const fetchCircuit = async () => {
       // Skip fetch if polling is paused (e.g., dashboard settings modal open) or demo forced
-      if (isGlobalQuantumPollingPaused() || isQuantumForcedToDemo()) return
+      if (isGlobalQuantumPollingPaused() || isQuantumForcedToDemo()) {
+        setIsLoading(false)
+        return
+      }
 
       try {
         setIsLoading(true)
