@@ -865,6 +865,19 @@ func (s *Server) setupRoutes() {
 	feedback := handlers.NewFeedbackHandler(s.store, feedbackCfg)
 	s.app.Post("/api/feedback/requests", bodyGuard, csrfGuard, middleware.JWTAuth(s.config.JWTSecret), feedbackLimiter, feedback.CreateFeatureRequest)
 
+	// kc-agent token endpoint — registered BEFORE the /api group so it bypasses
+	// the group's JWTAuth middleware. Returns KC_AGENT_TOKEN so the frontend
+	// can authenticate to kc-agent endpoints (/local-clusters, etc.) without
+	// requiring JWT auth. When KC_AGENT_TOKEN_GENERATED=true, kc-agent uses
+	// origin-based auth bypass for browser clients (#12587, #12444).
+	agentToken := s.config.AgentToken
+	s.app.Get("/api/agent/token", func(c *fiber.Ctx) error {
+		if agentToken == "" {
+			return c.JSON(fiber.Map{"token": ""})
+		}
+		return c.JSON(fiber.Map{"token": agentToken})
+	})
+
 	// Wrap apiLimiter so it skips the feedback POST — that route has its own
 	// dedicated feedbackLimiter (10 req/hr). Without this, Fiber's group prefix
 	// matching applies apiLimiter to ALL /api/* routes including the standalone
@@ -901,17 +914,6 @@ func (s *Server) setupRoutes() {
 	user := handlers.NewUserHandler(s.store)
 	s.app.Get("/api/me", bodyGuard, csrfGuard, middleware.JWTAuth(s.config.JWTSecret), user.GetCurrentUser)
 	s.app.Put("/api/me", bodyGuard, csrfGuard, middleware.JWTAuth(s.config.JWTSecret), user.UpdateCurrentUser)
-
-	// kc-agent token endpoint — returns the shared KC_AGENT_TOKEN so the
-	// frontend can authenticate to kc-agent HTTP endpoints (auto-update, etc.).
-	// Auth-protected: only logged-in users can retrieve this.
-	agentToken := s.config.AgentToken
-	api.Get("/agent/token", func(c *fiber.Ctx) error {
-		if agentToken == "" {
-			return c.JSON(fiber.Map{"token": ""})
-		}
-		return c.JSON(fiber.Map{"token": agentToken})
-	})
 
 	// kc-agent auto-update proxy — forwards /api/agent/auto-update/* to the
 	// co-located kc-agent at 127.0.0.1:8585. This avoids cross-origin requests
