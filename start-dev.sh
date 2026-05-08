@@ -212,6 +212,8 @@ fi
 if [ -z "${KC_AGENT_TOKEN:-}" ]; then
     KC_AGENT_TOKEN="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p 2>/dev/null || cat /dev/urandom | tr -dc 'a-f0-9' | head -c 64)"
     echo "Auto-generated KC_AGENT_TOKEN for this session."
+    # Mark token as auto-generated so kc-agent allows origin-based auth bypass for browsers
+    export KC_AGENT_TOKEN_GENERATED=true
 fi
 export KC_AGENT_TOKEN
 
