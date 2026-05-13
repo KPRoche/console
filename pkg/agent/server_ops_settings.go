@@ -621,7 +621,7 @@ func validateClaudeKey(ctx context.Context, apiKey string) (bool, error) {
 	if baseURL == "" {
 		baseURL = "https://api.anthropic.com"
 	}
-	apiURL := baseURL + "/v1/messages"
+	apiURL := baseURL + "/messages"
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(`{"model":"claude-3-haiku-20240307","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}`))
 	if err != nil {
 		return false, err
