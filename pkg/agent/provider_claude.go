@@ -248,7 +248,7 @@ func (c *ClaudeProvider) buildMessages(req *ChatRequest) []map[string]string {
 func (c *ClaudeProvider) getAPIURL() string {
 	baseURL := GetConfigManager().GetBaseURL("claude")
 	if baseURL != "" {
-		return baseURL + "/v1/messages"
+		return baseURL + "/messages"
 	}
 	return "https://api.anthropic.com/v1/messages"
 }
