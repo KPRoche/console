@@ -220,7 +220,8 @@ func (uc *UpdateChecker) Status() AutoUpdateStatusResponse {
 		resp.LastUpdateTime = uc.lastUpdateTime.Format(time.RFC3339)
 	}
 	if uc.lastUpdateError != "" {
-		resp.LastUpdateResult = uc.lastUpdateError
+		// Sanitize error message for client - don't leak raw git/npm/build errors
+		resp.LastUpdateResult = "Update failed - check server logs for details"
 	}
 	repoPath := uc.repoPath
 	uc.mu.Unlock()
@@ -487,7 +488,7 @@ func (uc *UpdateChecker) executeDeveloperUpdate(newSHA string) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "git pull failed",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -516,7 +517,7 @@ func (uc *UpdateChecker) executeDeveloperUpdate(newSHA string) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "npm install failed after retries, rolling back...",
-			Error:   err.Error() + " (try: sudo chown -R $(id -u):$(id -g) ~/.npm)",
+			Error:   "check server logs for details (try: sudo chown -R $(id -u):$(id -g) ~/.npm)",
 		})
 		rollbackGit(repoPath, previousSHA)
 		if rbErr := rebuildFrontend(repoPath); rbErr != nil {
@@ -883,7 +884,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Download failed",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -901,7 +902,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Failed to prepare staging directory",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -912,7 +913,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Failed to prepare staging directory",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -943,7 +944,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Extract failed",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -975,7 +976,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Failed to back up current binary",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -996,7 +997,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Failed to set binary permissions, rolled back",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -1013,7 +1014,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Failed to install new binary, rolled back",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
@@ -1034,7 +1035,7 @@ func (uc *UpdateChecker) executeBinaryUpdate(release *githubReleaseInfo) {
 		uc.broadcast("update_progress", UpdateProgressPayload{
 			Status:  "failed",
 			Message: "Restart failed, rolled back",
-			Error:   err.Error(),
+			Error:   "check server logs for details",
 		})
 		return
 	}
