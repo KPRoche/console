@@ -394,7 +394,10 @@ func (h *FeedbackHandler) ListAllFeatureRequests(c *fiber.Ctx) error {
 	countOnly := c.Query("count_only") == "true"
 
 	// Get current user's GitHub login for ownership comparison
-	user, _ := h.store.GetUser(c.UserContext(), userID)
+	user, err := h.store.GetUser(c.UserContext(), userID)
+	if err != nil {
+		slog.Warn("[Feedback] failed to get user for queue", "user_id", userID, "error", err)
+	}
 	currentGitHubLogin := ""
 	if user != nil {
 		currentGitHubLogin = user.GitHubLogin
