@@ -52,3 +52,25 @@ func TestMCPHandlers_GetCustomResources(t *testing.T) {
 		assert.Equal(t, 400, resp.StatusCode)
 	})
 }
+
+func TestParseCRItem_IncludesKindAndFlatFields(t *testing.T) {
+	obj := map[string]interface{}{
+		"apiVersion": "chaos-mesh.org/v1alpha1",
+		"kind":       "PodChaos",
+		"metadata": map[string]interface{}{
+			"name":      "demo-pod-kill",
+			"namespace": "chaos-demo",
+		},
+		"status": map[string]interface{}{
+			"conditions": []interface{}{
+				map[string]interface{}{"type": "AllInjected", "status": "True"},
+			},
+		},
+	}
+	item := parseCRItem(obj, "kind-kubestellar")
+	assert.Equal(t, "PodChaos", item.Kind)
+	assert.Equal(t, "demo-pod-kill", item.Name)
+	assert.Equal(t, "chaos-demo", item.Namespace)
+	assert.Equal(t, "kind-kubestellar", item.Cluster)
+	assert.Contains(t, item.Status, "conditions")
+}

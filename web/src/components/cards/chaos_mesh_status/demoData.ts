@@ -5,6 +5,8 @@
 export interface ChaosMeshExperiment {
   name: string
   namespace: string
+  /** Kube context / cluster name when joined from /api/mcp/custom-resources */
+  cluster?: string
   kind: string
   phase: 'Running' | 'Finished' | 'Failed' | 'Paused' | 'Unknown'
   startTime: string
@@ -13,6 +15,7 @@ export interface ChaosMeshExperiment {
 export interface ChaosMeshWorkflow {
   name: string
   namespace: string
+  cluster?: string
   phase: 'Running' | 'Finished' | 'Failed' | 'Unknown'
   progress: string
 }

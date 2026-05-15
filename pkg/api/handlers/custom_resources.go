@@ -17,6 +17,7 @@ import (
 type CustomResourceItem struct {
 	Name      string                 `json:"name"`
 	Namespace string                 `json:"namespace,omitempty"`
+	Kind      string                 `json:"kind,omitempty"`
 	Cluster   string                 `json:"cluster"`
 	Status    map[string]interface{} `json:"status,omitempty"`
 	Spec      map[string]interface{} `json:"spec,omitempty"`
@@ -222,6 +223,10 @@ func (h *MCPHandlers) listCR(
 // parseCRItem extracts the key fields from an unstructured custom resource.
 func parseCRItem(obj map[string]interface{}, clusterName string) CustomResourceItem {
 	item := CustomResourceItem{Cluster: clusterName}
+
+	if kind, ok := obj["kind"].(string); ok {
+		item.Kind = kind
+	}
 
 	if metadata, ok := obj["metadata"].(map[string]interface{}); ok {
 		if name, ok := metadata["name"].(string); ok {
