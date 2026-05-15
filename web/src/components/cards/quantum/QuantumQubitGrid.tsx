@@ -4,6 +4,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useReportCardDataState } from '../CardDataContext'
 import { isQuantumForcedToDemo } from '../../../lib/demoMode'
 import { useAuth } from '../../../lib/auth'
+import { notifyPatternChange } from '../../../lib/quantum/patternChangeEmitter'
 import {
   useQuantumQubitGridData,
   DEMO_QUANTUM_QUBITS,
@@ -208,6 +209,13 @@ export const QuantumQubitGrid: React.FC = () => {
       }
     }
   }, [qubitData])
+
+  // Emit pattern changes to trigger histogram refresh
+  useEffect(() => {
+    if (qubitData?.pattern) {
+      notifyPatternChange(qubitData.pattern)
+    }
+  }, [qubitData?.pattern])
 
   const svgContent = useMemo(() => {
     return renderQubitSVG(displayData.pattern, QUBIT_DISPLAY_PATTERNS[selectedMask])
