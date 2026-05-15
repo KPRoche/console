@@ -65,7 +65,9 @@ const ALLOWED_PATHS = new Set([
   "/loop/stop",
   "/qasm/circuit/ascii",
   "/qasm/file",
+  "/qasm/listfiles",
   "/auth",
+  "/auth/status",
   "/auth/save",
   "/auth/clear",
 ]);
@@ -142,6 +144,18 @@ export default async (req: Request, context: Context): Promise<Response> => {
         return new Response(DEMO_CIRCUIT_ASCII_HTML, {
           status: 200,
           headers: { "Content-Type": "text/html" },
+        });
+      }
+      if (path === "/auth/status") {
+        return new Response(JSON.stringify({ authenticated: false }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (path === "/qasm/listfiles") {
+        return new Response(JSON.stringify({ files: ["bell.qasm"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
         });
       }
     }

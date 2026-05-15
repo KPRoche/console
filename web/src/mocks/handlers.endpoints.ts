@@ -2159,6 +2159,14 @@ export function createHandlers() {
   //       headers: { 'X-Test-Request': '1' },
   //     })
   //   })
+  // Quantum proxy — pass through to the Netlify function (or Go backend in
+  // local dev). Without these rules MSW swallows every /api/quantum/* request
+  // in demo mode and the quantum panel never receives data.
+  http.get('/api/quantum/*', () => passthrough()),
+  http.post('/api/quantum/*', () => passthrough()),
+  http.delete('/api/quantum/*', () => passthrough()),
+  http.get('/api/result/histogram', () => passthrough()),
+
   http.post('/__test/reset', ({ request }) => {
     if (!request.headers.get('X-Test-Request')) {
       return HttpResponse.json({ error: 'Forbidden' }, { status: 403 })
