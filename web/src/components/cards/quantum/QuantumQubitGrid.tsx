@@ -210,12 +210,12 @@ export const QuantumQubitGrid: React.FC = () => {
     }
   }, [qubitData])
 
-  // Emit pattern changes to trigger histogram refresh
+  // Emit pattern changes to trigger histogram refresh (including empty patterns for cleared results)
   useEffect(() => {
-    if (qubitData?.pattern) {
-      notifyPatternChange(qubitData.pattern)
+    if (qubitData) {
+      notifyPatternChange(qubitData.pattern || '')
     }
-  }, [qubitData?.pattern])
+  }, [qubitData])
 
   const svgContent = useMemo(() => {
     return renderQubitSVG(displayData.pattern, QUBIT_DISPLAY_PATTERNS[selectedMask])

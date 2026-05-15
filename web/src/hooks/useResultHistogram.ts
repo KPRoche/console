@@ -163,8 +163,9 @@ export function useResultHistogram(
   const result = useCache<HistogramData>({
     key: `quantum-result-histogram:${sortBy}`,
     category: 'realtime',
-    refreshInterval: pollInterval,
-    autoRefresh: !isGlobalQuantumPollingPaused(),
+    // Pattern-change trigger is primary; polling is disabled (event-driven refresh only)
+    refreshInterval: 0,
+    autoRefresh: false,
     enabled: isAuthenticated && !isQuantumDemoOnly,
     initialData: EMPTY_HISTOGRAM_DATA,
     demoData: {

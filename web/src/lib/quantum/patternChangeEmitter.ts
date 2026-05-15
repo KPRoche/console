@@ -8,9 +8,9 @@ const subscribers = new Set<PatternChangeCallback>()
 export function notifyPatternChange(pattern: string): void {
   subscribers.forEach((cb) => cb(pattern))
 
-  // Cross-tab sync via storage event
+  // Cross-tab sync via storage event (localStorage emits storage events across tabs)
   try {
-    sessionStorage.setItem('__quantum_pattern_change', JSON.stringify({ pattern, ts: Date.now() }))
+    localStorage.setItem('__quantum_pattern_change', JSON.stringify({ pattern, ts: Date.now() }))
   } catch {
     // Storage quota exceeded or not available
   }
@@ -19,7 +19,7 @@ export function notifyPatternChange(pattern: string): void {
 export function subscribeToPatternChanges(callback: PatternChangeCallback): () => void {
   subscribers.add(callback)
 
-  // Listen for cross-tab pattern changes
+  // Listen for cross-tab pattern changes via localStorage storage events
   const handleStorageChange = (e: StorageEvent) => {
     if (e.key === '__quantum_pattern_change' && e.newValue) {
       try {
