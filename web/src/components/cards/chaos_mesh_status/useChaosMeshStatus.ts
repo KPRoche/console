@@ -5,8 +5,8 @@ import { authFetch } from '../../../lib/api'
 import {
   CHAOS_MESH_DEMO_DATA,
   INITIAL_DATA,
-  type ChaosMeshStatusData,
   type ChaosMeshExperiment,
+  type ChaosMeshStatusData,
   type ChaosMeshWorkflow,
 } from './demoData'
 
@@ -16,11 +16,23 @@ import {
 
 const CACHE_KEY = 'chaos-mesh-status'
 
+/** Chaos Mesh CR condition `status` when the condition applies. */
+const CHAOS_MESH_CONDITION_STATUS_TRUE = 'True'
+
+/** Chaos Mesh CR `status.conditions[].type` values used for phase derivation. */
+const CHAOS_MESH_CONDITION_TYPE_PAUSED = 'Paused'
+const CHAOS_MESH_CONDITION_TYPE_FAILED = 'Failed'
+const CHAOS_MESH_CONDITION_TYPE_ALL_RECOVERED = 'AllRecovered'
+const CHAOS_MESH_CONDITION_TYPE_ALL_INJECTED = 'AllInjected'
+const CHAOS_MESH_CONDITION_TYPE_SELECTED = 'Selected'
+
+const DEFAULT_NAMESPACE = 'default'
+
 // ---------------------------------------------------------------------------
-// Internal Types
+// Internal Types — GET /api/mcp/custom-resources items (flat + optional legacy metadata)
 // ---------------------------------------------------------------------------
 
-interface CustomResourceItem {
+interface ChaosMeshCustomResourceItem {
   metadata?: {
     name?: string
     namespace?: string
@@ -33,36 +45,114 @@ interface CustomResourceItem {
 }
 
 interface CustomResourceResponse {
-  items?: CustomResourceItem[]
+  items?: ChaosMeshCustomResourceItem[]
+}
+
+interface ChaosMeshCondition {
+  type?: string
+  status?: string
+}
+
+function resolveItemName(e: ChaosMeshCustomResourceItem): string {
+  return e.name ?? e.metadata?.name ?? ''
+}
+
+function resolveItemNamespace(e: ChaosMeshCustomResourceItem): string {
+  const ns = e.namespace ?? e.metadata?.namespace
+  return ns && ns.length > 0 ? ns : DEFAULT_NAMESPACE
 }
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported via __testables for unit testing)
 // ---------------------------------------------------------------------------
 
-function getExperimentPhase(item: unknown): string {
-  const obj = item as CustomResourceItem
-  if (typeof obj?.status?.phase === 'string') {
-    return obj.status.phase
+function chaosConditionIsTrue(conditions: unknown, conditionType: string): boolean {
+  if (!Array.isArray(conditions)) {
+    return false
+  }
+  for (const c of conditions) {
+    if (!c || typeof c !== 'object') {
+      continue
+    }
+    const row = c as ChaosMeshCondition
+    if (row.type === conditionType && row.status === CHAOS_MESH_CONDITION_STATUS_TRUE) {
+      return true
+    }
+  }
+  return false
+}
+
+function derivePhaseFromConditions(conditions: unknown): string {
+  if (chaosConditionIsTrue(conditions, CHAOS_MESH_CONDITION_TYPE_PAUSED)) {
+    return 'Paused'
+  }
+  if (chaosConditionIsTrue(conditions, CHAOS_MESH_CONDITION_TYPE_FAILED)) {
+    return 'Failed'
+  }
+  if (chaosConditionIsTrue(conditions, CHAOS_MESH_CONDITION_TYPE_ALL_RECOVERED)) {
+    return 'Finished'
+  }
+  if (chaosConditionIsTrue(conditions, CHAOS_MESH_CONDITION_TYPE_ALL_INJECTED)) {
+    return 'Running'
+  }
+  if (chaosConditionIsTrue(conditions, CHAOS_MESH_CONDITION_TYPE_SELECTED)) {
+    return 'Running'
   }
   return 'Unknown'
+}
+
+function coerceCardPhase(phase: string): ChaosMeshExperiment['phase'] {
+  if (phase === 'Running' || phase === 'Finished' || phase === 'Failed' || phase === 'Paused' || phase === 'Unknown') {
+    return phase
+  }
+  return 'Unknown'
+}
+
+/** Phase for PodChaos and other chaos-mesh.org experiment CRs (conditions or legacy phase string). */
+function getExperimentPhase(item: unknown): string {
+  const obj = item as ChaosMeshCustomResourceItem
+  if (typeof obj?.status?.phase === 'string' && obj.status.phase.length > 0) {
+    return obj.status.phase
+  }
+  return derivePhaseFromConditions(obj?.status?.conditions)
+}
+
+/** Phase for Workflow CRs — prefer status.phase, else conditions. */
+function getWorkflowPhase(item: unknown): string {
+  const obj = item as ChaosMeshCustomResourceItem
+  if (typeof obj?.status?.phase === 'string' && obj.status.phase.length > 0) {
+    return obj.status.phase
+  }
+  return derivePhaseFromConditions(obj?.status?.conditions)
 }
 
 function isExperimentFailed(item: unknown): boolean {
   return getExperimentPhase(item) === 'Failed'
 }
 
-function buildChaosMeshStatus(experiments: CustomResourceItem[], workflows: CustomResourceItem[]): ChaosMeshStatusData {
-  if (experiments.length === 0) {
+function buildChaosMeshStatus(
+  experiments: ChaosMeshCustomResourceItem[],
+  workflows: ChaosMeshCustomResourceItem[],
+): ChaosMeshStatusData {
+  if (experiments.length === 0 && workflows.length === 0) {
     return INITIAL_DATA
   }
 
   const mappedExperiments: ChaosMeshExperiment[] = experiments.map(e => ({
-    name: e.metadata?.name ?? e.name ?? '',
-    namespace: e.metadata?.namespace ?? e.namespace ?? 'default',
-    kind: e.kind ?? 'PodChaos',
-    phase: getExperimentPhase(e) as ChaosMeshExperiment['phase'],
+    name: resolveItemName(e),
+    namespace: resolveItemNamespace(e),
+    cluster: e.cluster,
+    kind: e.kind && e.kind.length > 0 ? e.kind : 'Unknown',
+    phase: coerceCardPhase(getExperimentPhase(e)),
     startTime: typeof e.status?.startTime === 'string' ? e.status.startTime : '',
+  }))
+
+  const mappedWorkflows: ChaosMeshWorkflow[] = workflows.map(w => ({
+    name: resolveItemName(w),
+    namespace: resolveItemNamespace(w),
+    cluster: w.cluster,
+    phase: coerceCardPhase(getWorkflowPhase(w)) as ChaosMeshWorkflow['phase'],
+    progress: typeof w.status?.progress === 'string' ? w.status.progress : '0/0',
   }))
 
   const summary = {
@@ -71,13 +161,6 @@ function buildChaosMeshStatus(experiments: CustomResourceItem[], workflows: Cust
     finished: mappedExperiments.filter(e => e.phase === 'Finished').length,
     failed: mappedExperiments.filter(e => e.phase === 'Failed').length,
   }
-
-  const mappedWorkflows: ChaosMeshWorkflow[] = workflows.map(w => ({
-    name: w.metadata?.name ?? w.name ?? '',
-    namespace: w.metadata?.namespace ?? w.namespace ?? 'default',
-    phase: (typeof w.status?.phase === 'string' ? w.status.phase : 'Unknown') as ChaosMeshWorkflow['phase'],
-    progress: typeof w.status?.progress === 'string' ? w.status.progress : '0/0',
-  }))
 
   return {
     experiments: mappedExperiments,
@@ -93,7 +176,6 @@ function buildChaosMeshStatus(experiments: CustomResourceItem[], workflows: Cust
 
 async function fetchChaosMeshStatus(): Promise<ChaosMeshStatusData> {
   const [expsRes, wfsRes] = await Promise.all([
-    // All chaos experiment CRDs live under chaos-mesh.org group
     authFetch('/api/mcp/custom-resources?group=chaos-mesh.org&version=v1alpha1&resource=podchaos', {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(FETCH_DEFAULT_TIMEOUT_MS),
@@ -109,7 +191,7 @@ async function fetchChaosMeshStatus(): Promise<ChaosMeshStatusData> {
   }
 
   const expsJson = (await expsRes.json()) as CustomResourceResponse
-  
+
   let wfsJson: CustomResourceResponse = { items: [] }
   if (wfsRes.ok) {
     try {
@@ -149,7 +231,9 @@ export function useChaosMeshStatus(): UseChaosMeshStatusResult {
     })
 
   const effectiveIsDemoData = isDemoFallback && !isLoading
-  const hasAnyData = data.health === 'not-installed' ? true : data.summary.totalExperiments > 0
+  const workflowCount = (data.workflows || []).length
+  const hasAnyData =
+    data.health === 'not-installed' ? true : data.summary.totalExperiments > 0 || workflowCount > 0
 
   const { showSkeleton, showEmptyState } = useCardLoadingState({
     isLoading: isLoading && !hasAnyData,
@@ -178,6 +262,9 @@ export function useChaosMeshStatus(): UseChaosMeshStatusResult {
 
 export const __testables = {
   getExperimentPhase,
+  getWorkflowPhase,
   isExperimentFailed,
   buildChaosMeshStatus,
+  coerceCardPhase,
+  derivePhaseFromConditions,
 }
