@@ -85,14 +85,14 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
     )
   }
 
-  const zoomPercentages = [25, 40, 50, 60, 70, 85, 100, 130, 160]
+  const zoomPercentages = [15, 20, 25, 35, 50, 65, 85, 100]
 
   const handlePopout = () => {
     window.open('http://localhost:30500/api/qasm/circuit/ascii', '_blank')
   }
 
   return (
-    <div className="p-4">
+    <div className="p-4 h-full flex flex-col">
       {circuitAscii ? (
         <>
           <div className="flex gap-2 mb-1 items-center justify-between">
@@ -123,7 +123,7 @@ export const QuantumCircuitViewer: React.FC<QuantumCircuitViewerProps> = ({ isDe
               <ExternalLink size={16} className="text-muted-foreground hover:text-foreground" />
             </button>
           </div>
-          <div className="bg-card rounded border border-border overflow-x-auto">
+          <div className="bg-card rounded border border-border overflow-auto flex-1">
             <pre
               className="p-4 m-0 whitespace-pre text-foreground quantum-circuit-display"
               style={{
