@@ -162,6 +162,73 @@ describe('fetchQuantumAuthStatus', () => {
     expect(result.lastIbmError).toBeNull()
   })
 
+  describe('lastIbmError boundary validation', () => {
+    // The fetcher must coerce malformed `lastIbmError` payloads to null so
+    // downstream UI doesn't suppress the message-text classifier fallback
+    // while having no usable structured payload to render.
+    const malformedCases: Array<[string, unknown]> = [
+      ['missing retryable field', { code: 'rate_limited', message: 'foo' }],
+      ['missing message field', { code: 'rate_limited', retryable: true }],
+      ['missing code field', { message: 'foo', retryable: true }],
+      ['retryable not a boolean', { code: 'rate_limited', message: 'foo', retryable: 'true' }],
+      ['code not a string', { code: 429, message: 'foo', retryable: true }],
+      ['message not a string', { code: 'rate_limited', message: 42, retryable: true }],
+      ['payload is a string', 'service unavailable'],
+      ['payload is a number', 503],
+      ['payload is an array', ['rate_limited']],
+    ]
+
+    for (const [label, malformed] of malformedCases) {
+      it(`coerces to null when payload is malformed: ${label}`, async () => {
+        ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            authenticated: false,
+            tokenStored: true,
+            lastIbmError: malformed,
+          }),
+        })
+        const result = await fetchQuantumAuthStatus()
+        expect(result.lastIbmError).toBeNull()
+      })
+    }
+
+    it('accepts an unrecognized code value (forward-compat with future workload codes)', async () => {
+      // If a future workload adds a new error code we don't know about,
+      // we should still surface its message + retryable flag rather than
+      // silently dropping the structured payload.
+      ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          authenticated: false,
+          tokenStored: true,
+          lastIbmError: {
+            code: 'future_code_we_do_not_know_about',
+            message: 'something happened',
+            retryable: true,
+          },
+        }),
+      })
+      const result = await fetchQuantumAuthStatus()
+      expect(result.lastIbmError).not.toBeNull()
+      expect(result.lastIbmError?.message).toBe('something happened')
+      expect(result.lastIbmError?.retryable).toBe(true)
+    })
+
+    it('accepts explicit null (workload says "no error")', async () => {
+      ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          authenticated: true,
+          tokenStored: true,
+          lastIbmError: null,
+        }),
+      })
+      const result = await fetchQuantumAuthStatus()
+      expect(result.lastIbmError).toBeNull()
+    })
+  })
+
   it('throws on non-ok response', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,

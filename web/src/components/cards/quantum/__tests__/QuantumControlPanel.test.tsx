@@ -174,9 +174,12 @@ describe('QuantumControlPanel — error classification', () => {
     const { container } = render(<QuantumControlPanel />)
     selectIbmBackend(container)
 
-    expect(
-      screen.getByTestId('quantum-control-panel-transient-banner'),
-    ).toBeInTheDocument()
+    // Both the banner element AND its rendered copy are checked: testid alone
+    // would silently pass if the banner were rendered empty or with the wrong
+    // i18n key.
+    const transient = screen.getByTestId('quantum-control-panel-transient-banner')
+    expect(transient).toBeInTheDocument()
+    expect(transient).toHaveTextContent('quantumControlPanel.ibmUpstreamUnavailable')
     // The classified-transient error must NOT also surface in the red banner.
     expect(
       screen.queryByTestId('quantum-control-panel-fatal-banner'),
@@ -190,9 +193,9 @@ describe('QuantumControlPanel — error classification', () => {
     const { container } = render(<QuantumControlPanel />)
     selectIbmBackend(container)
 
-    expect(
-      screen.getByTestId('quantum-control-panel-fatal-banner'),
-    ).toBeInTheDocument()
+    const fatal = screen.getByTestId('quantum-control-panel-fatal-banner')
+    expect(fatal).toBeInTheDocument()
+    expect(fatal).toHaveTextContent('invalid api key')
     expect(
       screen.queryByTestId('quantum-control-panel-transient-banner'),
     ).toBeNull()
@@ -246,9 +249,9 @@ describe('QuantumControlPanel — error classification', () => {
     const { container } = render(<QuantumControlPanel />)
     selectIbmBackend(container)
 
-    expect(
-      screen.getByTestId('quantum-control-panel-transient-banner'),
-    ).toBeInTheDocument()
+    const transient = screen.getByTestId('quantum-control-panel-transient-banner')
+    expect(transient).toBeInTheDocument()
+    expect(transient).toHaveTextContent('quantumControlPanel.ibmUpstreamUnavailable')
     expect(
       screen.queryByTestId('quantum-control-panel-fatal-banner'),
     ).toBeNull()

@@ -195,20 +195,53 @@ async function fetchQuantumStatus(): Promise<QuantumSystemStatus> {
   return fetchQuantumJson<QuantumSystemStatus>(QUANTUM_STATUS_ENDPOINT)
 }
 
+/**
+ * Validate a `lastIbmError` payload from the workload at the fetcher
+ * boundary. Returns the value typed as `QuantumIbmError` if the shape is
+ * complete and well-formed; returns `null` for any malformed payload.
+ *
+ * This is defensive coercion: TypeScript types lie about JSON, and
+ * downstream UI code interprets a non-null `lastIbmError` as "the workload
+ * told us something authoritative" — suppressing the message-text
+ * `classifyApiError` fallback. A partial object (e.g. `{code: 'rate_limited'}`
+ * with no `retryable`) would silently disable that fallback while also
+ * having nothing useful to render. Treating partial payloads as `null`
+ * keeps the fallback alive.
+ *
+ * Unrecognized `code` values are accepted as-is (typed back to the union
+ * via cast) so a future workload version that adds a new code doesn't
+ * silently lose its error classification on older Console builds.
+ */
+function coerceLastIbmError(raw: unknown): QuantumIbmError | null {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw !== 'object') return null
+  const obj = raw as Record<string, unknown>
+  if (typeof obj.code !== 'string') return null
+  if (typeof obj.message !== 'string') return null
+  if (typeof obj.retryable !== 'boolean') return null
+  return {
+    code: obj.code as QuantumIbmError['code'],
+    message: obj.message,
+    retryable: obj.retryable,
+  }
+}
+
 async function fetchQuantumAuthStatus(): Promise<QuantumAuthStatus> {
   const response = await fetchQuantumJson<{
-    authenticated?: boolean
-    tokenStored?: boolean
-    lastIbmError?: QuantumIbmError | null
+    authenticated?: unknown
+    tokenStored?: unknown
+    lastIbmError?: unknown
   }>(QUANTUM_AUTH_STATUS_ENDPOINT)
-  // Coerce missing v0.4.0 fields to safe defaults so this hook works
-  // against pre-v0.4 workloads. `tokenStored:false` is the conservative
-  // choice; the Console badge falls back to "Not configured" until
-  // `authenticated:true` arrives, which self-heals on first valid check.
+  // Coerce missing or malformed v0.4.0 fields to safe defaults so this
+  // hook works against pre-v0.4 workloads AND defends against a
+  // misbehaving workload returning a partial `lastIbmError` payload.
+  // `tokenStored:false` is the conservative choice; the Console badge
+  // falls back to "Not configured" until `authenticated:true` arrives,
+  // which self-heals on first valid check.
   return {
     authenticated: response.authenticated === true,
     tokenStored: response.tokenStored === true,
-    lastIbmError: response.lastIbmError ?? null,
+    lastIbmError: coerceLastIbmError(response.lastIbmError),
   }
 }
 
