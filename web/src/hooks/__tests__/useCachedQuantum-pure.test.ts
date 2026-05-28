@@ -93,7 +93,12 @@ describe('fetchQuantumAuthStatus', () => {
       json: async () => ({ authenticated: true }),
     })
     const result = await fetchQuantumAuthStatus()
-    expect(result).toEqual({ authenticated: true })
+    // Pre-v0.4 workload — only `authenticated` is set; new fields coerce to safe defaults.
+    expect(result).toEqual({
+      authenticated: true,
+      tokenStored: false,
+      lastIbmError: null,
+    })
   })
 
   it('returns authenticated false when response says false', async () => {
@@ -102,7 +107,11 @@ describe('fetchQuantumAuthStatus', () => {
       json: async () => ({ authenticated: false }),
     })
     const result = await fetchQuantumAuthStatus()
-    expect(result).toEqual({ authenticated: false })
+    expect(result).toEqual({
+      authenticated: false,
+      tokenStored: false,
+      lastIbmError: null,
+    })
   })
 
   it('returns authenticated false when field is missing', async () => {
@@ -111,7 +120,46 @@ describe('fetchQuantumAuthStatus', () => {
       json: async () => ({}),
     })
     const result = await fetchQuantumAuthStatus()
-    expect(result).toEqual({ authenticated: false })
+    expect(result).toEqual({
+      authenticated: false,
+      tokenStored: false,
+      lastIbmError: null,
+    })
+  })
+
+  it('passes through tokenStored and lastIbmError from a v0.4.0+ workload response', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        authenticated: false,
+        tokenStored: true,
+        lastIbmError: {
+          code: 'rate_limited',
+          message: 'rate limit exceeded',
+          retryable: true,
+        },
+      }),
+    })
+    const result = await fetchQuantumAuthStatus()
+    expect(result).toEqual({
+      authenticated: false,
+      tokenStored: true,
+      lastIbmError: {
+        code: 'rate_limited',
+        message: 'rate limit exceeded',
+        retryable: true,
+      },
+    })
+  })
+
+  it('coerces missing tokenStored field to false (older workload compat)', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ authenticated: true }),
+    })
+    const result = await fetchQuantumAuthStatus()
+    expect(result.tokenStored).toBe(false)
+    expect(result.lastIbmError).toBeNull()
   })
 
   it('throws on non-ok response', async () => {

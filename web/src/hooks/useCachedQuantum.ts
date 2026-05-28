@@ -78,8 +78,40 @@ export interface QuantumSystemStatus {
   version_info?: QuantumVersionInfo
 }
 
+/**
+ * Structured upstream-error channel returned by the quantum-kc-demo workload
+ * (v0.4.0+). Absent on older workloads, in which case the Console falls back
+ * to message-text classification via `classifyApiError`.
+ */
+export interface QuantumIbmError {
+  code:
+    | 'rate_limited'
+    | 'service_unavailable'
+    | 'timeout'
+    | 'account_not_found'
+    | 'unknown'
+  message: string
+  retryable: boolean
+}
+
 export interface QuantumAuthStatus {
   authenticated: boolean
+  /**
+   * Whether a saved token exists on the workload backend (auth.json on
+   * emptyDir OR Qiskit's account file on the PV — either present = `true`).
+   *
+   * Provided by quantum-kc-demo v0.4.0+. Older workloads omit this field;
+   * the fetcher coerces missing values to `false`. The badge sits at "Not
+   * configured" against an older workload until the next successful
+   * validation flips `authenticated:true` — harmless and self-healing.
+   */
+  tokenStored: boolean
+  /**
+   * Structured payload describing the most recent IBM-side validation
+   * error, when one occurred. `null` when validation succeeded or was not
+   * attempted. Provided by v0.4.0+ workloads.
+   */
+  lastIbmError: QuantumIbmError | null
 }
 
 export interface QuantumCircuitAsciiData {
@@ -139,6 +171,8 @@ c: 2/═══════════╩══╩═
 
 const DEFAULT_AUTH_STATUS: QuantumAuthStatus = {
   authenticated: false,
+  tokenStored: false,
+  lastIbmError: null,
 }
 
 async function fetchQuantumJson<T>(endpoint: string): Promise<T> {
@@ -162,9 +196,19 @@ async function fetchQuantumStatus(): Promise<QuantumSystemStatus> {
 }
 
 async function fetchQuantumAuthStatus(): Promise<QuantumAuthStatus> {
-  const response = await fetchQuantumJson<{ authenticated?: boolean }>(QUANTUM_AUTH_STATUS_ENDPOINT)
+  const response = await fetchQuantumJson<{
+    authenticated?: boolean
+    tokenStored?: boolean
+    lastIbmError?: QuantumIbmError | null
+  }>(QUANTUM_AUTH_STATUS_ENDPOINT)
+  // Coerce missing v0.4.0 fields to safe defaults so this hook works
+  // against pre-v0.4 workloads. `tokenStored:false` is the conservative
+  // choice; the Console badge falls back to "Not configured" until
+  // `authenticated:true` arrives, which self-heals on first valid check.
   return {
     authenticated: response.authenticated === true,
+    tokenStored: response.tokenStored === true,
+    lastIbmError: response.lastIbmError ?? null,
   }
 }
 
