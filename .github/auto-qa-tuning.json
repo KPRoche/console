@@ -61,12 +61,17 @@
     }
   },
   "weekly_insights": {
-    "best_pr_size": "L",
+    "best_pr_size": "XXL",
     "size_acceptance": {},
     "type_acceptance": {},
-    "common_rejection_reasons": [],
+    "common_rejection_reasons": [
+      "- PR #16145: Closing in favor of #16143 which covers the same scope and is further along in CI.",
+      "- PR #16141: ✅ **Security Review — APPROVED**",
+      "Simple CI addition: adds coverage threshold check using `go tool cover`. No secrets exposure, no elevated permissions, no external dependencies. Clean.",
+      "- PR #16105: Closing duplicate — #16104 is canonical (has fuller summary). Both fix #16100."
+    ],
     "best_change_type": "bug_fix",
-    "last_report_date": "2026-05-24"
+    "last_report_date": "2026-05-31"
   },
   "cncf_insights": {
     "last_scan_date": "2026-05-27",
