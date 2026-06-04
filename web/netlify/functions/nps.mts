@@ -53,7 +53,7 @@ interface NPSAggregation {
   scoreMax: number;
   /** Monthly trend: { month: "2026-04", npsScore, count } */
   trend: Array<{ month: string; npsScore: number; count: number; avgScore: number }>;
-  /** Recent responses (last 20, no feedback or PII — requires admin endpoint to access feedback) */
+  /** Recent responses (last 20, no PII) */
   recent: Array<{ score: number; category: string; timestamp: string }>;
 }
 
@@ -142,9 +142,7 @@ function computeAggregation(data: NPSData): NPSAggregation {
       return { month, npsScore: monthNps, count, avgScore: Math.round(avgScore * 10) / 10 };
     });
 
-  // Recent responses (strip sessionId and feedback for privacy)
-  // Note: Feedback is user-submitted content that may contain PII and is not included in the public response.
-  // To view feedback comments, an admin endpoint should be implemented with proper authorization.
+  // Recent responses (strip sessionId for privacy)
   const recent = responses
     .slice(-RECENT_COUNT)
     .reverse()
@@ -191,10 +189,6 @@ export default async (req: Request) => {
   const store = getStore(STORE_NAME);
 
   // ── GET: return aggregated results ──
-  // SECURITY: Returns only aggregate metrics and anonymized recent responses (no user feedback or PII).
-  // User-submitted feedback comments may contain emails, incident details, or other sensitive information
-  // and are not exposed in this public response. An authenticated admin endpoint would be required to
-  // access raw feedback. See CWE-200 and CWE-862.
   if (req.method === "GET") {
     try {
       const raw = await store.get(DATA_KEY);
@@ -231,6 +225,20 @@ export default async (req: Request) => {
         );
       }
 
+      const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+      if (contentLength > MAX_BODY_BYTES) {
+        return new Response(
+          JSON.stringify({ error: "Payload too large" }),
+          { status: 413, headers }
+        );
+      }
+
+      const body = await req.json();
+      const score = parseInt(body.score, 10);
+      let body: NPSSubmissionBody;
+      // SECURITY: Enforce body size on actual bytes read, not Content-Length header.
+      // Chunked encoding can bypass Content-Length checks (CWE-400).
+      let body: { score: unknown; feedback?: unknown; sessionId?: unknown };
       // SECURITY: Enforce body size on actual bytes, not Content-Length (CWE-400, #16666).
       let body: { score?: unknown; feedback?: unknown; sessionId?: unknown };
       try {
