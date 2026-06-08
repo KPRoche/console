@@ -12,7 +12,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/kubestellar/console/pkg/api/middleware"
 	"github.com/kubestellar/console/pkg/models"
 	"github.com/kubestellar/console/pkg/safego"
 	"github.com/kubestellar/console/pkg/stellar/prompts"
