@@ -67,7 +67,7 @@ function formatExecutionTime(timestamp: string | null): string | null {
 
 function HistogramLoadingState() {
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 flex flex-col gap-4" data-testid="quantum-histogram-skeleton">
       <div className="flex items-center justify-between gap-3">
         <Skeleton variant="text" width={HISTOGRAM_SKELETON_TITLE_WIDTH_PX} height={HISTOGRAM_SKELETON_TITLE_HEIGHT_PX} />
         <Skeleton variant="circular" width={HISTOGRAM_SKELETON_ACTION_SIZE_PX} height={HISTOGRAM_SKELETON_ACTION_SIZE_PX} />

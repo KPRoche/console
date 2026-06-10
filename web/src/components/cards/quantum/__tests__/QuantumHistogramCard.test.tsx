@@ -62,10 +62,14 @@ function defaultAuthReturn(overrides: Record<string, unknown> = {}) {
   }
 }
 
-// Stable epoch fixed at 2026-05-08T14:00:00Z (matches DEMO_HISTOGRAM.timestamp)
-// to avoid time-dependent test output. Override per-test if a specific
-// freshness window matters.
-const STABLE_LAST_REFRESH_MS = 1_778_421_600_000
+// Stable epoch derived from DEMO_HISTOGRAM.timestamp so the two stay in sync
+// if the demo timestamp ever changes. Override per-test if a specific
+// freshness window matters. Asserted at module load to fail fast if the
+// timestamp ever becomes unparseable.
+const STABLE_LAST_REFRESH_MS = Date.parse(DEMO_HISTOGRAM.timestamp ?? '')
+if (!Number.isFinite(STABLE_LAST_REFRESH_MS)) {
+  throw new Error('DEMO_HISTOGRAM.timestamp must be a parseable ISO string')
+}
 
 function defaultHookReturn(
   overrides: Partial<{
@@ -104,9 +108,9 @@ describe('QuantumHistogramCard', () => {
   it('renders loading skeleton while auth is loading', () => {
     mockUseAuth.mockReturnValue(defaultAuthReturn({ isLoading: true, isAuthenticated: false }))
 
-    const { container } = render(<QuantumHistogramCard />)
+    render(<QuantumHistogramCard />)
 
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('quantum-histogram-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('lazy-echart')).toBeNull()
   })
 
@@ -115,9 +119,9 @@ describe('QuantumHistogramCard', () => {
       defaultHookReturn({ isLoading: true, data: null }),
     )
 
-    const { container } = render(<QuantumHistogramCard />)
+    render(<QuantumHistogramCard />)
 
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('quantum-histogram-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('lazy-echart')).toBeNull()
   })
 
@@ -179,13 +183,9 @@ describe('QuantumHistogramCard', () => {
     )
 
     await waitFor(() => {
-      const reportedDemo = report.mock.calls.some(
-        (call) =>
-          call[0] &&
-          typeof call[0] === 'object' &&
-          (call[0] as { isDemoData?: boolean }).isDemoData === true,
+      expect(report).toHaveBeenCalledWith(
+        expect.objectContaining({ isDemoData: true }),
       )
-      expect(reportedDemo).toBe(true)
     })
   })
 
