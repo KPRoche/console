@@ -62,11 +62,19 @@ async function waitForQuantumPage(page: Page) {
 /**
  * Locate a quantum card by its CardWrapper title (h2). Scopes to the dashboard
  * cards grid (so headings reused elsewhere in the app — sidebar, nav, help
- * panels — cannot false-match), selects the `[data-card-type]` wrapper that
- * has a matching level-2 heading inside it. Level-2 anchors on the
- * CardWrapper title and avoids collisions with body subheadings (e.g.
- * "Execution Histogram" appears as both an h2 wrapper title and an h3 body
- * subheading on the histogram card).
+ * panels — cannot false-match), then selects the `[data-card-type]` wrapper
+ * whose subtree contains a matching level-2 heading.
+ *
+ * Note on `has:` semantics — the inner heading locator is built from `page`,
+ * not from `cardsGrid`. Playwright's `has:` filter applies the inner locator
+ * RELATIVE TO each candidate (each `[data-card-type]`), not against the page
+ * as a whole. Building it off a chained scope like `cardsGrid` breaks this
+ * relative resolution and matches zero cards. Page-rooted is the documented
+ * pattern; the outer `cardsGrid` chain still constrains the candidates.
+ *
+ * Level-2 + `exact: true` anchors on the CardWrapper title and avoids
+ * collisions with body subheadings (e.g. "Execution Histogram" renders as
+ * both an h2 wrapper title AND an h3 body subheading on the histogram card).
  */
 function findQuantumCardByHeading(page: Page, heading: string) {
   return page
@@ -84,14 +92,20 @@ test.describe('Quantum demo user flows', () => {
 
     const cardsGrid = page.getByTestId('dashboard-cards-grid')
 
-    // Each card's CardWrapper title (h2) must render exactly once inside the
-    // cards grid. `toHaveCount(1)` catches duplicate-render regressions that
-    // `.first()` would silently mask; level=2+exact pins the assertion to the
-    // wrapper title and not a body subheading.
+    // Each card's CardWrapper title (h2) must render exactly once AND be
+    // visible to the user. `toHaveCount(1)` catches duplicate-render
+    // regressions that `.first()` would silently mask; `toBeVisible` ensures
+    // the card is actually painted (not collapsed, hidden, or offscreen).
+    // level=2+exact pins the assertion to the wrapper title and not a body
+    // subheading.
     for (const heading of [HEADING_QUBIT_GRID, HEADING_HISTOGRAM, HEADING_CIRCUIT, HEADING_CONTROL_PANEL]) {
-      await expect(
-        cardsGrid.getByRole('heading', { level: 2, name: heading, exact: true })
-      ).toHaveCount(1, { timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
+      const cardHeading = cardsGrid.getByRole('heading', {
+        level: 2,
+        name: heading,
+        exact: true,
+      })
+      await expect(cardHeading).toHaveCount(1, { timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
+      await expect(cardHeading).toBeVisible({ timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
     }
 
     // Each card must mount with a `data-card-type` wrapper, proving the
@@ -116,8 +130,12 @@ test.describe('Quantum demo user flows', () => {
     const controlPanelCard = findQuantumCardByHeading(page, HEADING_CONTROL_PANEL)
     await expect(controlPanelCard).toHaveCount(1, { timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
 
-    await expect(
-      controlPanelCard.getByText(BADGE_NOT_CONFIGURED)
-    ).toBeVisible({ timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
+    // Assert uniqueness BEFORE visibility. `toBeVisible` runs in strict mode
+    // (no implicit `.first()`), so if the badge text appears more than once
+    // in the card body — e.g., a tooltip, status pill, or sr-only label —
+    // we want a clear strict-mode error, not a confusing visibility failure.
+    const badge = controlPanelCard.getByText(BADGE_NOT_CONFIGURED)
+    await expect(badge).toHaveCount(1, { timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
+    await expect(badge).toBeVisible({ timeout: ELEMENT_VISIBLE_TIMEOUT_MS })
   })
 })
