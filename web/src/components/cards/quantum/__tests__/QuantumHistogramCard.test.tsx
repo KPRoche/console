@@ -62,6 +62,11 @@ function defaultAuthReturn(overrides: Record<string, unknown> = {}) {
   }
 }
 
+// Stable epoch fixed at 2026-05-08T14:00:00Z (matches DEMO_HISTOGRAM.timestamp)
+// to avoid time-dependent test output. Override per-test if a specific
+// freshness window matters.
+const STABLE_LAST_REFRESH_MS = 1_778_421_600_000
+
 function defaultHookReturn(
   overrides: Partial<{
     data: HistogramData | null
@@ -83,8 +88,8 @@ function defaultHookReturn(
     error: null,
     isFailed: false,
     consecutiveFailures: 0,
-    lastRefresh: Date.now(),
-    refetch: vi.fn(),
+    lastRefresh: STABLE_LAST_REFRESH_MS,
+    refetch: vi.fn(async () => {}),
     ...overrides,
   }
 }
