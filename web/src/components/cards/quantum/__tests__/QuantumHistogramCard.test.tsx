@@ -104,9 +104,9 @@ describe('QuantumHistogramCard', () => {
   it('renders loading skeleton while auth is loading', () => {
     mockUseAuth.mockReturnValue(defaultAuthReturn({ isLoading: true, isAuthenticated: false }))
 
-    const { container } = render(<QuantumHistogramCard />)
+    render(<QuantumHistogramCard />)
 
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('quantum-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('lazy-echart')).toBeNull()
   })
 
@@ -115,9 +115,9 @@ describe('QuantumHistogramCard', () => {
       defaultHookReturn({ isLoading: true, data: null }),
     )
 
-    const { container } = render(<QuantumHistogramCard />)
+    render(<QuantumHistogramCard />)
 
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('quantum-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('lazy-echart')).toBeNull()
   })
 
@@ -179,13 +179,9 @@ describe('QuantumHistogramCard', () => {
     )
 
     await waitFor(() => {
-      const reportedDemo = report.mock.calls.some(
-        (call) =>
-          call[0] &&
-          typeof call[0] === 'object' &&
-          (call[0] as { isDemoData?: boolean }).isDemoData === true,
+      expect(report).toHaveBeenCalledWith(
+        expect.objectContaining({ isDemoData: true }),
       )
-      expect(reportedDemo).toBe(true)
     })
   })
 

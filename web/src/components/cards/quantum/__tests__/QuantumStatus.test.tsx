@@ -77,9 +77,9 @@ describe('QuantumStatus', () => {
       defaultHookReturn({ isLoading: true, data: null }),
     )
 
-    const { container } = render(<QuantumStatus />)
+    render(<QuantumStatus />)
 
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('quantum-skeleton')).toBeInTheDocument()
     expect(screen.queryByText('Refresh Interval')).toBeNull()
   })
 
@@ -110,13 +110,9 @@ describe('QuantumStatus', () => {
     )
 
     await waitFor(() => {
-      const reportedDemo = report.mock.calls.some(
-        (call) =>
-          call[0] &&
-          typeof call[0] === 'object' &&
-          (call[0] as { isDemoData?: boolean }).isDemoData === true,
+      expect(report).toHaveBeenCalledWith(
+        expect.objectContaining({ isDemoData: true }),
       )
-      expect(reportedDemo).toBe(true)
     })
   })
 
