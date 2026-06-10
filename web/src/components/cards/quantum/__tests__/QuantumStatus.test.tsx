@@ -79,7 +79,7 @@ describe('QuantumStatus', () => {
 
     render(<QuantumStatus />)
 
-    expect(screen.getByTestId('quantum-skeleton')).toBeInTheDocument()
+    expect(screen.getByTestId('quantum-status-skeleton')).toBeInTheDocument()
     expect(screen.queryByText('Refresh Interval')).toBeNull()
   })
 

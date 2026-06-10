@@ -50,7 +50,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
 
   if (authIsLoading) {
     return (
-      <div className="p-4 space-y-3" data-testid="quantum-skeleton">
+      <div className="p-4 space-y-3" data-testid="quantum-status-skeleton">
         <Skeleton variant="text" width="80%" height={20} />
         <Skeleton variant="text" width="60%" height={20} />
         <Skeleton variant="text" width="70%" height={20} />
@@ -74,7 +74,7 @@ export const QuantumStatus: React.FC<QuantumStatusProps> = ({ isDemoData = false
 
   if (showSkeleton) {
     return (
-      <div className="p-4 space-y-3" data-testid="quantum-skeleton">
+      <div className="p-4 space-y-3" data-testid="quantum-status-skeleton">
         <Skeleton variant="text" width="80%" height={20} />
         <Skeleton variant="text" width="60%" height={20} />
         <Skeleton variant="text" width="70%" height={20} />
