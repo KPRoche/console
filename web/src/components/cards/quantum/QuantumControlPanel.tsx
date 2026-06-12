@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { AlertCircle, Play, Zap, Key, Check, Trash2, ShieldCheck, RefreshCw } from 'lucide-react'
+import { AlertCircle, Play, Zap, Key, Check, Trash2, ShieldCheck, RefreshCw, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../lib/cn'
 import { useReportCardDataState } from '../CardDataContext'
