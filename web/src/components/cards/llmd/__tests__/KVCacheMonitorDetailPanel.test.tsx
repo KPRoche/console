@@ -41,11 +41,16 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('../KVCacheMonitorChart', () => ({
   default: () => <div data-testid="kvcache-chart">Chart</div>,
+  InfoSparkline: () => <div data-testid="kvcache-chart">Chart</div>,
+  SummaryStats: () => null,
+  TrendSparkline: () => null,
+  KVCacheMonitorVisualization: () => null,
 }))
 
 import { KVCacheMonitorDetailPanel } from '../KVCacheMonitorDetailPanel'
 
 describe('KVCacheMonitorDetailPanel', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockT = ((key: string, fallback?: string) => fallback || key) as any
 
   it('renders nothing when no selected pod', () => {

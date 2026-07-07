@@ -40,14 +40,17 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('lucide-react', () => ({
-  Grid3x3: () => <span>Grid</span>,
+  Grid3X3: () => <span>Grid</span>,
   Gauge: () => <span>Gauge</span>,
   Activity: () => <span>Activity</span>,
+  CircleDot: () => <span>CircleDot</span>,
+  Database: () => <span>Database</span>,
 }))
 
 import { KVCacheMonitorHeader } from '../KVCacheMonitorHeader'
 
 describe('KVCacheMonitorHeader', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockT = ((key: string, fallback?: string) => fallback || key) as any
 
   it('renders without crashing', () => {
@@ -80,6 +83,7 @@ describe('KVCacheMonitorHeader', () => {
       <KVCacheMonitorHeader
         viewMode="heatmap"
         aggregationMode="disaggregated"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         selectedStack={stack as any}
         isDemoMode={false}
         onViewModeToggle={vi.fn()}
