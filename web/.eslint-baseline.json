@@ -18928,20 +18928,6 @@
     "message": "'onDismiss' is assigned a value but never used. Allowed unused vars must match /^_/u."
   },
   {
-    "file": "src/lib/cards/__tests__/CardRuntime-coverage.test.tsx",
-    "rule": "@typescript-eslint/no-unused-vars",
-    "line": 1,
-    "column": 48,
-    "message": "'afterEach' is defined but never used. Allowed unused vars must match /^_/u."
-  },
-  {
-    "file": "src/lib/cards/__tests__/CardRuntime.test.tsx",
-    "rule": "@typescript-eslint/no-unused-vars",
-    "line": 1,
-    "column": 8,
-    "message": "'React' is defined but never used. Allowed unused vars must match /^_/u."
-  },
-  {
     "file": "src/lib/cards/__tests__/useStablePageHeight-coverage.test.ts",
     "rule": "@typescript-eslint/no-unused-vars",
     "line": 13,
@@ -19458,5 +19444,40 @@
     "line": 30,
     "column": 7,
     "message": "'APP_FILE' is assigned a value but never used. Allowed unused vars must match /^_/u."
+  },
+  {
+    "file": "src/hooks/__tests__/useResolutions.utils.test.ts",
+    "rule": "@typescript-eslint/no-unused-vars",
+    "line": 1,
+    "column": 44,
+    "message": "'vi' is defined but never used. Allowed unused vars must match /^_/u."
+  },
+  {
+    "file": "src/hooks/__tests__/useStackDiscovery.advanced.test.ts",
+    "rule": "@typescript-eslint/no-unused-vars",
+    "line": 2,
+    "column": 22,
+    "message": "'waitFor' is defined but never used. Allowed unused vars must match /^_/u."
+  },
+  {
+    "file": "src/hooks/__tests__/useStackDiscovery.advanced.test.ts",
+    "rule": "@typescript-eslint/no-unused-vars",
+    "line": 103,
+    "column": 10,
+    "message": "'makeHPA' is defined but never used. Allowed unused vars must match /^_/u."
+  },
+  {
+    "file": "src/hooks/__tests__/useStackDiscovery.advanced.test.ts",
+    "rule": "@typescript-eslint/no-unused-vars",
+    "line": 112,
+    "column": 10,
+    "message": "'makeWVA' is defined but never used. Allowed unused vars must match /^_/u."
+  },
+  {
+    "file": "src/hooks/__tests__/useStackDiscovery.advanced.test.ts",
+    "rule": "@typescript-eslint/no-unused-vars",
+    "line": 129,
+    "column": 10,
+    "message": "'makeGateway' is defined but never used. Allowed unused vars must match /^_/u."
   }
 ]
