@@ -269,7 +269,7 @@ jobs:
 
       - name: Update coverage badge gist (with regression guard)
         if: steps.failures.outputs.count == '0' && needs.test-shard.result != 'failure'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GIST_ID: ${{ env.GIST_ID }}
           COVERAGE_PCT: ${{ steps.cov.outputs.pct }}
@@ -384,7 +384,7 @@ jobs:
 
       - name: Open issue for test failures
         if: needs.test-shard.result == 'failure'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           FAILED_TESTS: ${{ steps.failures.outputs.list }}
           FAILED_COUNT: ${{ steps.failures.outputs.count }}
