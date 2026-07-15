@@ -62,6 +62,7 @@ interface HelmReleasesCache {
   timestamp: number
   consecutiveFailures: number
   lastError: string | null
+  isDemoData: boolean
   listeners: Set<(state: HelmReleasesCacheState) => void>
 }
 
@@ -72,6 +73,7 @@ interface HelmReleasesCacheState {
   consecutiveFailures: number
   lastError: string | null
   lastRefresh: number | null
+  isDemoData: boolean
 }
 
 // Load from localStorage
@@ -103,6 +105,7 @@ const helmReleasesCache: HelmReleasesCache = {
   timestamp: storedHelmReleases.timestamp,
   consecutiveFailures: 0,
   lastError: null,
+  isDemoData: false,
   listeners: new Set()
 }
 
@@ -121,6 +124,7 @@ export function useHelmReleases(cluster?: string) {
   const [lastRefresh, setLastRefresh] = useState<number | null>(
     helmReleasesCache.timestamp > 0 ? helmReleasesCache.timestamp : null
   )
+  const [isDemoData, setIsDemoData] = useState(helmReleasesCache.isDemoData)
 
   // Register this component to receive cache updates
   useEffect(() => {
@@ -131,6 +135,7 @@ export function useHelmReleases(cluster?: string) {
       setConsecutiveFailures(state.consecutiveFailures)
       setError(state.lastError)
       setLastRefresh(state.lastRefresh)
+      setIsDemoData(state.isDemoData)
     }
     helmReleasesCache.listeners.add(updateHandler)
     return () => { helmReleasesCache.listeners.delete(updateHandler) }
@@ -144,7 +149,8 @@ export function useHelmReleases(cluster?: string) {
       isRefreshing,
       consecutiveFailures: helmReleasesCache.consecutiveFailures,
       lastError: helmReleasesCache.lastError,
-      lastRefresh: helmReleasesCache.timestamp > 0 ? helmReleasesCache.timestamp : null
+      lastRefresh: helmReleasesCache.timestamp > 0 ? helmReleasesCache.timestamp : null,
+      isDemoData: helmReleasesCache.isDemoData
     }
     helmReleasesCache.listeners.forEach(listener => listener(state))
   })
@@ -180,10 +186,12 @@ export function useHelmReleases(cluster?: string) {
           helmReleasesCache.timestamp = Date.now()
           helmReleasesCache.consecutiveFailures = 0
           helmReleasesCache.lastError = null
+          helmReleasesCache.isDemoData = true
           notifyListeners(false)
         }
         setReleases(demoReleases)
         setLastRefresh(Date.now())
+        setIsDemoData(true)
         setIsLoading(false)
         setIsRefreshing(false)
         notifyListeners(false)
@@ -218,6 +226,7 @@ export function useHelmReleases(cluster?: string) {
             helmReleasesCache.timestamp = Date.now()
             helmReleasesCache.consecutiveFailures = 0
             helmReleasesCache.lastError = null
+            helmReleasesCache.isDemoData = false
             saveHelmReleasesToStorage(newReleases, helmReleasesCache.timestamp)
             notifyListeners(false)
           }
@@ -226,6 +235,7 @@ export function useHelmReleases(cluster?: string) {
           setError(null)
           setConsecutiveFailures(0)
           setLastRefresh(Date.now())
+          setIsDemoData(false)
         } catch {
           // SSE failed — fall through to REST
         }
@@ -247,6 +257,7 @@ export function useHelmReleases(cluster?: string) {
           helmReleasesCache.timestamp = Date.now()
           helmReleasesCache.consecutiveFailures = 0
           helmReleasesCache.lastError = null
+          helmReleasesCache.isDemoData = false
           saveHelmReleasesToStorage(newReleases, helmReleasesCache.timestamp)
           notifyListeners(false)
         }
@@ -255,6 +266,7 @@ export function useHelmReleases(cluster?: string) {
         setError(null)
         setConsecutiveFailures(0)
         setLastRefresh(Date.now())
+        setIsDemoData(false)
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch Helm releases'
@@ -277,9 +289,11 @@ export function useHelmReleases(cluster?: string) {
           // Update cache so notifyListeners in finally reflects demo data
           helmReleasesCache.data = demoReleases
           helmReleasesCache.timestamp = Date.now()
+          helmReleasesCache.isDemoData = true
         }
         setReleases(demoReleases)
         setLastRefresh(Date.now())
+        setIsDemoData(true)
       }
     } finally {
       setIsLoading(false)
@@ -333,7 +347,7 @@ export function useHelmReleases(cluster?: string) {
 
   const isFailed = consecutiveFailures >= 3
 
-  return { releases, isLoading, isRefreshing, error, refetch, consecutiveFailures, isFailed, lastRefresh }
+  return { releases, isLoading, isRefreshing, error, refetch, consecutiveFailures, isFailed, lastRefresh, isDemoData }
 }
 
 // Module-level cache for Helm history - keyed by cluster:release
@@ -382,6 +396,7 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(cachedEntry?.consecutiveFailures || 0)
   const [lastRefresh, setLastRefresh] = useState<number | null>(cachedEntry?.timestamp || null)
+  const [isDemoData, setIsDemoData] = useState(false)
 
   const refetch = useCallback(async () => {
     // Always set isRefreshing to show animation on manual refresh (even if returning early)
@@ -414,6 +429,7 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
         const demoHistory = getDemoHelmHistory()
         setHistory(demoHistory)
         setLastRefresh(Date.now())
+        setIsDemoData(true)
         setIsLoading(false)
         setTimeout(() => setIsRefreshing(false), MIN_REFRESH_INDICATOR_MS)
         return
@@ -432,6 +448,7 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
       setError(data.error || null)
       setConsecutiveFailures(0)
       setLastRefresh(Date.now())
+      setIsDemoData(false)
 
       // Update cache and persist to localStorage
       if (cluster && release) {
@@ -453,6 +470,7 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
         const demoHistory = getDemoHelmHistory()
         setHistory(demoHistory)
         setLastRefresh(Date.now())
+        setIsDemoData(true)
       }
 
       // Update cache failure count on error and persist
@@ -510,7 +528,7 @@ export function useHelmHistory(cluster?: string, release?: string, namespace?: s
 
   const isFailed = consecutiveFailures >= 3
 
-  return { history, isLoading, isRefreshing, error, refetch, isFailed, consecutiveFailures, lastRefresh }
+  return { history, isLoading, isRefreshing, error, refetch, isFailed, consecutiveFailures, lastRefresh, isDemoData }
 }
 
 // Module-level cache for Helm values - keyed by cluster:release:namespace
@@ -537,6 +555,7 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
   const [error, setError] = useState<string | null>(null)
   const [consecutiveFailures, setConsecutiveFailures] = useState(cachedEntry?.consecutiveFailures || 0)
   const [lastRefresh, setLastRefresh] = useState<number | null>(cachedEntry?.timestamp || null)
+  const [isDemoData, setIsDemoData] = useState(false)
 
   // Track the key we last initiated a fetch for (to avoid duplicate fetches)
   const fetchingKeyRef = useRef<string | null>(null)
@@ -573,6 +592,7 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
         setValues(demoValues)
         setFormat('json')
         setLastRefresh(Date.now())
+        setIsDemoData(true)
         setIsLoading(false)
         setTimeout(() => setIsRefreshing(false), MIN_REFRESH_INDICATOR_MS)
         return
@@ -595,6 +615,7 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
       setError(data.error || null)
       setConsecutiveFailures(0)
       setLastRefresh(Date.now())
+      setIsDemoData(false)
 
       // Update cache
       if (cluster && release && namespace) {
@@ -616,6 +637,7 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
         const demoVals = getDemoHelmValues()
         setValues(demoVals)
         setLastRefresh(Date.now())
+        setIsDemoData(true)
       }
 
       // Update cache failure count - read from cache directly
@@ -759,7 +781,7 @@ export function useHelmValues(cluster?: string, release?: string, namespace?: st
 
   const isFailed = consecutiveFailures >= 3
 
-  return { values, format, isLoading, isRefreshing, error, refetch, isFailed, consecutiveFailures, lastRefresh }
+  return { values, format, isLoading, isRefreshing, error, refetch, isFailed, consecutiveFailures, lastRefresh, isDemoData }
 }
 
 // Register with mode transition coordinator for unified cache clearing
